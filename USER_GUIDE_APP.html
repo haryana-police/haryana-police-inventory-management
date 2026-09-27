@@ -77,8 +77,21 @@
   <header>
     <h1>How the App Works (After Login)</h1>
     <div class="sub">Haryana Police Inventory Management System</div>
-    <span class="app-url">http://localhost:3210</span>
+    <span class="app-url">Runs on your own computer — usually http://localhost:3210</span>
   </header>
+
+  <div class="section">
+    <h2>Before You Start — Opening the App</h2>
+    <p>This app runs on the computer it is installed on. There is no online website and no internet connection is needed after the first start.</p>
+    <ol>
+      <li>Open the project folder and double-click <span class="ui">run-local.bat</span> (on other systems, run <span class="mono">npm start</span>).</li>
+      <li>A black console window opens and must stay open. That window <b>is</b> the app server — closing it stops the app.</li>
+      <li>Your browser opens automatically. If it does not, look at the <b>App:</b> line in the console and open that address — it is usually <span class="mono">http://localhost:3210</span>. If that port is already in use the server picks the next free one, so always open the exact address it prints.</li>
+      <li>When you finish, click the console window and press <b>Ctrl+C</b> to stop the server.</li>
+    </ol>
+    <div class="note"><b>Where your data lives:</b> everything is stored in one file — <span class="mono">local-data\db.json</span> in the project folder. To back up, copy that file somewhere safe. To start fresh, delete it and restart the server; the app then re-seeds its default data.</div>
+    <div class="tip"><b>Using it from a phone or another computer:</b> start the server on the main computer, then on the other device open <span class="mono">http://&lt;main computer's IP&gt;:3210</span>. To find that IP, run <span class="mono">ipconfig</span> on the main computer and read <i>IPv4 Address</i> (for example <span class="mono">192.168.1.5</span>). Both devices must be on the same office network, and the main computer must stay switched on.</div>
+  </div>
 
   <div class="section">
     <h2>1. The Main Screen</h2>

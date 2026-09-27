@@ -72,9 +72,22 @@
   </header>
 
   <div class="section">
+    <h2>Before You Start — Opening the App</h2>
+    <p>This app runs on the computer it is installed on — there is no online website, and no internet connection is needed after the first start.</p>
+    <ol>
+      <li>Open the project folder and double-click <b class="mono">run-local.bat</b> (on other systems, run <b class="mono">npm start</b>).</li>
+      <li>A black console window opens and must stay open. That window <b>is</b> the app server — closing it stops the app.</li>
+      <li>Your browser opens automatically. If it does not, look at the <b class="mono">App:</b> line in the console and open that address — it is usually <b class="mono">http://localhost:3210</b>. If that port is already in use the server picks the next free one, so always open the exact address it prints.</li>
+      <li>When you finish, click the console window and press <b class="mono">Ctrl+C</b> to stop the server.</li>
+    </ol>
+    <div class="note"><b>Where your data lives:</b> everything is stored in one file — <b class="mono">local-data\db.json</b> in the project folder. Copy that file to back up. Delete it and restart to start fresh.</div>
+    <div class="tip"><b>Using it from a phone or another computer:</b> start the server on the main computer, then open <b class="mono">http://&lt;main computer's IP&gt;:3210</b> on the other device. Find that IP by running <b class="mono">ipconfig</b> on the main computer and reading <i>IPv4 Address</i> (for example <b class="mono">192.168.1.5</b>). Both devices must be on the same office network.</div>
+  </div>
+
+  <div class="section">
     <h2>How to Log In</h2>
     <ol>
-      <li>Open <b class="mono">http://localhost:3210</b> in your browser.</li>
+      <li>With the server running, open the address it printed (usually <b class="mono">http://localhost:3210</b>) in your browser.</li>
       <li>Enter your <b>Username</b> and the <b>Password</b> provided to you by your admin (passwords are intentionally hidden in this guide).</li>
       <li>Click <b>Sign In</b>.</li>
       <li>Use the menu on the left to browse Dashboard, Inventory, Transactions, Demands, Inspections, Allotments, and Reports. The notification bell, <b>Users</b>, and <b>Districts</b> buttons are in the top bar.</li>

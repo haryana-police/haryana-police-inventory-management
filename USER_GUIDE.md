@@ -6,9 +6,22 @@ The app runs on your own computer. Start the server (`run-local.bat`, or `npm st
 
 ---
 
+## Before You Start — Opening the App
+
+1. Open the project folder and double-click `run-local.bat` (on other systems, run `npm start`).
+2. A black console window opens and must stay open. That window **is** the app server — closing it stops the app.
+3. Your browser opens automatically. If it does not, look at the `App:` line in the console and open that address — it is usually **http://localhost:3210**. If that port is already in use the server picks the next free one, so always open the exact address it prints.
+4. When you finish, click the console window and press **Ctrl+C** to stop the server.
+
+> **Where your data lives:** everything is stored in one file — `local-data\db.json` in the project folder. Copy that file to back up. Delete it and restart to start fresh.
+
+> **Using it from a phone or another computer:** start the server on the main computer, then open `http://<main computer's IP>:3210` on the other device. Find that IP by running `ipconfig` on the main computer and reading *IPv4 Address* (for example `192.168.1.5`). Both devices must be on the same office network.
+
+---
+
 ## How to Log In
 
-1. Open **http://localhost:3210** in your browser.
+1. With the server running, open the address it printed (usually **http://localhost:3210**) in your browser.
 2. Enter your **Username** and the **Password** provided to you by your admin (passwords are intentionally hidden in this guide).
 3. Click **Sign In**.
 4. Use the menu on the left to browse Dashboard, Inventory, Transactions, Demands, Inspections, Allotments, and Reports. The notification bell (top-right), **Users**, and **Districts** buttons are in the top bar.
