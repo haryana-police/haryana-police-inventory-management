@@ -22,9 +22,9 @@ The app runs on your own computer. Start the server (`run-local.bat`, or `npm st
 ## How to Log In
 
 1. With the server running, open the address it printed (usually **http://localhost:3210**) in your browser.
-2. Enter your **Username** and the **Password** provided to you by your admin (passwords are intentionally hidden in this guide).
+2. Enter your **Username** and **Password** — if you are using a fresh local install, they are listed in the table below.
 3. Click **Sign In**.
-4. Use the menu on the left to browse Dashboard, Inventory, Transactions, Demands, Inspections, Allotments, and Reports. The notification bell (top-right), **Users**, and **Districts** buttons are in the top bar.
+4. Use the menu on the left to browse Dashboard, Inventory, Consumable Items, Distribution, Item Issued, Demands, Maintenance, Inspections and Reports. The notification bell (top-right), **Users**, and **Districts** buttons are in the top bar.
 
 > First time here? You can request an account yourself from the login screen: click **"Request Access / Sign Up"** and fill the form. An admin will approve it and create your login. The login screen also has **Remember me** and **Show password** options, and in demo mode seeded accounts appear as one-click quick-login buttons below the form.
 
@@ -32,18 +32,22 @@ The app runs on your own computer. Start the server (`run-local.bat`, or `npm st
 
 ## User Credentials
 
-| Username  | Password    | Role              | Name                        | District  |
-|-----------|-------------|-------------------|-----------------------------|-----------|
-| developer | •••••••• | Developer Admin   | Developer Admin             | Gurugram  |
-| admin     | •••••••• | District Admin    | District Admin - Gurugram   | Gurugram  |
-| admin2    | •••••••• | District Admin    | District Admin - Faridabad  | Faridabad |
-| user      | •••••••• | General User      | General Staff               | Gurugram  |
-| mhc       | •••••••• | MHC               | MHC Officer - Gurugram      | Gurugram  |
-| station   | •••••••• | Station Manager   | Station Manager - Gurugram  | Gurugram  |
-| fbd_user  | •••••••• | General User      | Staff - Faridabad           | Faridabad |
-| fbd_mhc   | •••••••• | MHC               | MHC Officer - Faridabad     | Faridabad |
+| Username  | Password      | Role              | Name                        | District  |
+|-----------|---------------|-------------------|-----------------------------|-----------|
+| developer | `dev@123`     | Developer Admin   | Developer Admin             | Gurugram  |
+| admin     | `admin123`    | District Admin    | District Admin - Gurugram   | Gurugram  |
+| admin2    | `admin123`    | District Admin    | District Admin - Faridabad  | Faridabad |
+| user      | `user123`     | General User      | General Staff               | Gurugram  |
+| mhc       | `mhc123`      | MHC               | MHC Officer - Gurugram      | Gurugram  |
+| station   | `station123`  | Station Manager   | Station Manager - Gurugram  | Gurugram  |
+| fbd_user  | `user123`     | General User      | Staff - Faridabad           | Faridabad |
+| fbd_mhc   | `mhc123`      | MHC               | MHC Officer - Faridabad     | Faridabad |
 
-> **Passwords are not listed in this guide for security reasons.** If you do not know your password, an admin can reset it from the **Users** tab (Edit user → set a new password), or use **"Forgot Password?"** on the login screen.
+> **These are the factory-default passwords that come with a fresh local install.** They are listed here so you can open the app on your own computer straight away.
+>
+> ⚠️ **Change them before you put any real data in.** Sign in as `developer`, then open **Manage ▾ → Users**, edit each account and set a new password. Passwords are stored hashed, so nobody — not even the Developer Admin — can read them back.
+>
+> Forgot a password? An admin can reset it from **Manage ▾ → Users** (Edit user → set a new password), or use **"Forgot Password?"** on the login screen.
 
 ---
 
@@ -51,13 +55,18 @@ The app runs on your own computer. Start the server (`run-local.bat`, or `npm st
 
 | Role                | Access                                                                                             |
 |---------------------|----------------------------------------------------------------------------------------------------|
-| **Developer Admin** | Full access to everything, all districts, can create/edit/delete any user, manage approvals, switch districts. |
+| **Developer Admin** | Manages districts, district admins and locations; can switch districts. **Read-only** on inventory data, maintenance and profiles. |
 | **District Admin**  | Full access within their own district; can manage users in that district (but cannot create Admin/Developer Admin accounts). |
 | **MHC**             | Can view and record material/MHC entries within their district.                                     |
 | **TSI**             | Telecom / Signals inventory operator within their district (material, inspections, allotments).     |
 | **Station Manager** | Manages station-level inventory within their district.                                              |
+| **Staff**           | General staff of a unit; day-to-day entries within own location.                                   |
+| **Computer/IT Staff** | Receives maintenance requests of type **Computer / IT** automatically.                          |
+| **MTO Staff**       | Receives maintenance requests of type **Vehicle** automatically.                                   |
 | **Police Post**     | View / manage inventory for their post.                                                             |
 | **General User**    | Browsing and viewing data for their district.                                                       |
+
+> **Computer/IT Staff** and **MTO Staff** accounts are created automatically for each district and are not offered in the manual role dropdown. They land straight on the Maintenance screen after logging in.
 
 ---
 

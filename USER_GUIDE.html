@@ -88,9 +88,9 @@
     <h2>How to Log In</h2>
     <ol>
       <li>With the server running, open the address it printed (usually <b class="mono">http://localhost:3210</b>) in your browser.</li>
-      <li>Enter your <b>Username</b> and the <b>Password</b> provided to you by your admin (passwords are intentionally hidden in this guide).</li>
+      <li>Enter your <b>Username</b> and <b>Password</b> — on a fresh local install they are listed in the table below.</li>
       <li>Click <b>Sign In</b>.</li>
-      <li>Use the menu on the left to browse Dashboard, Inventory, Transactions, Demands, Inspections, Allotments, and Reports. The notification bell, <b>Users</b>, and <b>Districts</b> buttons are in the top bar.</li>
+      <li>Use the menu on the left to browse Dashboard, Inventory, Consumable Items, Distribution, Item Issued, Demands, Maintenance, Inspections and Reports. The notification bell, <b>Users</b>, and <b>Districts</b> buttons are in the top bar.</li>
     </ol>
     <p>On the login screen you can also use <b>Remember me</b> and <b>Show password</b>. In demo mode, seeded user accounts appear as quick-login buttons at the bottom of the login screen — click one to sign in instantly with that account.</p>
     <div class="note"><b>New here?</b> You can request an account yourself from the login screen — click <b>"Request Access / Sign Up"</b> and fill the form. An admin will approve it and create your login.</div>
@@ -103,30 +103,35 @@
         <tr><th>Username</th><th>Password</th><th>Role</th><th>District</th></tr>
       </thead>
       <tbody>
-        <tr><td class="mono">developer</td><td class="mono">••••••••</td><td>Developer Admin</td><td>Gurugram</td></tr>
-        <tr><td class="mono">admin</td><td class="mono">••••••••</td><td>District Admin</td><td>Gurugram</td></tr>
-        <tr><td class="mono">admin2</td><td class="mono">••••••••</td><td>District Admin</td><td>Faridabad</td></tr>
-        <tr><td class="mono">user</td><td class="mono">••••••••</td><td>General User</td><td>Gurugram</td></tr>
-        <tr><td class="mono">mhc</td><td class="mono">••••••••</td><td>MHC</td><td>Gurugram</td></tr>
-        <tr><td class="mono">station</td><td class="mono">••••••••</td><td>Station Manager</td><td>Gurugram</td></tr>
-        <tr><td class="mono">fbd_user</td><td class="mono">••••••••</td><td>General User</td><td>Faridabad</td></tr>
-        <tr><td class="mono">fbd_mhc</td><td class="mono">••••••••</td><td>MHC</td><td>Faridabad</td></tr>
+        <tr><td class="mono">developer</td><td class="mono">dev@123</td><td>Developer Admin</td><td>Gurugram</td></tr>
+        <tr><td class="mono">admin</td><td class="mono">admin123</td><td>District Admin</td><td>Gurugram</td></tr>
+        <tr><td class="mono">admin2</td><td class="mono">admin123</td><td>District Admin</td><td>Faridabad</td></tr>
+        <tr><td class="mono">user</td><td class="mono">user123</td><td>General User</td><td>Gurugram</td></tr>
+        <tr><td class="mono">mhc</td><td class="mono">mhc123</td><td>MHC</td><td>Gurugram</td></tr>
+        <tr><td class="mono">station</td><td class="mono">station123</td><td>Station Manager</td><td>Gurugram</td></tr>
+        <tr><td class="mono">fbd_user</td><td class="mono">user123</td><td>General User</td><td>Faridabad</td></tr>
+        <tr><td class="mono">fbd_mhc</td><td class="mono">mhc123</td><td>MHC</td><td>Faridabad</td></tr>
       </tbody>
     </table>
-    <div class="note"><b>Passwords are not listed in this guide for security reasons.</b> If you do not know your password, an admin can reset it from the <b>Users</b> tab (Edit user → set a new password), or use <b>"Forgot Password?"</b> on the login screen.</div>
+    <div class="note"><b>These are the factory-default passwords that come with a fresh local install.</b> They are listed here so you can open the app on your own computer straight away.</div>
+<div class="warn"><b>Change them before you put any real data in.</b> Sign in as <b>developer</b>, then open <b>Manage ▾ → Users</b>, edit each account and set a new password. Passwords are stored hashed, so nobody — not even the Developer Admin — can read them back. If you forget one, an admin can reset it from <b>Manage ▾ → Users</b> (Edit user → set a new password), or use <b>"Forgot Password?"</b> on the login screen.</div>
   </div>
 
   <div class="section">
     <h2>What Each Role Can Do</h2>
     <ul>
-      <li><span class="badge">Developer Admin</span>Full access to everything, all districts. Can create / edit / delete any user, manage approvals, switch districts.</li>
+      <li><span class="badge">Developer Admin</span>Manages districts, district admins and locations, and can switch districts. <b>Read-only</b> on inventory data, maintenance and profiles.</li>
       <li><span class="badge">District Admin</span>Full access within their own district. Can manage users in that district, but cannot create Admin or Developer Admin accounts.</li>
       <li><span class="badge">MHC</span>Can view and record material / MHC entries within their district.</li>
       <li><span class="badge">TSI</span>Telecom / Signals inventory operator within their district (material, inspections, allotments).</li>
       <li><span class="badge">Station Manager</span>Manages station-level inventory within their district.</li>
+      <li><span class="badge">Staff</span>General staff of a unit; day-to-day entries within own location.</li>
+      <li><span class="badge">Computer/IT Staff</span>Receives maintenance requests of type <b>Computer / IT</b> automatically. Lands straight on the Maintenance screen after logging in.</li>
+      <li><span class="badge">MTO Staff</span>Receives maintenance requests of type <b>Vehicle</b> automatically.</li>
       <li><span class="badge">Police Post</span>View / manage inventory for their post.</li>
       <li><span class="badge">General User</span>Browsing and viewing data for their district.</li>
     </ul>
+    <div class="note"><b>Computer/IT Staff</b> and <b>MTO Staff</b> accounts are created automatically for each district and are not offered in the manual role dropdown.</div>
   </div>
 
   <div class="section">
