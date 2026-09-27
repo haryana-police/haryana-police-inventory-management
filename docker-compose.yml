@@ -1,0 +1,12 @@
+services:
+  hp-inventory:
+    build: .
+    image: hp-inventory:latest
+    container_name: hp-inventory
+    ports:
+      # host 3211 -> container 3210 (host 3210 free for the local node server)
+      - "3211:3210"
+    volumes:
+      # data persists in this folder on the host (travels with the USB copy)
+      - ./local-data:/app/local-data
+    restart: unless-stopped

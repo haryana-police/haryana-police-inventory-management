@@ -1,0 +1,17 @@
+# Vercel upload ignore (2026.09.26) — local DB, secrets, bloat kabhi publicly deploy na ho
+node_modules
+local-data
+test
+.env*
+.env.local
+*.tar
+*.bak_*
+*.bak_presync
+*.pdf
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-*
+run-local.bat
+sync-prod.bat
+ims-server.log

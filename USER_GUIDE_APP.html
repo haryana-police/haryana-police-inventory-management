@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Haryana Police Inventory App — How the App Works (After Login)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #1f2937;
+    background: #eef1f5;
+    line-height: 1.55;
+  }
+  .page {
+    max-width: 840px;
+    margin: 24px auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 18px rgba(15, 40, 70, 0.12);
+    overflow: hidden;
+  }
+  header {
+    background: linear-gradient(120deg, #1d4ed8, #0f2f6b);
+    color: #fff;
+    padding: 30px 40px 24px;
+  }
+  header h1 { font-size: 24px; margin-bottom: 6px; }
+  header .sub { font-size: 14px; opacity: 0.9; }
+  header .app-url {
+    font-size: 14px; background: rgba(255,255,255,0.16);
+    display: inline-block; padding: 3px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.35); margin-top: 8px;
+  }
+  .section { padding: 22px 40px; border-bottom: 1px solid #e5e7eb; }
+  .section:last-child { border-bottom: none; }
+  h2 {
+    font-size: 17px; color: #1d4ed8; margin-bottom: 10px;
+    padding-bottom: 6px; border-bottom: 2px solid #e5e7eb;
+  }
+  h3 { font-size: 14.5px; color: #111827; margin: 12px 0 6px; }
+  p { margin-bottom: 8px; font-size: 13.5px; }
+  ol, ul { margin: 6px 0 8px 22px; font-size: 13.5px; }
+  li { margin-bottom: 5px; }
+  b { color: #0f2f6b; }
+  .mono { font-family: Consolas, "Courier New", monospace; }
+  .ui {
+    display: inline-block; background: #eef4ff; color: #1d4ed8;
+    border: 1px solid #c7d8ff; border-radius: 5px; padding: 1px 8px; font-size: 12.5px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; }
+  th, td { border: 1px solid #d1d5db; padding: 6px 9px; text-align: left; vertical-align: top; }
+  th { background: #eef4ff; color: #1d4ed8; font-weight: 600; }
+  tr:nth-child(even) td { background: #fafbfd; }
+  .note {
+    background: #fff7ed; border: 1px solid #fdba74; border-radius: 8px;
+    padding: 9px 13px; font-size: 12.5px; color: #7c2d12; margin-top: 10px;
+  }
+  .warn {
+    background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px;
+    padding: 9px 13px; font-size: 12.5px; color: #7f1d1d; margin-top: 8px;
+  }
+  .tip {
+    background: #ecfdf5; border: 1px solid #6ee7b7; border-radius: 8px;
+    padding: 9px 13px; font-size: 12.5px; color: #064e3b; margin-top: 8px;
+  }
+  footer { padding: 14px 40px; font-size: 12px; color: #6b7280; background: #f9fafb; text-align: center; }
+  @media print {
+    body { background: #fff; }
+    .page { margin: 0; box-shadow: none; border-radius: 0; max-width: none; }
+    header, .section { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <h1>How the App Works (After Login)</h1>
+    <div class="sub">Haryana Police Inventory Management System</div>
+    <span class="app-url">https://hp-inventory.vercel.app</span>
+  </header>
+
+  <div class="section">
+    <h2>1. The Main Screen</h2>
+    <p>After logging in, you see the app window with three main parts:</p>
+    <ul>
+      <li><b>Left sidebar</b> — menu with <span class="ui">Dashboard</span>, <span class="ui">Inventory</span>, <span class="ui">Transactions</span>, <span class="ui">Demands</span>, <span class="ui">Inspections</span>, <span class="ui">Item Issued</span>, <span class="ui">Reports</span>. Click any item to switch screens.</li>
+      <li><b>Top bar</b> — District selector, notification bell 🔔, your name and role badge, and (for admins) the <span class="ui">Districts</span> and <span class="ui">Users</span> buttons, plus <span class="ui">Logout</span>.</li>
+      <li><b>Main area</b> — the content of the selected screen (cards, tables, filters).</li>
+      <li><b>Long lists</b> — every record list (Inventory, Transactions, Demands, Inspections, Item Issued, Report details) shows up to <b>30 rows per page</b>. Under the table you see <i>“Showing X–Y of Z rows”</i> with <b>◀ Prev</b> and <b>Next ▶</b> buttons and page numbers; click a number to jump straight to that page. Filtering or searching starts again from page 1.</li>
+    </ul>
+    <div class="tip"><b>Sidebar collapse:</b> click the ☰ icon in the top bar to shrink / expand the sidebar — handy on small screens.</div>
+  </div>
+
+  <div class="section">
+    <h2>2. Dashboard</h2>
+    <p>An overview screen with clickable summary cards and two quick tables. Clicking a summary card opens a detail table showing exactly what that card counted, with a search box and <b>PDF / Excel / Word / Print</b> export options.</p>
+    <ul>
+      <li><b>Summary cards</b> — Total Items, Total Quantity, Low Stock Alerts, Categories, plus one card for each condition state: <b>Good, Poor, Damaged</b>. Click any card to open its detail view.</li>
+      <li><b>Low Stock table</b> — items that are at or below the minimum stock level, so you know what to re-order.</li>
+      <li><b>Recent Transactions</b> — latest additions/removals/transfers; click <span class="ui">View All</span> to open the full Transactions screen.</li>
+      <li>Both tables show a <b>Total</b> row at the bottom summing the quantity column.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>3. Inventory</h2>
+    <p>Master list of all items and their quantities, locations, and condition.</p>
+    <ul>
+      <li><span class="ui">+ Add Item</span> — add a new item (name, category, unit, min stock, location, condition). Enter the quantity for each condition state in the <b>Good / Poor / Damaged</b> boxes — the <b>Total Quantity</b> is calculated automatically, and the date added is recorded automatically (there is no manual quantity or date field).</li>
+      <li><span class="ui">Manage Categories</span> — all roles can view categories; showing the button is allowed for everyone.</li>
+      <li><b>Filters toolbar</b> — search by item name; filter by <i>category</i>, <i>location</i>, <i>condition</i>, and date-added range. Use <span class="ui">Clear</span> to reset.</li>
+      <li><b>Condition &amp; status</b> — every item row shows its condition breakdown with a colour bar (Good / Poor / Damaged) and a stock status badge (<b>OK</b>, <b>Low</b>, or <b>Out</b>).</li>
+      <li><b>Export / Print</b> — click <span class="ui">Download / Print ▾</span> to save as PDF, Excel, or Word, or print the current list.</li>
+      <li>Each row has an <b>Actions</b> button to edit or delete the item.</li>
+      <li>The table shows a bold <b>Total</b> row at the bottom that sums the quantity column for the currently filtered list.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>4. Transactions</h2>
+    <p>Records every change of stock to keep a full audit trail with dates, locations, and the person responsible.</p>
+    <ul>
+      <li><span class="ui">+ New Transaction</span> and choose a type:
+        <ul>
+          <li><b>Addition (+)</b> — new stock received (external or from a location).</li>
+          <li><b>Removal (−)</b> — stock issued / consumed / written off.</li>
+          <li><b>Transfer</b> — moved between two locations.</li>
+        </ul>
+      </li>
+      <li><b>Search &amp; filter</b> — search box, date <span class="ui">From/To</span>, and <span class="ui">Type</span> filter; <span class="ui">Clear</span> resets.</li>
+      <li><b>Export / Print</b> — download the filtered list as PDF / Excel / Word, or print.</li>
+      <li><b>Correction workflow:</b> to fix a transaction, click <span class="ui">Action</span> → propose new quantity/notes. The request goes to the other side (e.g. the receiving district) for approval. Once approved, the transaction shows an <i>Edited</i> badge. A transaction can be edited this way only once — further changes need a new transaction.</li>
+    </ul>
+    <div class="tip">Transfer transactions are approved by the receiving party; this keeps both districts in agreement about what moved.</div>
+  </div>
+
+  <div class="section">
+    <h2>5. Demands</h2>
+    <p>Formal requests for material from another district / post.</p>
+    <ul>
+      <li><span class="ui">+ Raise Demand</span> — select item, quantity, category, condition, urgency (normal/urgent/critical), reason, and the destination district + location.</li>
+      <li><b>Summary cards</b> — click Total / Pending / Approved / Rejected to jump to that filtered list.</li>
+      <li><b>Search &amp; filter</b> — by text, status, and date range.</li>
+      <li><b>Review demand (on the receiving side):</b> open a pending demand, see full details, then <b>Approve &amp; Submit</b> or <b>Reject</b> (a rejection reason is required).</li>
+      <li><b>Export / Print</b> — download as PDF / Excel / Word or print.</li>
+    </ul>
+    <div class="note">When you raise a demand, the target district's admin receives a notification under the 🔔 bell, so they know to review it.</div>
+  </div>
+
+  <div class="section">
+    <h2>6. Inspections</h2>
+    <p>Records of asset inspections (Routine / Special / Annual).</p>
+    <ul>
+      <li><span class="ui">+ Add Inspection</span> — item/asset, inspected by, type, date, location, findings, recommendations, status.</li>
+      <li><b>Summary cards</b> — Completed / Pending / Overdue counts; click to filter.</li>
+      <li><b>Search &amp; filter</b> — by text, type, and status.</li>
+      <li><b>Export / Print</b> — PDF / Excel / Word / Print.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>7. Item Issued</h2>
+    <p>Issue items to personnel and track returns. It works on one simple rule: <b>Total Qty = Available + Issued + Damaged/Lost</b>. You can never issue more than what is currently available, and quantities can never go negative.</p>
+    <p>The screen has three tabs at the top:</p>
+    <ul>
+      <li><b>Item Stock</b> — every item with <b>Total Qty</b>, <b>Available</b>, and <b>Issued</b> figures. Use the search box, category filter, or the <b>All / Issued / Available</b> dropdown (see below). Click any column heading to <b>sort</b>. The <span class="ui">Adjust Stock</span> button records adjustments. Each row shows <span class="ui">View</span>, and (if you may edit) <span class="ui">Edit</span> and <span class="ui">Adjust</span>. A bold <b>Total</b> row sums the quantity columns.</li>
+      <li><b>Issued Items</b> — the full issued-items register with the person's <b>Name</b>, <b>Post/Rank</b>, <b>BELT No.</b>, <b>Posting</b>, the <b>Item</b>, <b>Qty</b> still with the person, and <b>Date / Time / Status</b>.</li>
+      <li><b>Return History</b> — every recorded return with quantity, condition, who received it, and remarks.</li>
+    </ul>
+    <h3>Finding items in Item Stock</h3>
+    <ul>
+      <li><b>Search</b> — type into the search box; it looks across <b>item name, category, unit and location</b>. You can type several words, e.g. <span class="mono">wireless pcs</span>, and only rows matching all of them are shown.</li>
+      <li><b>Sort</b> — click <b>Item Name, Category, Total Qty, Available, Issued</b> or <b>Status</b> to sort the table; click the same column again to reverse (▲/▼ shows the direction).</li>
+      <li><b>All / Issued / Available</b> dropdown — <span class="ui">All Stock</span> shows everything, <span class="ui">Only Issued</span> shows just items that are currently issued out (<i>issued &gt; 0</i>), and <span class="ui">Only Available</span> shows just items with stock still on hand (<i>available &gt; 0</i>).</li>
+    </ul>
+    <h3>Issuing items</h3>
+    <ol>
+      <li>Click <span class="ui">+ Issue Items</span> at the top of the Item Issued screen (or the Inventory screen).</li>
+      <li>In <b>Person details</b>, start typing a name or BELT number — matching personnel appear for instant fill. Otherwise enter name, post/rank, BELT number, and posting.</li>
+      <li>Under <b>Item details</b>, pick a <b>Category</b> first — only then does the <b>Item</b> drop-down unlock, showing just the items in that category. Choose the item; balance chips show its Total / Available / Issued.</li>
+      <li>Enter the item <b>Quantity</b>. You can issue items from <b>different categories and quantities in one go</b>: press <span class="ui">+ Add Item</span> to add more rows (Category → Item → Qty each). You can also remove a row with the <b>×</b> in its corner.</li>
+      <li>If any quantity exceeds the available stock, you get the message <i>“Insufficient stock for … Only X units available.”</i></li>
+      <li>Set date/time (usually today) and optional remarks, then press <span class="ui">Issue Items</span> — every row is issued together under one issue record.</li>
+    </ol>
+    <div class="warn">After an issue is saved it is locked: you can only change the <b>quantity</b>. Person details, item, category, date, time, and remarks cannot be edited anymore.</div>
+    <h3>Editing and cancelling an issue</h3>
+    <ul>
+      <li><span class="ui">Edit</span> on an active issue record — only the <b>quantity</b> can be changed (never below what has already been returned). All other fields appear greyed-out/locked. Increasing the quantity re-checks available stock.</li>
+      <li><span class="ui">Cancel</span> — closes the issue record and returns the remaining units to stock.</li>
+    </ul>
+    <h3>Processing a return</h3>
+    <ol>
+      <li>On an active issue record, click <span class="ui">Return</span>.</li>
+      <li>Enter the <b>Return Quantity</b> (partial returns are allowed — it shows how many units are still to be returned).</li>
+      <li>Choose the <b>Condition</b> on return: <b>Good</b> (adds the units back to available), <b>Damaged</b>, <b>Lost</b>, or <b>Other</b>.</li>
+      <li>Save — the stock figures update immediately and the return appears in Return History. Returns that are damaged or lost are tracked separately in the <b>Damaged / Lost</b> columns.</li>
+    </ol>
+    <h3>Adjusting stock</h3>
+    <p><span class="ui">Adjust</span> (on the Item Stock tab) lets you record <b>Stock Added</b>, <b>Stock Correction (set total)</b>, <b>Written Off</b>, <b>Mark Damaged</b>, or <b>Mark Lost</b>. The corrected total can never be set below the units currently held (issued + damaged + lost). Every adjustment is written to the item's transaction history.</p>
+    <h3>Viewing details and history</h3>
+    <ul>
+      <li><span class="ui">View</span> on an item — <b>Currently Issued To</b> (who holds it now) and its <b>Transaction History</b> (issues, returns, adjustments).</li>
+      <li>Click a person's <b>Name</b> in the Issued Items list to see that person's <b>Currently Issued Items</b> and <b>Returned / Settled Items</b>.</li>
+    </ul>
+    <h3>Search, filter, and export</h3>
+    <ul>
+      <li>Issued Items — search by name / belt / item / posting / rank, plus filters for <b>Category</b>, <b>Item</b>, <b>Posting</b>, <b>Rank</b>, <b>Status</b>, and date range; <span class="ui">Clear</span> resets everything.</li>
+      <li>Each tab has <span class="ui">Download / Print ▾</span> — export the current list as <b>PDF</b>, <b>Excel</b>, or <b>Word</b>, or print it. Exports include the <b>Total</b> row.</li>
+    </ul>
+    <div class="warn">Issued items respect the same role limits as the rest of the app: who can issue, edit, return, and cancel is controlled by the user's role, and station/post users only ever see their own location's data.</div>
+  </div>
+
+  <div class="section">
+    <h2>8. Scan &amp; Import (OCR)</h2>
+    <p>Automatically read a filled application / receipt document and let the app fill in an issue record for you — always with a human verification step before anything is saved. The button <span class="ui">Scan &amp; Import</span> is available on both the <b>Item Issued</b> and the <b>Inventory</b> screen; the <span class="ui">Scans</span> button shows every document you have imported.</p>
+    <h3>Supported formats</h3>
+    <p>Images (JPG / PNG / WebP / BMP), PDF (text or scanned), Word (DOCX), Excel (XLSX), and TXT / CSV. The reading is done <b>in your browser</b> — the file is not uploaded before you confirm it.</p>
+    <h3>How it works</h3>
+    <ol>
+      <li>Click <span class="ui">Scan &amp; Import</span>, then click or drag a file onto the upload box.</li>
+      <li>Press <span class="ui">Scan Document</span>. The app reads the document (progress is shown; the OCR model downloads once on first use) and automatically extracts person details — <b>Name</b>, <b>Post / Rank</b>, <b>BELT No.</b>, <b>Posting</b> — and the <b>Items + Quantities</b> by matching against your item list.</li>
+      <li>The <b>Review &amp; Verify</b> screen opens with every field pre-filled and <b>editable</b>. Correct anything the computer misread, add or remove item rows, and check the <b>Raw extracted text</b> panel if you want to compare with the original.</li>
+      <li>Only when you press <span class="ui">Verify &amp; Insert Data</span> is anything saved: the person is created (if new), the issue appears in <b>Issued Items</b>, and item stock is reduced — exactly as if you issued it manually.</li>
+      <li>The original document is stored with the record. Open <span class="ui">Scans</span> → <span class="ui">View</span> to see or download the original file, the person it was issued to, the items, date, and who verified it.</li>
+    </ol>
+    <div class="note">Items are matched by name, so scanned items must already exist in your inventory to be recognised. A quantity that exceeds available stock is blocked at verification, just like a manual issue. The scan is only saved after human verification — nothing is ever inserted automatically without your confirmation.</div>
+  </div>
+
+  <div class="section">
+    <h2>9. Reports</h2>
+    <p>Three ready-made reports. Switch with the tabs at the top of the screen. Reports respect your role — for example, a post or station user only ever sees their own location's data in every report and export.</p>
+    <ul>
+      <li><b>Stock Report</b> — current stock position by item, with clickable summary cards: <b>Total Items</b>, <b>In Stock</b>, <b>Low Stock</b>, <b>Out of Stock</b>, <b>Good Units</b>, <b>Poor Units</b>, and <b>Damaged Units</b>. Click any card to open a detail table of exactly those items, with a search box and <b>PDF / Excel / Word / Print</b> export.</li>
+      <li><b>Category Breakdown</b> — items grouped by category with quantities.</li>
+      <li><b>Location Report</b> — stock grouped by location / station.</li>
+      <li><b>Search</b> — type in the search box to filter the current report instantly.</li>
+      <li><b>Sort</b> — click any column heading to sort; click again to reverse the order.</li>
+      <li><b>Download / Print ▾</b> — export the report as <b>PDF</b>, <b>Excel</b>, or <b>Word</b>, or print it.</li>
+      <li>Every report table has a bold <b>Total</b> row at the bottom summing its quantity columns; when you export a report or a card's detail view, the total row is included in the PDF / Excel / Word file and in Print.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>10. Notifications (🔔 Bell)</h2>
+    <p>Click the bell in the top-right corner to open the notifications panel. The red number shows unread items.</p>
+    <ul>
+      <li>See new demands, access requests, approvals/rejections, and password-reset requests.</li>
+      <li>Use <span class="ui">Mark all read</span> to clear the counter.</li>
+      <li>Admins can act directly on some notifications (e.g. approve an access request right from the panel).</li>
+    </ul>
+    <div class="note">Notification scope: the Developer Admin sees notifications across all districts (up to 30), while other users see only their own district (up to 20).</div>
+  </div>
+
+  <div class="section">
+    <h2>11. Users &amp; Districts (Admin Options)</h2>
+    <ul>
+      <li><span class="ui">Users</span> — create, edit, or remove user accounts and their roles. When you edit a user you may set a new password (leave blank to keep the current one).</li>
+      <li><span class="ui">Districts</span> — manage districts and their locations/stations (devadmin).</li>
+      <li><b>District selector</b> — devadmin can switch the district being viewed; other users are locked to their own district.</li>
+    </ul>
+    <div class="warn">Only create accounts for people who genuinely need access. Admin accounts are powerful — never create admin accounts for general staff.</div>
+  </div>
+
+  <div class="section">
+    <h2>12. Roles at a Glance</h2>
+    <table>
+      <thead><tr><th>Role</th><th>Typical use</th></tr></thead>
+      <tbody>
+        <tr><td><b>Developer Admin</b></td><td>Everything, all districts, user + district management.</td></tr>
+        <tr><td><b>District Admin</b></td><td>Full control within own district; manages that district's users &amp; demands.</td></tr>
+        <tr><td><b>Station Manager</b></td><td>Manages station-level inventory, transactions, and issued items in own district.</td></tr>
+        <tr><td><b>MHC</b></td><td>Records material/MHC entries, inspections, and can issue items and process returns.</td></tr>
+        <tr><td><b>TSI</b></td><td>Telecom / Signals inventory operator within their district.</td></tr>
+        <tr><td><b>Police Post</b></td><td>View/manage inventory, transactions, and issued items for a post.</td></tr>
+        <tr><td><b>General User</b></td><td>Viewing data for their district; can raise demands.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>13. Good Practices</h2>
+    <ul>
+      <li>Always press <span class="ui">Logout</span> on shared devices.</li>
+      <li>Keep your password private — it is stored hashed and cannot be read by anyone.</li>
+      <li>Use <span class="ui">Forgot Password?</span> on the login screen if you need a reset; the admin is notified automatically.</li>
+      <li>Wrong login? Passwords are checked server-side; repeated failures are rate-limited for your protection.</li>
+    </ul>
+  </div>
+
+  <footer>Haryana Police Inventory — Internal User Guide · Section 2: Using the App</footer>
+</div>
+</body>
+</html>

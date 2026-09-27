@@ -1,0 +1,3217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Haryana Police – Inventory Management System</title>
+    <link href="vendor/fonts/inter.css" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=2026.09.211">
+  <script>
+    (function () {
+      try { if (localStorage.getItem("hpi_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
+    })();
+  </script>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='15' width='100' height='100' fill='%231e3a5f'/><text x='50' y='65' font-family='Arial,sans-serif' font-size='40' font-weight='bold' fill='%23ffd700' text-anchor='middle'>HP</text></svg>">
+  <script src="vendor/jspdf/jspdf.umd.min.js" defer></script>
+  <script src="vendor/jspdf/jspdf.plugin.autotable.min.js" defer></script>
+  <script src="vendor/tesseract/tesseract.min.js" defer></script>
+  <script src="vendor/pdfjs/pdf.min.js" defer></script>
+  <script src="vendor/mammoth/mammoth.browser.min.js" defer></script>
+  <script src="vendor/xlsx/xlsx.full.min.js" defer></script>
+</head>
+<body>
+
+<!-- ==================== LOGIN SCREEN ==================== -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-emblem">
+      <div class="emblem-shield">
+        <img src="logo.jpg" alt="Haryana Police" style="width:80px;height:90px;object-fit:contain;">
+      </div>
+    </div>
+    <h1 class="login-title">Haryana Police</h1>
+    <p class="login-subtitle">Inventory Management System</p>
+    <div class="quick-login hidden" id="quickLogin">
+      <div class="quick-login-label">Quick Login</div>
+      <div class="quick-login-list" id="quickLoginList"></div>
+    </div>
+    <form id="loginForm" autocomplete="off">
+      <div class="form-group">
+        <label for="loginUser">Username</label>
+        <input type="text" id="loginUser" required placeholder="Enter your username" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label for="loginPass">Password</label>
+        <div class="password-wrap">
+          <input type="password" id="loginPass" required placeholder="Enter your password" autocomplete="current-password">
+          <button type="button" class="toggle-pass" id="togglePass" tabindex="-1" aria-label="Show password">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="login-remember">
+        <label class="checkbox-label">
+          <input type="checkbox" id="rememberMe" checked>
+          <span>Remember me</span>
+        </label>
+      </div>
+      <p class="login-error hidden" id="loginError">Invalid username or password</p>
+      <button type="submit" class="btn btn-primary btn-block" id="loginBtn">
+        <span class="btn-text">Sign In</span>
+        <span class="btn-loader hidden" id="loginLoader"></span>
+      </button>
+      <div class="forgot-pass-wrap">
+        <button type="button" class="forgot-pass-link" id="forgotPassBtn">Forgot Password?</button>
+        <span class="login-sep">|</span>
+        <button type="button" class="forgot-pass-link" id="requestAccessBtn">Request Access / Sign Up</button>
+      </div>
+    </form>
+    <div class="login-footer">
+      <p class="login-hint">Authorized personnel only. Contact your system administrator for access.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MAIN APP ==================== -->
+<div class="app hidden" id="appRoot">
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <img src="logo.jpg" alt="Haryana Police" class="sidebar-logo">
+      <div class="sidebar-brand-text">
+        <h1>Haryana Police</h1>
+        <p>Inventory System</p>
+      </div>
+    </div>
+    <div class="sidebar-collapsed-logo">
+      <img src="logo.jpg" alt="HP" class="collapsed-shield">
+    </div>
+
+    <nav class="sidebar-nav" id="sidebarNav">
+      <button class="sidebar-link active" data-tab="dashboard">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>Dashboard</span>
+      </button>
+      <button class="sidebar-link" data-tab="inventory">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        <span>Inventory</span>
+      </button>
+      <button class="sidebar-link" data-tab="consumables">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20h20M5 20V9m5 11V9m4 11V5m5 15v-7"/><circle cx="12" cy="12" r="0" fill="none"/><path d="M12 3a9 9 0 0 1 9 9" stroke-dasharray="2 3"/></svg>
+        <span>Consumable Items</span>
+        <span class="demand-dot" id="consDot" style="display:none" title="Consumable requests to approve"></span>
+      </button>
+      <button class="sidebar-link" data-tab="distribution">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/><path d="M7 8l5-5 5 5M7 16l5 5 5-5"/></svg>
+        <span>Distribution</span>
+        <span class="demand-dot" id="distDot" style="display:none" title="Distribution assigned to you"></span>
+      </button>
+      <button class="sidebar-link" data-tab="allotments">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        <span>Item Issued</span>
+      </button>
+<button class="sidebar-link" data-tab="demands">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5"/></svg>
+        <span>Demands</span>
+        <span class="demand-dot" id="demandDot" style="display:none" title="New demand assigned to you"></span>
+      </button>
+      <button class="sidebar-link" data-tab="maintenance">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+        <span>Maintenance</span>
+        <span class="demand-dot" id="maintDot" style="display:none" title="Maintenance action required"></span>
+      </button>
+      <button class="sidebar-link" data-tab="inspections">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 14l2 2 4-4"/></svg>
+        <span>Inspections</span>
+      </button>
+      <button class="sidebar-link" data-tab="reports">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Reports</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar" id="sidebarAvatar">A</div>
+        <div class="sidebar-user-info">
+          <span class="sidebar-user-name" id="sidebarUserName">Admin</span>
+          <span class="sidebar-user-role" id="sidebarUserRole">District Admin</span>
+          <span class="sidebar-version" id="appVersion"></span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- RIGHT CONTENT -->
+  <div class="content-area">
+
+    <!-- TOP BAR (slim) -->
+    <header class="topbar" id="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="district-selector">
+          <label class="district-label">District:</label>
+          <select id="districtSelect" class="district-select"></select>
+        </div>
+      </div>
+<div class="topbar-right">
+        <button class="theme-toggle" id="themeToggle" title="Toggle dark / light theme" aria-label="Toggle theme">
+          <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button class="btn btn-sm btn-outline-light lang-toggle" id="langToggleBtn" title="Switch language / भाषा बदलें">हिन्दी</button>
+        <div class="rt-status" id="rtStatus" title="Live connection status" style="display:none">
+          <span class="rt-dot"></span><span class="rt-label" id="rtStatusLabel">Live</span>
+        </div>
+        <div class="notif-wrapper">
+          <button class="notif-bell" id="notifBell" title="Notifications">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+            <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+          </button>
+          <div class="notif-panel hidden" id="notifPanel">
+<div class="notif-panel-header">
+              <span>Notifications</span>
+              <span class="notif-panel-actions">
+                <button class="btn btn-sm btn-outline" id="notifSoundToggle" title="Toggle notification sound">🔔</button>
+                <button class="btn btn-sm btn-outline" id="viewNotifAllBtn">View all</button>
+                <button class="btn btn-sm btn-outline" id="markAllReadBtn">Mark all read</button>
+              </span>
+            </div>
+            <div class="notif-list" id="notifList"></div>
+          </div>
+        </div>
+        <div class="user-section">
+        <div class="nav-manage-wrap" data-admin-only>
+          <button class="btn btn-sm btn-gold" id="manageMenuBtn" title="Manage">Manage <span class="manage-caret">&#9662;</span></button>
+          <div class="manage-menu hidden" id="manageMenu">
+            <button type="button" class="manage-menu-item" data-maction="districts" data-dev-only><span class="mm-ic">&#128204;</span>Districts</button>
+            <button type="button" class="manage-menu-item" data-maction="users" data-admin-only><span class="mm-ic">&#128101;</span>Users</button>
+            <button type="button" class="manage-menu-item" data-maction="locations" data-admin-only><span class="mm-ic">&#128205;</span>Locations</button>
+          </div>
+        </div>
+          <span class="district-badge" id="districtBadge"></span>
+          <div class="user-id-block">
+            <span class="user-id-name" id="userDisplayName"></span>
+            <span class="user-id-role" id="userRoleBadge"></span>
+          </div>
+          <button class="btn btn-sm btn-outline-light" id="logoutBtn">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="main-content" id="mainContent">
+
+    <!-- ========== DASHBOARD VIEW ========== -->
+    <section id="view-dashboard" class="view">
+      <div class="page-header">
+        <h2>Dashboard</h2>
+        <p class="page-subtitle" id="dashboardSubtitle">Overview of inventory status</p>
+      </div>
+
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card clickable stat-total">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statTotalItems">0</span>
+            <span class="stat-label">Total Items</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-stock">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statTotalQuantity">0</span>
+            <span class="stat-label">Total Quantity</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-low">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statLowStock">0</span>
+            <span class="stat-label">Low Stock Alerts</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-categories">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statCategories">0</span>
+            <span class="stat-label">Categories</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-damaged">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statDamaged">0</span>
+            <span class="stat-label">Scrap</span>
+          </div>
+        </div>
+<div class="stat-card clickable stat-poor">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statPoor">0</span>
+            <span class="stat-label">Damaged</span>
+          </div>
+        </div>
+<div class="stat-card clickable stat-good">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statGood">0</span>
+            <span class="stat-label">Good</span>
+          </div>
+        </div>
+</div>
+
+      <div class="dashboard-charts">
+        <div class="card chart-card">
+          <div class="card-header"><h3>Stock by Category</h3><span class="rt-pill-mini">Top 8</span></div>
+          <div class="chart-body" id="chartCategoryBars"></div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-header"><h3>Condition Health</h3><span class="rt-pill-mini">Units by condition</span></div>
+          <div class="chart-body" id="chartConditionStack"></div>
+        </div>
+      </div>
+
+      <div class="dashboard-grid">
+        <div class="card">
+          <div class="card-header">
+            <h3>Low Stock Items</h3>
+            <button class="btn btn-sm btn-outline" data-goto="inventory">View All</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th class="sortable" data-sort-col="0" tabindex="0" aria-sort="none">Item <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="1" tabindex="0" aria-sort="none">Category <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="2" tabindex="0" aria-sort="none">Current <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="3" tabindex="0" aria-sort="none">Min Required <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="4" tabindex="0" aria-sort="none">Reorder <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="5" tabindex="0" aria-sort="none" title="Sort by Good quantity">Condition <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="6" tabindex="0" aria-sort="none" title="Sort by status (Out of Stock first)">Status <span class="sort-arrow"></span></th></tr>
+              </thead>
+              <tbody id="lowStockBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      <div class="card rt-feed-card">
+        <div class="card-header">
+          <h3>Recent Activity</h3>
+          <span class="rt-pill-mini"><span class="rt-dot"></span><span id="rtStatusLabel2">Live</span></span>
+        </div>
+        <div class="feed-list" id="rtFeed"></div>
+      </div>
+      </div>
+    </section>
+
+    <!-- ========== INVENTORY VIEW ========== -->
+    <section id="view-inventory" class="view hidden">
+      <div class="page-header">
+        <h2>Inventory</h2>
+        <div class="page-actions">
+          <button class="btn btn-outline" id="allocAddStockBtn">+ Add Stock</button>
+          <button class="btn btn-outline" id="itemImportBtn">Import from Excel</button>
+          <button class="btn btn-outline" id="documentsBtn">Documents</button>
+          <button class="btn btn-outline" id="manageCatsBtn">Manage Categories</button>
+        </div>
+      </div>
+
+            <div class="report-tabs">
+        <button class="report-tab active" data-invt="stock">Item Stock</button>
+        <button class="report-tab" data-invt="history">Stock History</button>
+      </div>
+
+      <!-- inventory tab: item stock (moved from Item Issued page — same functions, columns, buttons) -->
+      <div class="inv-tab" data-inv-tab="stock">
+        <div class="toolbar">
+          <span class="loc-seg hidden" id="allocStockLocToggle" style="display:inline-flex;gap:4px;align-items:center"><select id="locAllSel" class="btn btn-sm btn-outline" style="min-width:160px;padding:6px 10px"><option value="all">All Locations</option></select></span>
+<input type="text" id="allocStockSearch" placeholder="Search by item, category, unit or location...">
+          <select id="allocStockCat"><option value="">All Categories</option></select>
+          <select id="allocStockType">
+            <option value="all">All Stock</option>
+            <option value="allotted">Only Issued</option>
+            <option value="available">Only Available</option>
+          </select>
+            <div class="stat-export-dd stat-export-dd-right">
+            <button class="btn btn-sm btn-outline" id="allocStockExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
+            <div class="stat-export-menu hidden" id="allocStockExportMenu">
+              <button data-export="pdf"><span class="ee-ic">&#128196;</span> Download PDF</button>
+              <button data-export="excel"><span class="ee-ic">&#128229;</span> Download Excel</button>
+              <button data-export="word"><span class="ee-ic">&#128220;</span> Download Word</button>
+              <button data-export="print"><span class="ee-ic">&#128424;</span> Print</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table id="allocStockTable" data-sortable="false">
+              <thead>
+                <tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort="category">Category <span class="sort-arrow"></span></th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th class="sortable" data-sort="status">Status <span class="sort-arrow"></span></th><th>Actions</th></tr>
+              </thead>
+<tbody id="allocStockBody"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="pager_allocStock"></div>
+        </div>
+      </div>
+
+      <!-- inventory tab: stock history (previous Inventory view) -->
+      <div class="inv-tab hidden" data-inv-tab="history">
+      <div class="toolbar">
+        <span class="cb cb-wide">
+          <input type="text" id="searchInput" class="cb-input" placeholder="Search items..." autocomplete="off">
+          <span class="cb-menu hidden" id="searchCbMenu"></span>
+        </span>
+        <span class="cb">
+          <input type="text" class="cb-input" id="categoryCbInput" placeholder="All Categories" autocomplete="off">
+          <span class="cb-menu hidden" id="categoryCbMenu"></span>
+          <select id="categoryFilter" class="cb-hidden-sel"><option value="">All Categories</option></select>
+        </span>
+        <span class="cb">
+          <input type="text" class="cb-input" id="locationCbInput" placeholder="All Locations" autocomplete="off">
+          <span class="cb-menu hidden" id="locationCbMenu"></span>
+          <select id="locationFilter" class="cb-hidden-sel"><option value="">All Locations</option></select>
+        </span>
+        <span class="cb">
+          <input type="text" class="cb-input" id="conditionCbInput" placeholder="All Conditions" autocomplete="off">
+          <span class="cb-menu hidden" id="conditionCbMenu"></span>
+<select id="conditionFilter" class="cb-hidden-sel">
+            <option value="">All Conditions</option>
+            <option value="good">Good</option>
+            <option value="poor">Damaged</option>
+            <option value="damaged">Scrap</option>
+          </select>
+        </span>
+        <input type="date" id="itemDateFrom" title="Date Added From">
+        <input type="date" id="itemDateTo" title="Date Added To">
+        <button class="btn btn-sm btn-outline" id="clearInvFilter">Clear</button>
+        <div class="stat-export-dd stat-export-dd-right">
+          <button class="btn btn-sm btn-outline" id="invExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
+          <div class="stat-export-menu hidden" id="invExportMenu">
+            <button data-export="pdf"><span class="ee-ic">&#128196;</span> Download PDF</button>
+            <button data-export="excel"><span class="ee-ic">&#128229;</span> Download Excel</button>
+            <button data-export="word"><span class="ee-ic">&#128220;</span> Download Word</button>
+            <button data-export="print"><span class="ee-ic">&#128424;</span> Print</button>
+          </div>
+        </div>
+      </div>
+
+      
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th class="sortable" data-sort-col="0" tabindex="0" aria-sort="none">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="1" tabindex="0" aria-sort="none">Category <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="2" tabindex="0" aria-sort="none">Stock Change <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="3" tabindex="0" aria-sort="none">Unit <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="4" tabindex="0" aria-sort="none">Min Stock <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="5" tabindex="0" aria-sort="none">Location <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="6" tabindex="0" aria-sort="none" title="Sort by Good quantity">Condition <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="7" tabindex="0" aria-sort="none" title="Sort by status (Out of Stock first)">Status <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="8" tabindex="0" aria-sort="none">Last Updated <span class="sort-arrow"></span></th><th>Actions</th></tr>
+            </thead>
+<tbody id="inventoryBody"></tbody>
+          </table>
+        </div>
+        <div class="pager" id="pager_inv"></div>
+      </div>
+      </div><!-- /inventory: stock history pane -->
+    </section>
+
+
+    <!-- ========== CONSUMABLE ITEMS VIEW ========== -->
+    <section id="view-consumables" class="view hidden">
+      <div class="page-header">
+        <h2>Consumable Items</h2>
+        <div class="page-actions">
+          <button class="btn btn-outline" id="consAddBtn">+ Add Consume Item</button>
+          <button class="btn btn-outline" id="consManageCatsBtn" title="Manage consumable categories">Manage Categories</button>
+        </div>
+      </div>
+
+      <div class="report-tabs">
+        <button class="report-tab active" data-constab="stock">Item Consume</button>
+        <button class="report-tab" data-constab="history">Consume History</button>
+      </div>
+
+      <!-- consumables tab: item consume (mirrors inventory item stock) -->
+      <div class="inv-tab" data-cons_tab="stock">
+        <div class="toolbar">
+          <input type="text" id="consStockSearch" placeholder="Search by item or category...">
+          <select id="consStockCat"><option value="">All Categories</option></select>
+          <select id="consStockLoc"><option value="">All Locations</option></select>
+          <select id="consStockType">
+            <option value="all">All Stock</option>
+            <option value="distributed">Only Distributed</option>
+            <option value="available">Only Available</option>
+          </select>
+          <button class="btn btn-sm btn-outline" id="consStockClear">Clear</button>
+          <div class="stat-export-dd stat-export-dd-right">
+            <button class="btn btn-sm btn-outline" id="consStockExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
+            <div class="stat-export-menu hidden" id="consStockExportMenu">
+              <button data-export="pdf"><span class="ee-ic">&#128196;</span> Download PDF</button>
+              <button data-export="excel"><span class="ee-ic">&#128229;</span> Download Excel</button>
+              <button data-export="word"><span class="ee-ic">&#128220;</span> Download Word</button>
+              <button data-export="print"><span class="ee-ic">&#128424;</span> Print</button>
+            </div>
+          </div>
+        </div>
+        <div class="cons-stock-note hidden" id="consStockNote"></div>
+        <div class="card">
+          <div class="table-wrap">
+            <table id="consStockTable" data-sortable="false">
+              <thead id="consStockHead">
+                <tr><th style="width:54px">S.No</th><th>Item Name</th><th>Category</th><th>Total Qty</th><th>Available</th><th>Distributed</th><th>Lost</th><th>Status</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="consStockBody"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="pager_consStock"></div>
+        </div>
+      </div>
+
+      <!-- consumables tab: consume history (existing ledger) -->
+      <div class="inv-tab hidden" data-cons_tab="history">
+      <div class="panel">
+        <div class="cons-toolbar">
+          <input type="text" id="consSearch" class="input" placeholder="Search item, category, recipient, distributor...">
+          <select id="consCatFilter" class="input"><option value="">All Categories</option></select>
+          <select id="consItemFilter" class="input"><option value="">All Items</option></select>
+          <select id="consStatusFilter" class="input"><option value="">All Status</option><option>Available</option><option>Pending Approval</option><option>Complete</option><option>Rejected</option><option>Lost</option></select>
+          <select id="consLocFilter" class="input"><option value="">All Locations</option></select>
+          <input type="date" id="consDateFrom" class="input" title="From date">
+          <input type="date" id="consDateTo" class="input" title="To date">
+          <div class="stat-export-dd">
+            <button type="button" class="btn btn-outline" id="consExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
+            <div class="stat-export-menu hidden" id="consExportMenu">
+              <button data-export="pdf"><span class="ee-ic">&#128196;</span> Download PDF</button>
+              <button data-export="excel"><span class="ee-ic">&#128229;</span> Download Excel</button>
+              <button data-export="word"><span class="ee-ic">&#128220;</span> Download Word</button>
+              <button data-export="print"><span class="ee-ic">&#128424;</span> Print</button>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table" data-sort-table="cons">
+            <thead><tr>
+              <th class="sortable" data-sort-col="0" tabindex="0" aria-sort="none">Item Category <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort-col="1" tabindex="0" aria-sort="none">Item <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort-col="2" tabindex="0" aria-sort="none">Quantity <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort-col="3" tabindex="0" aria-sort="none">Date of Distribution <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort-col="4" tabindex="0" aria-sort="none">Distributed To <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort-col="5" tabindex="0" aria-sort="none">Distributed By <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort-col="6" tabindex="0" aria-sort="none">Status <span class="sort-arrow"></span></th>
+              <th>Actions</th>
+            </tr></thead>
+            <tbody id="consBody"></tbody>
+          </table>
+        </div>
+        <div class="pager" id="pager_cons"></div>
+      </div>
+      <div class="panel">
+        <h2 style="margin:0 0 10px;font-size:1rem">Distribution by Location</h2>
+        <div class="cons-toolbar">
+          <input type="text" id="consdSearch" class="input" placeholder="Search recipient, item, distributor..." style="min-width:220px">
+          <select id="consdLoc" class="input"><option value="">All Locations</option></select>
+          <select id="consdCat" class="input"><option value="">All Categories</option></select>
+          <select id="consdItem" class="input"><option value="">All Items</option></select>
+          <input type="text" id="consdBy" class="input" placeholder="Distributed by..." style="max-width:160px">
+          <input type="date" id="consdFrom" class="input" title="From date">
+          <input type="date" id="consdTo" class="input" title="To date">
+          <div class="stat-export-dd">
+            <button type="button" class="btn btn-outline" id="consdExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
+            <div class="stat-export-menu hidden" id="consdExportMenu">
+              <button data-export="pdf"><span class="ee-ic">&#128196;</span> Download PDF</button>
+              <button data-export="excel"><span class="ee-ic">&#128229;</span> Download Excel</button>
+              <button data-export="word"><span class="ee-ic">&#128220;</span> Download Word</button>
+              <button data-export="print"><span class="ee-ic">&#128424;</span> Print</button>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table" data-sort-table="consDist">
+            <thead><tr>
+              <th class="sortable" data-sort-col="0" tabindex="0" aria-sort="none">Recipient <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort-col="1" tabindex="0" aria-sort="none">Type <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort-col="2" tabindex="0" aria-sort="none">Category <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort-col="3" tabindex="0" aria-sort="none">Item <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort-col="4" tabindex="0" aria-sort="none">Quantity <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort-col="5" tabindex="0" aria-sort="none">Date <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort-col="6" tabindex="0" aria-sort="none">Distributed By <span class="sort-arrow"></span></th>
+              <th class="sortable" data-sort-col="7" tabindex="0" aria-sort="none">Status <span class="sort-arrow"></span></th>
+<th class="sortable" data-sort-col="8" tabindex="0" aria-sort="none">Actions <span class="sort-arrow"></span></th>
+            </tr></thead>
+            <tbody id="consDistBody"></tbody>
+          </table>
+        </div>
+        <div class="pager" id="pager_consDist"></div>
+      </div>
+      </div><!-- /consume history pane -->
+    </section>
+
+    <!-- ========== DEV ADMIN: MANAGE DISTRICTS VIEW ========== -->
+    <section id="view-manage-districts" class="view hidden">
+      <div class="dev-topbar">
+        <div class="dev-topbar-left">
+          <button type="button" class="btn btn-outline btn-sm" id="devDistBack">&#8592; Back</button>
+          <h2 class="dev-page-title">Manage Districts</h2>
+        </div>
+        <button type="button" class="btn btn-primary" id="devAddDistBtn">+ Add New District</button>
+      </div>
+      <div class="dev-toolbar" style="margin:14px 0 16px">
+        <input type="text" id="devDistSearch" placeholder="Search by name, code or headquarters..." autocomplete="off">
+      </div>
+      <div class="dev-cards" id="devDistList"></div>
+    </section>
+    <!-- ========== DEV ADMIN: MANAGE USERS VIEW ========== -->
+    <section id="view-manage-users" class="view hidden">
+      <div class="dev-topbar">
+        <div class="dev-topbar-left">
+          <button type="button" class="btn btn-outline btn-sm" id="devUsersBack">&#8592; Back</button>
+          <h2 class="dev-page-title">Manage Users</h2>
+        </div>
+        <button type="button" class="btn btn-primary" id="devAddUserBtn">+ Add New User</button>
+      </div>
+      <div class="dev-toolbar">
+        <input type="search" id="devUserSearch" placeholder="Search by username, name, role, district, location...">
+        <select id="devUserType" class="dev-type-sel">
+          <option value="">Search by Type: All</option>
+          <option value="admin">District Admin</option>
+          <option value="devadmin">Developer Admin</option>
+        </select>
+      </div>
+      <div class="dev-section-h">District Admins <span class="cons-badge cons-b-blue" id="devDaCount">0</span></div>
+      <div class="dev-table-wrap"><table class="dev-table"><thead><tr>
+        <th>Name</th><th>Username</th><th>District</th><th>Mobile</th><th>Users</th><th>Actions</th>
+      </tr></thead><tbody id="devDaBody"></tbody></table></div>
+      <div class="dev-section-h">Developer Admins <span class="cons-badge cons-b-amber" id="devDevCount">0</span></div>
+      <div class="dev-table-wrap"><table class="dev-table"><thead><tr>
+        <th>Name</th><th>Username</th><th>Mobile</th><th>Actions</th>
+      </tr></thead><tbody id="devDevBody"></tbody></table></div>
+    </section>
+    <!-- ========== DEV ADMIN: USERS OF DISTRICT ADMIN VIEW ========== -->
+    <section id="view-dausers" class="view hidden">
+      <div class="dev-topbar">
+        <div class="dev-topbar-left">
+          <button type="button" class="btn btn-outline btn-sm" id="devDauBack">&#8592; Back</button>
+          <h2 class="dev-page-title" id="devDauTitle">Users</h2>
+        </div>
+      </div>
+      <div class="dev-toolbar">
+        <input type="search" id="devDauSearch" placeholder="Search by username, name, role, location...">
+        <select id="devDauType" class="dev-type-sel">
+          <option value="">Search by Type: All</option>
+          <option value="user">General User</option>
+          <option value="mhc">MHC</option>
+          <option value="tsi">TSI</option>
+          <option value="station">Station Manager</option>
+          <option value="staff">Staff</option>
+          <option value="post">Police Post</option>
+        </select>
+      </div>
+      <div class="dev-table-wrap"><table class="dev-table"><thead><tr>
+        <th>Username</th><th>Display Name</th><th>Mobile</th><th>Role</th><th>District</th><th>Location</th><th>Actions</th>
+      </tr></thead><tbody id="devDauBody"></tbody></table></div>
+          <div class="dev-toolbar" style="margin-top:10px"><span id="devDauCount" class="dev-empty"></span></div>
+    </section>
+      <section id="view-admin-locs" class="view hidden">
+        <div class="dev-topbar">
+          <div class="dev-topbar-left">
+            <button type="button" class="btn btn-outline btn-sm" id="adminLocsBack">&#8592; Back</button>
+            <h2 class="dev-page-title">Manage Locations</h2>
+          </div>
+          <button type="button" class="btn btn-primary" id="adminAddLocBtn">+ Add New Location</button>
+        </div>
+        <div class="dev-toolbar"><input type="text" id="adminLocSearch" placeholder="Search by location name or type..." autocomplete="off"></div>
+        <div class="dev-cards" id="adminLocList"></div>
+      </section>
+      <section id="view-admin-users" class="view hidden">
+        <div class="dev-topbar">
+          <div class="dev-topbar-left">
+            <button type="button" class="btn btn-outline btn-sm" id="adminUsersBack">&#8592; Back</button>
+            <h2 class="dev-page-title">Manage Users</h2>
+          </div>
+          <button type="button" class="btn btn-primary" id="adminAddUserBtn">+ Add New User</button>
+        </div>
+        <div class="dev-toolbar"><input type="search" id="adminUserSearch" placeholder="Search by username, name, role, district, location..."><select id="adminUserType" class="dev-type-sel"><option value="">Search by Type: All</option><option value="admin">District Admin</option><option value="devadmin">Developer Admin</option><option value="user">User</option><option value="mhc">MHC</option><option value="tsi">TSI</option><option value="station">Station</option><option value="staff">Staff</option><option value="post">Post</option></select></div>
+        <div class="dev-table-wrap"><table class="dev-table"><thead><tr><th>Username</th><th>Display Name</th><th>Mobile</th><th>Role</th><th>District</th><th>Location</th><th>Actions</th></tr></thead><tbody id="adminUsersBody"></tbody></table></div>
+        <div class="dev-toolbar" style="margin-top:10px"><span id="adminUsersCount" class="dev-empty"></span></div>
+      </section>
+    <!-- ========== DEMANDS VIEW ========== -->
+    <section id="view-demands" class="view hidden">
+      <div class="page-header">
+        <h2>Demands</h2>
+        <div class="page-actions">
+          <button class="btn btn-primary" id="raiseDemandBtn">+ Raise Demand</button>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="demandStats">
+        <div class="stat-card clickable stat-total" data-demand-key="total" title="Click to view all demands">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statTotalDemands">0</span>
+            <span class="stat-label">Total Demands</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-low" data-demand-key="pending" title="Click to view pending demands">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statPendingDemands">0</span>
+            <span class="stat-label">Pending</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-stock" data-demand-key="approved" title="Click to view approved demands">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statApprovedDemands">0</span>
+            <span class="stat-label">Approved</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-categories" data-demand-key="rejected" title="Click to view rejected demands">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statRejectedDemands">0</span>
+            <span class="stat-label">Rejected</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input type="text" id="demandSearch" placeholder="Search demands...">
+        <select id="demandStatusFilter">
+          <option value="">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="pending_review">Pending for Review</option>
+          <option value="in_progress">In Progress</option>
+          <option value="partially_completed">Partial</option>
+          <option value="completed">Completed</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <label class="filter-date"><span>From:</span><input type="date" id="demandDateFrom"></label>
+        <label class="filter-date"><span>To:</span><input type="date" id="demandDateTo"></label>
+        <button class="btn btn-outline" id="clearDemandFilter">Clear</button>
+        <div class="stat-export-dd">
+          <button class="btn btn-sm btn-outline" id="demandExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
+          <div class="stat-export-menu hidden" id="demandExportMenu">
+            <button data-export="pdf"><span class="ee-ic">&#128196;</span> Download PDF</button>
+            <button data-export="excel"><span class="ee-ic">&#128229;</span> Download Excel</button>
+            <button data-export="word"><span class="ee-ic">&#128220;</span> Download Word</button>
+            <button data-export="print"><span class="ee-ic">&#128424;</span> Print</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th class="sortable" data-sort-col="0" tabindex="0" aria-sort="none">Demand No <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="1" tabindex="0" aria-sort="none">Requested By <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="2" tabindex="0" aria-sort="none">Requested To <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="3" tabindex="0" aria-sort="none">Item <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="4" tabindex="0" aria-sort="none">Requested Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="5" tabindex="0" aria-sort="none" title="Sort by status">Status <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="6" tabindex="0" aria-sort="none">Date <span class="sort-arrow"></span></th><th>Actions</th></tr>
+            </thead>
+<tbody id="demandBody"></tbody>
+          </table>
+        </div>
+        <div class="pager" id="pager_dem"></div>
+      </div>
+    </section>
+
+    <!-- ========== INSPECTIONS VIEW ========== -->
+    <section id="view-inspections" class="view hidden">
+      <div class="page-header">
+        <h2>Inspections</h2>
+        <div class="page-actions">
+          <button class="btn btn-primary" id="newInspectionBtn">+ New Inspection</button>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="inspectionStats">
+        <div class="stat-card clickable stat-total" data-insp-key="total" title="Click to view all inspections">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statTotalInspections">0</span>
+            <span class="stat-label">Total Inspections</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-stock" data-insp-key="completed" title="Click to view completed inspections">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statCompleted">0</span>
+            <span class="stat-label">Completed</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-low" data-insp-key="pending" title="Click to view pending inspections">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statPending">0</span>
+            <span class="stat-label">Pending</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-categories" data-insp-key="overdue" title="Click to view overdue inspections">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statOverdue">0</span>
+            <span class="stat-label">Overdue</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input type="text" id="inspSearch" placeholder="Search inspections...">
+        <select id="inspTypeFilter">
+          <option value="">All Types</option>
+          <option value="routine">Routine</option>
+          <option value="special">Special</option>
+          <option value="annual">Annual</option>
+        </select>
+        <select id="inspStatusFilter">
+          <option value="">All Status</option>
+          <option value="completed">Completed</option>
+          <option value="pending">Pending</option>
+          <option value="overdue">Overdue</option>
+        </select>
+        <div class="stat-export-dd">
+          <button class="btn btn-sm btn-outline" id="inspExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
+          <div class="stat-export-menu hidden" id="inspExportMenu">
+            <button data-export="pdf"><span class="ee-ic">&#128196;</span> Download PDF</button>
+            <button data-export="excel"><span class="ee-ic">&#128229;</span> Download Excel</button>
+            <button data-export="word"><span class="ee-ic">&#128220;</span> Download Word</button>
+            <button data-export="print"><span class="ee-ic">&#128424;</span> Print</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th class="sortable" data-sort-col="0" tabindex="0" aria-sort="none">Date <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="1" tabindex="0" aria-sort="none">Item / Asset <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="2" tabindex="0" aria-sort="none">Inspected By <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="3" tabindex="0" aria-sort="none">Type <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="4" tabindex="0" aria-sort="none">Location <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="5" tabindex="0" aria-sort="none" title="Sort by status (Overdue first)">Status <span class="sort-arrow"></span></th><th>Actions</th></tr>
+            </thead>
+<tbody id="inspBody"></tbody>
+          </table>
+        </div>
+        <div class="pager" id="pager_insp"></div>
+      </div>
+    </section>
+
+    <!-- ========== ALLOTMENTS VIEW ========== -->
+    <section id="view-allotments" class="view hidden">
+      <div class="page-header">
+        <h2>Item Issued</h2>
+        <div class="page-actions">
+<button class="btn btn-primary" id="allocOpenBtn">+ Issue Items</button>
+          <button class="btn btn-outline" id="allotImportBtn">Import from Excel</button>
+          <button class="btn btn-outline" id="scanOpenBtn">Scan &amp; Import</button>
+          <button class="btn btn-outline" id="scanHistoryBtn">Scans</button>
+        </div>
+      </div>
+
+            <div class="report-tabs">
+        <button class="report-tab active" data-atab="allotted">Issued Items</button>
+        <button class="report-tab" data-atab="returns">Return History</button>
+      </div>
+
+      <!-- allot tab: allotted -->
+      <div class="alloc-tab" data-alloc-tab="allotted">
+        <div class="toolbar">
+          <input type="text" id="allocSearch" placeholder="Search name / belt / item / posting / rank...">
+          <select id="allocCatFilter"><option value="">All Categories</option></select>
+          <select id="allocItemFilter"><option value="">All Items</option></select>
+          <input type="text" id="allocPostingFilter" placeholder="Posting...">
+          <select id="allocRankFilter"><option value="">All Ranks</option></select>
+          <select id="allocStatusFilter">
+            <option value="">All Status</option>
+            <option value="ALLOTTED">Issued</option>
+            <option value="PARTIALLY_RETURNED">Partially Returned</option>
+            <option value="PARTIALLY_RECOVERED">Partially Recovered</option>
+            <option value="RETURNED">Returned</option>
+            <option value="LOST">Lost</option>
+            <option value="DAMAGED">Scrap</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+          <input type="date" id="allocDateFrom" title="From date">
+          <input type="date" id="allocDateTo" title="To date">
+          <button class="btn btn-sm btn-outline" id="allocClearFilter">Clear</button>
+          <div class="stat-export-dd stat-export-dd-right">
+            <button class="btn btn-sm btn-outline" id="allocExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
+            <div class="stat-export-menu hidden" id="allocExportMenu">
+              <button data-export="pdf"><span class="ee-ic">&#128196;</span> Download PDF</button>
+              <button data-export="excel"><span class="ee-ic">&#128229;</span> Download Excel</button>
+              <button data-export="word"><span class="ee-ic">&#128220;</span> Download Word</button>
+              <button data-export="print"><span class="ee-ic">&#128424;</span> Print</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>S.No</th><th class="sortable" data-sort-col="1" tabindex="0" aria-sort="none">Name <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="2" tabindex="0" aria-sort="none">BELT No. <span class="sort-arrow"></span></th><th>Mobile No.</th><th class="sortable" data-sort-col="3" tabindex="0" aria-sort="none">Item <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="4" tabindex="0" aria-sort="none">Category <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="5" tabindex="0" aria-sort="none">Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="6" tabindex="0" aria-sort="none">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="7" tabindex="0" aria-sort="none">Date <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="8" tabindex="0" aria-sort="none">Time <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="9" tabindex="0" aria-sort="none" title="Sort by status">Status <span class="sort-arrow"></span></th><th>Actions</th></tr>
+              </thead>
+<tbody id="allocBody"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="pager_alloc"></div>
+        </div>
+      </div>
+
+      <!-- allot tab: returns -->
+      <div class="alloc-tab hidden" data-alloc-tab="returns">
+        <div class="toolbar">
+          <input type="text" id="allocRetSearch" placeholder="Search return history...">
+          <div class="stat-export-dd stat-export-dd-right">
+            <button class="btn btn-sm btn-outline" id="allocRetExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
+            <div class="stat-export-menu hidden" id="allocRetExportMenu">
+              <button data-export="pdf"><span class="ee-ic">&#128196;</span> Download PDF</button>
+              <button data-export="excel"><span class="ee-ic">&#128229;</span> Download Excel</button>
+              <button data-export="word"><span class="ee-ic">&#128220;</span> Download Word</button>
+              <button data-export="print"><span class="ee-ic">&#128424;</span> Print</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>S.No</th><th class="sortable" data-sort-col="1" tabindex="0" aria-sort="none">Person <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="2" tabindex="0" aria-sort="none">BELT No. <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="3" tabindex="0" aria-sort="none">Item <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="4" tabindex="0" aria-sort="none">Qty Returned <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="5" tabindex="0" aria-sort="none">Condition <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="6" tabindex="0" aria-sort="none">Return Date <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="7" tabindex="0" aria-sort="none">Return Time <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="8" tabindex="0" aria-sort="none">Received By <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="9" tabindex="0" aria-sort="none">Remarks <span class="sort-arrow"></span></th></tr>
+              </thead>
+<tbody id="allocRetBody"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="pager_allocRet"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== DISTRIBUTION VIEW ========== -->
+    <section id="view-distribution" class="view hidden">
+      <div class="page-header">
+        <h2>Distribution</h2>
+        <div class="page-actions">
+          <button class="btn btn-primary" id="addDistributionBtn">+ Distribute Items</button>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="distStats">
+        <div class="stat-card clickable stat-total" data-dist-key="total" title="Click to view all distributions">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statTotalDist">0</span>
+            <span class="stat-label">Total Distributions</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-stock" data-dist-key="completed" title="Click to view completed distributions">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statCompletedDist">0</span>
+            <span class="stat-label">Completed</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-low" data-dist-key="pending" title="Click to view pending distributions">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statPendingDist">0</span>
+            <span class="stat-label">Pending</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-categories" data-dist-key="rejected" title="Click to view rejected distributions">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statRejectedDist">0</span>
+            <span class="stat-label">Rejected</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input type="text" id="distSearch" placeholder="Search by item, category, distributed by or distributed to...">
+        <select id="distStatusFilter">
+          <option value="">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <input type="date" id="distDateFrom" title="From date">
+        <input type="date" id="distDateTo" title="To date">
+        <button class="btn btn-sm btn-outline" id="distClearFilter">Clear</button>
+        <div class="stat-export-dd stat-export-dd-right">
+          <button class="btn btn-sm btn-outline" id="distExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
+          <div class="stat-export-menu hidden" id="distExportMenu">
+            <button data-export="pdf"><span class="ee-ic">&#128196;</span> Download PDF</button>
+            <button data-export="excel"><span class="ee-ic">&#128229;</span> Download Excel</button>
+            <button data-export="word"><span class="ee-ic">&#128220;</span> Download Word</button>
+            <button data-export="print"><span class="ee-ic">&#128424;</span> Print</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>S.No</th><th>Item</th><th>Category</th><th>Qty</th><th>Distributed By</th><th>Distributed To</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="distBody"></tbody>
+          </table>
+        </div>
+        <div class="pager" id="pager_dist"></div>
+      </div>
+    </section>
+
+    <!-- ========== MAINTENANCE VIEW ========== -->
+    <section id="view-maintenance" class="view hidden">
+      <div class="page-header">
+        <h2>Maintenance</h2>
+        <p class="page-subtitle">Submit and track maintenance requests for your unit.</p>
+        <div class="page-actions">
+          <button class="btn btn-primary" id="addMaintenanceBtn">+ New Request</button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input type="text" id="maintSearch" placeholder="Search by request ID, unit, type, description...">
+        <select id="maintStatusFilter">
+          <option value="">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="under_process">Under Process</option>
+          <option value="completed">Completed</option>
+        </select>
+        <select id="maintTypeFilter">
+          <option value="">All Types</option>
+          <option value="plumber">Plumber</option>
+          <option value="electrician">Electrician</option>
+          <option value="carpenter">Carpenter</option>
+          <option value="mason">Mason / Civil Work</option>
+          <option value="computer_it">Computer / IT</option>
+          <option value="vehicle">Vehicle</option>
+          <option value="other">Other</option>
+        </select>
+        <input type="date" id="maintDateFrom" title="From date">
+        <input type="date" id="maintDateTo" title="To date">
+        <button class="btn btn-sm btn-outline" id="maintClearFilter">Clear</button>
+        <div class="stat-export-dd stat-export-dd-right">
+          <button class="btn btn-sm btn-outline" id="maintExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
+          <div class="stat-export-menu hidden" id="maintExportMenu">
+            <button data-export="pdf"><span class="ee-ic">&#128196;</span> Download PDF</button>
+            <button data-export="excel"><span class="ee-ic">&#128229;</span> Download Excel</button>
+            <button data-export="word"><span class="ee-ic">&#128220;</span> Download Word</button>
+            <button data-export="print"><span class="ee-ic">&#128424;</span> Print</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Request ID</th><th>Request To</th><th>Requesting Unit</th><th>Request Type</th><th>Description</th><th>Status</th><th>Created At</th><th>Action</th></tr>
+            </thead>
+            <tbody id="maintBody"></tbody>
+          </table>
+        </div>
+        <div class="pager" id="pager_maint"></div>
+      </div>
+    </section>
+
+    <!-- ========== REPORTS VIEW ========== -->
+    <section id="view-reports" class="view hidden">
+      <div class="page-header">
+        <h2>Reports</h2>
+      </div>
+
+
+<div class="toolbar">
+        <input type="text" id="reportSearch" placeholder="Search reports...">
+        <div class="rpt-tools" id="rptTools">
+          <button class="btn btn-sm btn-outline" id="auditLogBtn" style="display:none">&#128221; Audit Log</button>
+          <button class="btn btn-sm btn-outline" id="backupDBBtn" style="display:none">&#8681; Backup (JSON)</button>
+          <button class="btn btn-sm btn-outline" id="backupExcelBtn" style="display:none">&#8681; Backup (Excel)</button>
+          <button class="btn btn-sm btn-outline" id="restoreDBBtn" style="display:none">&#8635; Restore Data</button>
+        </div>
+        <div class="stat-export-dd">
+          <button class="btn btn-sm btn-outline" id="rptColsBtn">&#9636; Columns <span class="ee-caret">&#9662;</span></button>
+          <div class="stat-export-menu hidden" id="rptColsMenu"></div>
+        </div>
+        <div class="stat-export-dd">
+          <button class="btn btn-sm btn-outline" id="reportExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
+          <div class="stat-export-menu hidden" id="reportExportMenu">
+            <button data-export="pdf"><span class="ee-ic">&#128196;</span> Download PDF</button>
+            <button data-export="excel"><span class="ee-ic">&#128229;</span> Download Excel</button>
+            <button data-export="word"><span class="ee-ic">&#128220;</span> Download Word</button>
+            <button data-export="print"><span class="ee-ic">&#128424;</span> Print</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="reportContent" class="card"></div>
+    </section>
+
+      <section id="view-itemprofile" class="view hidden"></section>
+
+      <section id="view-personprofile" class="view hidden"></section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; 2026 Haryana Police – Inventory Management System. All rights reserved.</p>
+  </footer>
+  </div><!-- end content-area -->
+</div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- Item Import (Bulk Excel) Modal -->
+<div class="modal-backdrop hidden" id="itemImportModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>Import Items from Excel</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="import-body">
+      <p class="import-help">Upload a <b>.xlsx / .xls / .csv</b> file. Recognised columns: <b>Item Name</b>, <b>Category</b>, <b>Unit</b>, <b>Min Stock</b>, <b>Location</b>, <b>Good</b>, <b>Damaged</b>, <b>Scrap</b> (or <b>Total Qty</b>). Matching items are quantity-merged instead of duplicated.</p>
+      <div class="import-actions">
+        <label class="btn btn-primary file-btn">Choose Excel File<input type="file" id="itemImportFile" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" class="hidden-file-input"></label>
+        <button type="button" class="btn btn-outline" id="itemTemplateBtn">Download Template</button>
+      </div>
+      <div class="import-status" id="itemImportStatus"></div>
+      <div class="import-result hidden" id="itemImportResult"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" id="itemImportCancel" data-close>Cancel</button>
+      <button type="button" class="btn btn-primary" id="itemImportCommit">Save Import</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="restoreFileInput" accept=".json,application/json" class="hidden-file-input">
+
+<!-- Allotment Import (Bulk Excel) Modal -->
+<div class="modal-backdrop hidden" id="allotImportModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>Import Issued Items from Excel</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="import-body">
+      <p class="import-help">Upload a <b>.xlsx / .xls / .csv</b> file. Columns: <b>Person Name</b>, <b>Rank</b>, <b>BELT Number</b>, <b>Posting</b>, <b>Item Name</b>, <b>Quantity</b>, <b>Remarks</b>. Same BELT number wale saare rows ek hi person pe multiple items ke issue honge. Item stock se cross-check hoga.</p>
+      <div class="import-actions">
+        <label class="btn btn-primary file-btn">Choose Excel File<input type="file" id="allotImportFile" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" class="hidden-file-input"></label>
+        <button type="button" class="btn btn-outline" id="allotTemplateBtn">Download Template</button>
+      </div>
+      <div class="import-status" id="allotImportStatus"></div>
+      <div class="import-result hidden" id="allotImportResult"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" id="allotImportCancel" data-close>Cancel</button>
+      <button type="button" class="btn btn-primary" id="allotImportCommit">Save Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scan & Import Modal -->
+<div class="modal-backdrop hidden" id="scanModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>Scan &amp; Import</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div id="scanStepInput">
+      <h4 class="modal-sec-title">1 &middot; Upload Document</h4>
+      <div id="scanDropZone" class="scan-drop">
+        <div class="scan-drop-title">Click to choose or drag &amp; drop a file</div>
+        <div class="scan-drop-sub">JPG &middot; PNG &middot; PDF &middot; Word (DOCX) &middot; Excel (XLSX) &middot; TXT / CSV &mdash; scanned in your browser, uploaded only after your verification</div>
+        <input type="file" id="scanFileInput" accept=".jpg,.jpeg,.png,.webp,.bmp,.pdf,.docx,.xlsx,.xls,.csv,.txt,image/*,application/pdf" hidden>
+      </div>
+      <div id="scanChosenFile" class="scan-chosen hidden">
+        <b id="scanFileName"></b>
+        <button type="button" class="btn btn-sm btn-outline" id="scanFileClear">Remove</button>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="button" class="btn btn-primary" id="scanExtractBtn" disabled>Scan Document</button>
+      </div>
+    </div>
+    <div id="scanStepProgress" class="hidden">
+      <div class="scan-progress">
+        <div class="spinner"></div>
+        <div id="scanProgressText">Reading document&hellip;</div>
+      </div>
+    </div>
+    <div id="scanStepReview" class="hidden">
+      <h4 class="modal-sec-title">2 &middot; Review &amp; Verify <span class="modal-sec-hint">each table row is auto-filled as one person &mdash; correct everything before inserting</span></h4>
+      <div id="scanPeople"></div>
+      <div class="alloc-items-actions">
+        <button type="button" class="btn btn-sm btn-outline" id="scanAddPersonBtn">+ Add Person</button>
+        <span class="alloc-items-note" id="scItemsSummary"></span>
+      </div>
+      <details class="scan-raw">
+        <summary>Raw extracted text</summary>
+        <pre id="scanRawText"></pre>
+      </details>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="button" class="btn btn-outline" id="scanRescanBtn">Start Over</button>
+        <button type="button" class="btn btn-primary" id="scanCommitBtn">Verify &amp; Insert Data</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Documents Manager Modal (uploaded files + scanned documents) -->
+<div class="modal-backdrop hidden" id="scanHistoryModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>Documents</h2>
+      <span class="muted" id="docCount"></span>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="card">
+      <div class="doc-toolbar">
+        <span class="muted">Photos, videos &amp; any file (PDF / Excel / Word) — date, time, format, item details, type &amp; uploaded by are recorded.</span>
+        <button type="button" class="btn btn-primary" id="documentsUploadBtn">Upload Document</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Date</th><th>Time</th><th>Format</th><th>Type</th><th>Item Details</th><th>Uploaded By</th><th>File</th><th></th></tr>
+          </thead>
+          <tbody id="scanHistoryBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Upload Document Modal -->
+<div class="modal-backdrop hidden" id="docUploadModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Upload Document</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="itemDocForm">
+      <div class="form-group">
+        <label for="docFileInput">Choose File — any format: Photo, Video, PDF, Excel, Word, ...</label>
+        <label class="btn btn-primary file-btn">Choose File<input type="file" id="docFileInput" accept="*/*" class="hidden-file-input"></label>
+        <div id="docChosen" class="scan-chosen hidden">
+          <b id="docFileName"></b>
+          <span id="docFileInfo" class="muted"></span>
+          <button type="button" class="btn btn-sm btn-outline" id="docFileClear">Remove</button>
+        </div>
+        <div id="docPreview"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="docType">Type of Document</label>
+          <select id="docType" required>
+            <option value="">Select type...</option>
+            <option>Photo</option>
+            <option>Video</option>
+            <option>PDF</option>
+            <option>Excel Sheet</option>
+            <option>Word Document</option>
+            <option>Scan Copy</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="docUploadedBy">Uploaded By</label>
+          <input type="text" id="docUploadedBy" readonly style="background:#f0f2f5">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Item Details <span class="muted">(one or more items of any category)</span></label>
+        <div id="docItemsRow"></div>
+        <button type="button" class="btn btn-sm btn-outline" id="docAddItemBtn">+ Add Item</button>
+      </div>
+      <div class="form-group">
+        <label for="docNote">Remarks / Notes (optional)</label>
+        <textarea id="docNote" rows="2" placeholder="Any additional detail..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Document</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Scan File Viewer Modal -->
+<div class="modal-backdrop hidden" id="scanViewModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="scanViewTitle">Document</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div id="scanViewBody" class="scan-view"></div>
+  </div>
+</div>
+
+<!-- Add/Edit Item Modal -->
+<div class="modal-backdrop hidden" id="itemModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="itemModalTitle">Add New Item</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="itemForm">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="fCategory">Category</label>
+          <select id="fCategory" required></select>
+        </div>
+        <div class="form-group">
+          <label for="fItemName">Item Name</label>
+          <span class="cb cb-full">
+            <input type="text" id="fItemName" class="cb-input" required placeholder="Select or type item name..." autocomplete="off">
+            <span class="cb-menu hidden" id="itemNameMenu"></span>
+          </span>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="fUnit">Unit</label>
+          <select id="fUnit">
+            <option value="pcs">Pieces</option>
+            <option value="kg">Kilograms</option>
+            <option value="liters">Liters</option>
+            <option value="boxes">Boxes</option>
+            <option value="sets">Sets</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="fMinStock">Minimum Stock Alert</label>
+          <input type="number" id="fMinStock" min="0" value="5" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Total Quantity</label>
+        <input type="number" id="fQuantity" min="0" readonly style="background:#f0f2f5;font-weight:700" placeholder="Auto-calculated">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="fDate">Date</label>
+          <input type="date" id="fDate">
+        </div>
+        <div class="form-group">
+          <label for="fTime">Time</label>
+          <input type="time" id="fTime">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="fLocation">Location</label>
+        <select id="fLocation" required></select>
+      </div>
+      <div class="form-group">
+        <label>Item Condition Breakdown</label>
+<div class="cond-inputs">
+          <div class="cond-input-group">
+            <span class="cond-dot cond-dot-good"></span>
+            <label for="fCondGood">Good</label>
+            <input type="number" id="fCondGood" min="0" value="0" class="cond-input cond-input-good">
+          </div>
+          <div class="cond-input-group">
+            <span class="cond-dot cond-dot-poor"></span>
+            <label for="fCondPoor">Damaged</label>
+            <input type="number" id="fCondPoor" min="0" value="0" class="cond-input cond-input-poor">
+          </div>
+          <div class="cond-input-group">
+            <span class="cond-dot cond-dot-damaged"></span>
+            <label for="fCondDamaged">Scrap</label>
+            <input type="number" id="fCondDamaged" min="0" value="0" class="cond-input cond-input-damaged">
+          </div>
+        </div>
+        <small id="fQtyHint" style="display:block;margin-top:6px;font-size:.72rem;font-weight:600"></small>
+      </div>
+      <input type="hidden" id="fItemId" value="">
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="itemSaveBtn">Save Item</button>
+      </div>
+    </form>
+  </div>
+</div>
+<!-- Add Stock Modal (updates existing item row or creates a new one) -->
+<div class="modal-backdrop hidden" id="addStockModal">
+<div class="modal modal-lg">
+<div class="modal-header">
+<h2 id="addStockTitle">Add Stock</h2>
+<button class="modal-close" data-close>&times;</button>
+</div>
+<form id="addStockForm">
+  <div class="as-cols-head"><span>Category</span><span>Item</span><span>Quantity &mdash; Good / Damaged</span><span></span></div>
+  <div id="asRows"></div>
+  <div class="as-rows-toolbar">
+    <button type="button" class="btn btn-sm btn-outline" id="asAddItemBtn">+ Add Item</button>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label for="asDate">Date</label>
+      <input type="date" id="asDate">
+    </div>
+    <div class="form-group">
+      <label for="asTime">Time</label>
+      <input type="time" id="asTime">
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="asRemarks">Remarks (optional)</label>
+    <input type="text" id="asRemarks" placeholder="e.g. received from store" autocomplete="off">
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-outline" data-close>Cancel</button>
+    <button type="submit" class="btn btn-primary" id="asSaveBtn">Add Stock</button>
+  </div>
+</form>
+</div>
+</div>
+<!-- View Item Modal (read-only) -->
+<div class="modal-backdrop hidden" id="viewItemModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Item Details</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="form-group"><label>Item Name</label><div id="viName" style="font-weight:700;font-size:1.05rem"></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>Category</label><div id="viCategory"></div></div>
+      <div class="form-group"><label>Unit</label><div id="viUnit"></div></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Total Quantity</label><div id="viQuantity" class="qty-strong"></div></div>
+      <div class="form-group"><label>Minimum Stock Alert</label><div id="viMinStock"></div></div>
+    </div>
+    <div class="form-group"><label>Location</label><div id="viLocation"></div></div>
+    <div class="form-group"><label>Condition Breakdown</label>
+      <div id="viCondBar" style="display:flex;gap:14px;flex-wrap:wrap">
+        <span><span class="cond-dot cond-dot-good"></span> Good: <strong id="viCondGood">0</strong></span>
+        <span><span class="cond-dot cond-dot-poor"></span> Damaged: <strong id="viCondPoor">0</strong></span>
+        <span><span class="cond-dot cond-dot-damaged"></span> Scrap: <strong id="viCondDamaged">0</strong></span>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Status</label><div><span class="status-badge" id="viStatus"></span></div></div>
+<div class="form-group" style="margin-top:16px">
+<label>Transaction History (Stock Changes)</label>
+<div class="table-wrap" style="padding:0">
+<table>
+<thead><tr><th>Date</th><th>Time</th><th>Transaction</th><th>Qty</th><th>Previous</th><th>New</th><th>By</th></tr></thead>
+<tbody id="viHistoryBody"></tbody>
+</table>
+</div>
+</div>
+      <div class="form-group"><label>Date Added</label><div id="viDate"></div></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+<!-- Manage Categories Modal -->
+<!-- Consumable Categories -->
+<div class="modal-backdrop hidden" id="consCatModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>Manage Consumable Categories</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="cat-add-row">
+      <input type="text" id="consCatInput" placeholder="New category name...">
+      <button class="btn btn-primary" id="consCatAddBtn">Add</button>
+    </div>
+    <div class="cat-list" id="consCatList"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close>Done</button>
+    </div>
+  </div>
+</div>
+<div class="modal-backdrop hidden" id="catModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>Manage Categories</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="cat-add-row">
+      <input type="text" id="catInput" placeholder="New category name...">
+      <button class="btn btn-primary" id="catAddBtn">Add</button>
+    </div>
+    <div class="cat-list" id="catList"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close>Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Consumable Category Items Modal -->
+<div class="modal-backdrop hidden" id="consCitModal">
+<div class="modal modal-lg">
+<div class="modal-header">
+<div>
+<h2 id="ccitTitle">Category Items</h2>
+<p class="page-subtitle" id="ccitSubtitle" style="margin-top:4px;font-size:.78rem"></p>
+</div>
+<button class="modal-close" data-close>&times;</button>
+</div>
+<div class="table-wrap" style="padding:0 22px">
+<table>
+<thead><tr><th>Item Name</th><th>Added Qty</th><th>Available</th><th>Actions</th></tr></thead>
+<tbody id="ccitBody"></tbody>
+</table>
+</div>
+<div class="modal-footer">
+<button type="button" class="btn btn-outline" data-close>Close</button>
+</div>
+</div>
+</div>
+<!-- Category Items Modal -->
+<div class="modal-backdrop hidden" id="catItemsModal">
+<div class="modal modal-lg">
+<div class="modal-header">
+<div>
+<h2 id="citTitle">Category Items</h2>
+<p class="page-subtitle" id="citSubtitle" style="margin-top:4px;font-size:.78rem"></p>
+</div>
+<button class="modal-close" data-close>&times;</button>
+</div>
+<div class="cat-add-row" id="citAddRow">
+<input type="text" id="citNewName" placeholder="New item name...">
+<button class="btn btn-primary" id="citAddBtn">+ Add New Item</button>
+</div>
+<div class="table-wrap" style="padding:0 22px">
+<table>
+<thead><tr><th>Item Name</th><th>Stock</th><th>Unit</th><th>Actions</th></tr></thead>
+<tbody id="citBody"></tbody>
+</table>
+</div>
+<div class="modal-footer">
+<button type="button" class="btn btn-outline" data-close>Close</button>
+</div>
+</div>
+</div>
+<!-- Add/Edit Inspection Modal -->
+<div class="modal-backdrop hidden" id="inspectionModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="inspectionModalTitle">Add New Inspection</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="inspectionForm">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="fiItem">Item / Asset Inspected</label>
+          <input type="text" id="fiItem" required placeholder="e.g. 9mm Pistol, Patrol Car, Uniform Stock">
+        </div>
+        <div class="form-group">
+          <label for="fiInspectedBy">Inspected By</label>
+          <input type="text" id="fiInspectedBy" required placeholder="Name of inspector">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="fiType">Type of Inspection</label>
+          <select id="fiType" required>
+            <option value="routine">Routine</option>
+            <option value="special">Special</option>
+            <option value="annual">Annual</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="fiDate">Date of Inspection</label>
+          <input type="date" id="fiDate" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="fiLocation">Location</label>
+          <select id="fiLocation" required></select>
+        </div>
+        <div class="form-group">
+          <label for="fiStatus">Status</label>
+          <select id="fiStatus">
+            <option value="completed">Completed</option>
+            <option value="pending">Pending</option>
+            <option value="overdue">Overdue</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="fiFindings">Findings</label>
+        <textarea id="fiFindings" rows="3" placeholder="Describe the inspection findings..."></textarea>
+      </div>
+      <div class="form-group">
+        <label for="fiRecommendations">Recommendations</label>
+        <textarea id="fiRecommendations" rows="3" placeholder="Any recommendations or follow-up actions..."></textarea>
+      </div>
+      <div class="att-bar">
+        <div class="att-bar-head">
+          <label>Photos / Attachments</label>
+          <span class="att-count" id="attCount_inspect">0 files</span>
+        </div>
+        <div class="att-bar-actions">
+          <button type="button" class="att-btn att-btn-upload" data-att-add="inspect"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> Upload</button>
+          <button type="button" class="att-btn att-btn-cam" data-att-cam="inspect"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Camera</button>
+        </div>
+        <div class="att-grid" id="attPreview_inspect"></div>
+      </div>      <input type="hidden" id="fiInspectionId" value="">
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="inspectionSaveBtn">Save Inspection</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Inspection View Modal -->
+<div class="modal-backdrop hidden" id="inspViewModal">
+  <div class="modal" style="max-width:820px">
+    <div class="modal-header">
+      <h2>Inspection Details</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="demand-detail-grid" id="inspViewBody"></div>
+    </div>
+    <div class="modal-footer" style="flex-wrap:wrap;gap:8px">
+      <button type="button" class="btn btn-outline" id="inspViewPdf">&#128424; Print / PDF</button>
+      <button type="button" class="btn btn-outline" id="inspViewExcel">&#128202; Excel</button>
+      <button type="button" class="btn btn-outline" id="inspViewWord">&#128209; Word</button>
+      <span style="flex:1"></span>
+      <button type="button" class="btn btn-primary" data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Raise Demand Modal -->
+<div class="modal-backdrop hidden" id="demandModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="demandModalTitle">Raise New Demand</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="demandForm">
+      <div class="form-row two-col">
+        <div class="form-group">
+          <label for="fdDemandTo">Demand To (District)</label>
+          <select id="fdDemandTo" required></select>
+        </div>
+        <div class="form-group">
+          <label for="fdDemandToLocation">To Location / Unit</label>
+          <select id="fdDemandToLocation" required></select>
+        </div>
+      </div>
+      <div class="form-row two-col">
+        <div class="form-group">
+          <label for="fdUrgency">Urgency</label>
+          <select id="fdUrgency">
+            <option value="normal">Normal</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+        <div class="form-group hidden">
+          <label>Notification Recipient</label>
+          <div id="fdAssigneeInfo" class="dd-info-line">—</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Type of Items *</label>
+        <div class="dist-type-toggle" id="fdTypeToggle">
+          <label class="dist-type-opt" for="fdTypeStock"><input type="checkbox" id="fdTypeStock" checked> <span>Stock</span></label>
+          <label class="dist-type-opt" for="fdTypeCons"><input type="checkbox" id="fdTypeCons"> <span>Consume</span></label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Demand Items *</label>
+        <div class="fd-items-body" id="fdItemsBody"></div>
+        <div class="fd-items-toolbar">
+          <button type="button" class="btn btn-sm btn-outline" id="fdAddItemBtn">+ Add Item</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="fdReason">Reason for Demand</label>
+        <textarea id="fdReason" rows="2" required placeholder="Why is this item needed?"></textarea>
+      </div>
+      <input type="hidden" id="fdDemandId" value="">
+      <div class="att-bar">
+        <div class="att-bar-head">
+          <label>Photos / Attachments</label>
+          <span class="att-count" id="attCount_demand">0 files</span>
+        </div>
+        <div class="att-bar-actions">
+          <button type="button" class="att-btn att-btn-upload" data-att-add="demand"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> Upload</button>
+          <button type="button" class="att-btn att-btn-cam" data-att-cam="demand"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Camera</button>
+        </div>
+        <div class="att-grid" id="attPreview_demand"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="demandSaveBtn">Submit Demand</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Process Demand Modal -->
+<div class="modal-backdrop hidden" id="demandActionModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="demandActionTitle">Process Demand</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="demand-action-summary" id="demandActionSummary"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Item</th><th>Requested</th><th>Completed</th><th>Remaining</th><th>Available</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="demandActionItems"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Approve & Fulfill Demand Item Modal -->
+<div class="modal-backdrop hidden" id="demandFulfillModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="fulfillTitle">Approve &amp; Fulfill</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="fulfill-summary" id="fulfillSummary"></div>
+    <div id="fulfillWarn"></div>
+    <div class="fulfill-actions">
+      <button type="button" class="btn btn-primary" id="fulfillCompleteBtn">Complete</button>
+      <button type="button" class="btn btn-outline" id="fulfillPartialBtn">Partial Complete</button>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close>Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Partial Completion Modal -->
+<div class="modal-backdrop hidden" id="demandPartialModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Partial Completion</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="partial-summary" id="dpmSummary"></div>
+    <form id="demandPartialForm">
+      <div class="form-group">
+        <label for="dpmQty">Quantity to supply *</label>
+        <input type="number" id="dpmQty" min="1" required>
+      </div>
+      <div class="form-group">
+        <label for="dpmRemark">Remark *</label>
+        <textarea id="dpmRemark" rows="3" placeholder="Reason for partial completion (required)."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Submit Partial</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Reject Demand Item Modal -->
+<div class="modal-backdrop hidden" id="demandRejectModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Reject Demand Item</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="partial-summary" id="drmSummary"></div>
+    <form id="demandRejectForm">
+      <div class="form-group">
+        <label for="drmReason">Rejection Reason *</label>
+        <textarea id="drmReason" rows="3" placeholder="Please provide reason for rejection."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-red">Reject Item</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Review Demand Supply Modal -->
+<div class="modal-backdrop hidden" id="demandReviewModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="demandReviewTitle">Review Supply</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="demand-detail-grid" id="demandReviewSummary"></div>
+    <div class="form-group" style="margin-top:10px">
+      <label for="demandReviewRemark">Your Remark (optional)</label>
+      <textarea id="demandReviewRemark" rows="3" placeholder="Add a note about the supplied quantity..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close>Cancel</button>
+      <button type="button" class="btn btn-red" id="demandReviewRejectBtn">Reject</button>
+      <button type="button" class="btn btn-primary" id="demandReviewApproveBtn">Approve</button>
+    </div>
+  </div>
+</div>
+
+<!-- Demand Details Modal -->
+<div class="modal-backdrop hidden" id="demandDetailsModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="demandDetailsTitle">Demand Details</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="demand-detail-grid" id="demandDetailsInfo"></div>
+    <h4 class="dd-section-title">Items</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Item</th><th>Requested</th><th>Completed</th><th>Remaining</th><th>Status</th><th>Processed By</th><th>Processed On</th><th>Remark / Reason</th></tr></thead>
+        <tbody id="demandDetailsItems"></tbody>
+      </table>
+    </div>
+    <h4 class="dd-section-title">Processing History</h4>
+    <div class="dd-history" id="demandDetailsHistory"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Distribution Modal -->
+<div class="modal-backdrop hidden" id="distributionModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>Distribute Items</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="distributionForm">
+      <div class="form-group">
+        <label>Distributed To * <span style="color:var(--muted);font-weight:400">(tick one or more — use All for everyone)</span></label>
+        <div class="dist-dd">
+          <button type="button" class="btn btn-outline" id="distToDropBtn" style="width:100%;justify-content:flex-start;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Select recipients...</button>
+          <div class="dist-check-list hidden" id="distToChecks">
+            <input type="text" id="distToSearch" class="dist-dd-search" placeholder="Type to search..." autocomplete="off">
+            <div id="distToChecksList"></div>
+          </div>
+        </div>
+      </div>
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+<div class="form-group">
+        <label>Type of Items *</label>
+        <div class="dist-type-toggle" id="distTypeToggle">
+          <label class="dist-type-opt" for="distTypeStock"><input type="checkbox" id="distTypeStock" checked> <span>Stock</span></label>
+          <label class="dist-type-opt" for="distTypeCons"><input type="checkbox" id="distTypeCons"> <span>Consumable</span></label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Items *</label>
+        <div class="fd-items-body" id="distItemsBody"></div>
+        <div class="fd-items-toolbar">
+          <button type="button" class="btn btn-sm btn-outline" id="distAddItemBtn">+ Add Item</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="distRemarks">Remarks (optional)</label>
+        <textarea id="distRemarks" rows="2" placeholder="Any notes about this distribution..."></textarea>
+      </div>
+      <div class="att-bar">
+        <div class="att-bar-head">
+          <label>Photos / Attachments</label>
+          <span class="att-count" id="attCount_dist">0 files</span>
+        </div>
+        <div class="att-bar-actions">
+          <button type="button" class="att-btn att-btn-upload" data-att-add="dist"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> Upload</button>
+          <button type="button" class="att-btn att-btn-cam" data-att-cam="dist"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Camera</button>
+        </div>
+        <div class="att-grid" id="attPreview_dist"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="distSaveBtn">Submit Distribution</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Approve Distribution Modal -->
+<div class="modal-backdrop hidden" id="distApproveModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Approve Distribution</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="partial-summary" id="distApproveSummary"></div>
+    <div class="form-group" style="margin-top:10px">
+      <label for="distApproveRemark">Approval Remark (optional)</label>
+      <textarea id="distApproveRemark" rows="3" placeholder="Add a note about the received items..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close>Cancel</button>
+      <button type="button" class="btn btn-primary" id="distApproveSubmitBtn">Submit &amp; Approve</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reject Distribution Modal -->
+<div class="modal-backdrop hidden" id="distRejectModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Reject Distribution</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="partial-summary" id="distRejectSummary"></div>
+    <form id="distRejectForm">
+      <div class="form-group" style="margin-top:10px">
+        <label for="distRejectRemark">Rejection Remark *</label>
+        <textarea id="distRejectRemark" rows="3" placeholder="Reason for rejection (required)."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-red" id="distRejectSubmitBtn" disabled>Submit Rejection</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Distribution Details Modal -->
+<div class="modal-backdrop hidden" id="distDetailModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="distDetailTitle">Distribution Details</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="demand-detail-grid" id="distDetailInfo"></div>
+    <h4 class="dd-section-title">Items</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Item</th><th>Category</th><th>Qty</th><th>Condition</th><th>Distributed From</th></tr></thead>
+        <tbody id="distDetailItems"></tbody>
+      </table>
+    </div>
+    <h4 class="dd-section-title">Decision Remarks</h4>
+    <div id="distDetailDecisions" class="dd-history"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Maintenance Request Modal -->
+<div class="modal-backdrop hidden" id="maintenanceModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>New Maintenance Request</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="maintenanceForm">
+            <div class="form-row">
+        <div class="form-group" style="flex:1">
+          <label for="maintType">Maintenance Type *</label>
+          <select id="maintType">
+            <option value="">Select type...</option>
+            <option value="plumber">Plumber</option>
+            <option value="electrician">Electrician</option>
+            <option value="carpenter">Carpenter</option>
+            <option value="mason">Mason / Civil Work</option>
+            <option value="computer_it">Computer / IT</option>
+            <option value="vehicle">Vehicle</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:1">
+          <label for="maintRequestTo">Request To</label>
+          <input type="text" id="maintRequestTo" readonly tabindex="-1" placeholder="Auto-selected by maintenance type">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group hidden" id="maintTypeOtherWrap" style="flex:1">
+          <label for="maintTypeOther">Specify Maintenance Type *</label>
+          <input type="text" id="maintTypeOther" placeholder="e.g. Water Pump Repair">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="maintDesc">Description *</label>
+        <textarea id="maintDesc" rows="3" placeholder="Describe the maintenance required..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Photos <span style="color:var(--muted);font-weight:400">(optional, any format, up to 4MB each &mdash; unlimited)</span></label>
+        <input type="file" id="maintPhotoInput" multiple style="display:none">
+        <div class="att-bar-actions">
+          <button type="button" class="att-btn att-btn-upload" id="maintPhotoAdd"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> Upload</button>
+          <button type="button" class="att-btn att-btn-cam" data-att-cam="maint"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Camera</button>
+          <span class="att-count" id="attCount_maint">0 files</span>
+        </div>
+        <div class="att-grid" id="maintPhotoPreview"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="maintSubmitBtn">Submit Request</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Process Maintenance Request Modal -->
+<div class="modal-backdrop hidden" id="maintProcessModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Process Maintenance Request</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="partial-summary" id="maintProcessSummary"></div>
+    <div class="maint-photo-thumbs" id="maintProcessPhotos"></div>
+    <form id="maintProcessForm">
+      <div class="form-group" style="margin-top:10px">
+        <label for="maintProcessRemark">Remark (optional)</label>
+        <textarea id="maintProcessRemark" rows="3" placeholder="Add a note about the action being taken..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="maintProcessSubmitBtn">Proceed to Process</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Complete / Approve Maintenance Request Modal -->
+<div class="modal-backdrop hidden" id="maintApproveModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Complete Maintenance Request</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="partial-summary" id="maintApproveSummary"></div>
+    <div class="maint-photo-thumbs" id="maintApprovePhotos"></div>
+    <form id="maintApproveForm">
+      <div class="form-group" style="margin-top:10px">
+        <label for="maintApproveRemark">Completion Remark (optional)</label>
+        <textarea id="maintApproveRemark" rows="3" placeholder="Notes about the completed work..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-green" id="maintApproveSubmitBtn">Approve &amp; Complete</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Maintenance Request Details Modal -->
+<div class="modal-backdrop hidden" id="maintDetailModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="maintDetailTitle">Maintenance Request Details</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="demand-detail-grid" id="maintDetailInfo"></div>
+    <h4 class="dd-section-title">Photos</h4>
+    <div class="maint-detail-photos" id="maintDetailPhotos"></div>
+    <h4 class="dd-section-title">Timeline</h4>
+    <div class="dd-history" id="maintDetailTimeline"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Maintenance Photo Lightbox -->
+<div class="maint-lightbox hidden" id="maintLightbox">
+  <button class="maint-lightbox-close" id="maintLightboxClose" title="Close">&times;</button>
+  <div class="maint-lightbox-body">
+    <img id="maintLightboxImg" alt="Maintenance photo">
+  </div>
+</div>
+
+<!-- Manage Users Modal -->
+<div class="modal-backdrop hidden" id="usersModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="usersModalTitle">Manage Users</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="users-list" id="usersList"></div>
+    <div class="user-add-section">
+      <h4 id="userFormTitle">Add New User</h4>
+      <form id="addUserForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="nuUsername">Username</label>
+            <input type="text" id="nuUsername" required minlength="3">
+          </div>
+          <div class="form-group">
+            <label for="nuPassword">Password</label>
+            <input type="text" id="nuPassword" placeholder="Leave blank to keep current">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="nuName">Display Name</label>
+            <input type="text" id="nuName" required>
+          </div>
+          <div class="form-group">
+            <label for="nuMobile">Mobile</label>
+            <input type="tel" id="nuMobile" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="nuRole">Role</label>
+            <select id="nuRole">
+              <option value="user">General User</option>
+              <option value="mhc">MHC</option>
+              <option value="tsi">TSI</option>
+              <option value="station">Station Manager</option>
+              <option value="staff">Staff</option>
+              <option value="post">Police Post</option>
+              <option value="admin">District Admin</option>
+              <option value="devadmin" data-dev-only>Developer Admin</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="nuDistrict">District</label>
+            <select id="nuDistrict"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="nuLocation">Location</label>
+            <select id="nuLocation"></select>
+          </div>
+          <div></div>
+        </div>
+        <input type="hidden" id="nuEditId" value="">
+        <div class="form-actions">
+          <button type="button" class="btn btn-outline" id="cancelUserEdit" style="display:none">Cancel Edit</button>
+          <button type="submit" class="btn btn-primary" id="userSubmitBtn">Add User</button>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage Districts Modal -->
+<div class="modal-backdrop hidden" id="districtsModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>Manage Districts</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="districts-list" id="districtsList"></div>
+    <div class="district-add-section">
+      <h4 id="distFormTitle">Add New District</h4>
+      <form id="addDistrictForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ndName">District Name</label>
+            <input type="text" id="ndName" required placeholder="e.g. Karnal District">
+          </div>
+          <div class="form-group">
+            <label for="ndCode">District Code</label>
+            <input type="text" id="ndCode" required placeholder="e.g. KNL" maxlength="5">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ndHQ">Headquarters</label>
+            <input type="text" id="ndHQ" required placeholder="e.g. Karnal">
+          </div>
+          <div></div>
+        </div>
+        <input type="hidden" id="ndEditId" value="">
+        <div class="form-actions">
+          <button type="button" class="btn btn-outline" id="cancelDistEdit" style="display:none">Cancel Edit</button>
+          <button type="submit" class="btn btn-primary" id="distSubmitBtn">Add District</button>
+        </div>
+      </form>
+    </div>
+    <div class="location-section">
+      <h4>Locations in Selected District</h4>
+      <div class="location-add-row">
+        <select id="nlType">
+          <option value="district">District HQ</option>
+          <option value="station">Police Station</option>
+          <option value="post">Police Post</option>
+          <option value="mhc">MHC Store</option>
+        </select>
+        <input type="text" id="nlName" placeholder="Location name...">
+        <button type="button" class="btn btn-primary btn-sm" id="addLocationBtn">Add</button>
+      </div>
+      <div class="location-list" id="locationList"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Forgot Password Modal -->
+<div class="modal-backdrop hidden" id="forgotPassModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Forgot Password</h2>
+      <button type="button" class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="forgotPassForm">
+      <div class="form-group">
+        <label for="fpUsername">Username</label>
+        <input type="text" id="fpUsername" required placeholder="Enter your username...">
+      </div>
+      <div class="form-group">
+        <label for="fpPhone">Phone Number</label>
+        <input type="tel" id="fpPhone" required placeholder="Enter registered phone number..." pattern="[0-9]{10}" maxlength="10">
+      </div>
+      <div class="forgot-pass-result hidden" id="fpResult">
+        <div class="fp-result-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <div>
+            <span class="fp-result-label">Request sent to admin successfully!</span>
+            <span class="fp-result-sub">You will be notified once your password is reset.</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="fpSubmitBtn">Submit Request</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Request Access Modal -->
+<div class="modal-backdrop hidden" id="requestAccessModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Request Access / Sign Up</h2>
+      <button type="button" class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="requestAccessForm">
+      <div class="form-group">
+        <label for="raName">Full Name</label>
+        <input type="text" id="raName" required placeholder="Enter your full name...">
+      </div>
+      <div class="form-group">
+        <label for="raPost">Post / Designation</label>
+        <input type="text" id="raPost" required placeholder="e.g. Constable, SI, Head Constable...">
+      </div>
+      <div class="form-group">
+        <label for="raMobile">Mobile Number</label>
+        <input type="tel" id="raMobile" required placeholder="10-digit mobile number..." pattern="[0-9]{10}" maxlength="10">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="raDistrict">District</label>
+          <select id="raDistrict" required></select>
+        </div>
+        <div class="form-group">
+          <label for="raLocation">Location / Station</label>
+          <select id="raLocation" required></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="raUserType">Requested Role</label>
+        <select id="raUserType" required>
+          <option value="user">General User</option>
+          <option value="mhc">MHC</option>
+          <option value="tsi">TSI</option>
+          <option value="station">Station Manager</option>
+          <option value="staff">Staff</option>
+          <option value="post">Police Post</option>
+        </select>
+      </div>
+      <div class="forgot-pass-result hidden" id="raResult">
+        <div class="fp-result-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <div>
+            <span class="fp-result-label">Request submitted successfully!</span>
+            <span class="fp-result-sub">District admin and developer admin have been notified. You will be contacted once approved.</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="raSubmitBtn">Submit Request</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Allot Item Modal -->
+<div class="modal-backdrop hidden" id="allotModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="allotModalTitle">Issue Items</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="allotForm">
+      <h4 class="modal-sec-title">PERSON DETAILS</h4>
+      <div class="form-row">
+        <div class="form-group" id="alpPersonGroup" style="flex:2">
+          <label for="alPerson">Rank/Person</label>
+          <input type="text" id="alPerson" required placeholder="Type rank, name or BELT No...">
+          <div class="person-suggest hidden" id="alPersonSuggest"></div>
+          <input type="hidden" id="alRank">
+          <input type="hidden" id="alPosting">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="alBelt">BELT Number</label>
+          <input type="text" id="alBelt" required placeholder="e.g. BRLT12345">
+        </div>
+        <div class="form-group">
+          <label for="alMobile">Mobile No.</label>
+          <input type="tel" id="alMobile" required placeholder="e.g. 9876543210" maxlength="15">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Type of Items *</label>
+        <div class="dist-type-toggle" id="alTypeToggle">
+          <label class="dist-type-opt" for="alTypeStock"><input type="checkbox" id="alTypeStock" checked> <span>Stock</span></label>
+          <label class="dist-type-opt" for="alTypeCons"><input type="checkbox" id="alTypeCons"> <span>Consume</span></label>
+        </div>
+      </div>
+      <h4 class="modal-sec-title">ITEM DETAILS <span class="modal-sec-hint">(add one or more items – different categories &amp; quantities)</span></h4>
+      <div id="alItems" class="alloc-items"></div>
+      <div class="alloc-items-actions">
+        <button type="button" class="btn btn-sm btn-outline" id="alAddItemRow">+ Add Item</button>
+        <span class="alloc-items-note" id="alItemsSummary"></span>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="alDate">Date</label>
+          <input type="date" id="alDate" required>
+        </div>
+        <div class="form-group">
+          <label for="alTime">Time</label>
+          <input type="time" id="alTime" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="alRemarks">Remarks</label>
+        <input type="text" id="alRemarks" placeholder="Optional">
+      </div>
+      <input type="hidden" id="alEditId" value="">
+      <div class="att-bar">
+        <div class="att-bar-head">
+          <label>Photos / Attachments</label>
+          <span class="att-count" id="attCount_issue">0 files</span>
+        </div>
+        <div class="att-bar-actions">
+          <button type="button" class="att-btn att-btn-upload" data-att-add="issue"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> Upload</button>
+          <button type="button" class="att-btn att-btn-cam" data-att-cam="issue"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Camera</button>
+        </div>
+        <div class="att-grid" id="attPreview_issue"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="alSubmitBtn">Issue Items</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Return Item Modal -->
+<div class="modal-backdrop hidden" id="returnModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Return Item</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="returnForm">
+      <div class="return-summary" id="rtSummary"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="rtQty">Return Quantity</label>
+          <input type="number" id="rtQty" min="1" required>
+        </div>
+        <div class="form-group">
+          <label for="rtDate">Return Date</label>
+          <input type="date" id="rtDate" required>
+        </div>
+        <div class="form-group">
+          <label for="rtTime">Return Time</label>
+          <input type="time" id="rtTime" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="rtCondition">Condition On Return</label>
+        <select id="rtCondition" required>
+          <option value="good">Good</option>
+          <option value="poor">Damaged</option>
+          <option value="damaged">Scrap</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="rtRemarks">Remarks</label>
+        <input type="text" id="rtRemarks" placeholder="Optional">
+      </div>
+      <input type="hidden" id="rtAllotId" value="">
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Return</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Report Item Loss Modal -->
+<div class="modal-backdrop hidden" id="lossModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Report Item Lost</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="lossForm">
+      <div class="return-summary" id="lsSummary"></div>
+      <div class="form-group">
+        <label for="lsQty">Quantity to Mark as Lost</label>
+        <input type="number" id="lsQty" min="1" required>
+        <small class="form-hint" id="lsQtyHint"></small>
+      </div>
+      <div class="form-group">
+        <label for="lsReason">Lost Reason</label>
+        <textarea id="lsReason" rows="3" placeholder="Why is this item lost? (required)"></textarea>
+      </div>
+      <div class="field-err" id="lsError"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="lsSubmitBtn">Report Lost</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Item Recovery Modal -->
+<div class="modal-backdrop hidden" id="recoveryModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Item Recovery</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="recoveryForm">
+      <div class="return-summary" id="rcSummary"></div>
+      <div class="form-row two-col">
+        <div class="form-group">
+          <label for="rcCategory">Category</label>
+          <select id="rcCategory" required></select>
+        </div>
+        <div class="form-group">
+          <label for="rcItem">Item Name</label>
+          <select id="rcItem" required></select>
+        </div>
+      </div>
+      <div class="form-row two-col">
+        <div class="form-group">
+          <label for="rcQty">Quantity</label>
+          <input type="number" id="rcQty" min="1" required>
+        </div>
+        <div class="form-group">
+          <label for="rcMode">Mode of Recovery</label>
+          <select id="rcMode" required>
+            <option value="">Select Mode</option>
+            <option value="recovered">Recovered</option>
+            <option value="found">Found</option>
+            <option value="returned">Returned to Store</option>
+            <option value="surrendered">Surrendered</option>
+            <option value="handed_over">Handed Over</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row two-col">
+        <div class="form-group">
+          <label for="rcDate">Date</label>
+          <input type="date" id="rcDate" required>
+        </div>
+        <div class="form-group">
+          <label for="rcTime">Time</label>
+          <input type="time" id="rcTime" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="rcRemarks">Remarks</label>
+        <input type="text" id="rcRemarks" placeholder="Optional">
+      </div>
+      <div class="field-err" id="rcError"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="rcSubmitBtn">Submit Recovery</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Adjust Stock Modal -->
+<div class="modal-backdrop hidden" id="adjustModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Adjust Stock</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="adjustForm">
+      <div class="form-group">
+        <label for="ajItem">Item</label>
+        <select id="ajItem" required></select>
+      </div>
+      <div class="form-group">
+        <label for="ajType">Adjustment Type</label>
+        <select id="ajType" required>
+          <option value="add">Stock Added</option>
+          <option value="correction">Stock Correction (Set Total)</option>
+          <option value="writeoff">Written Off</option>
+          <option value="damage">Mark Scrap</option>
+          <option value="loss">Mark Lost</option>
+        </select>
+      </div>
+      <div class="form-group" id="ajQtyGroup">
+        <label for="ajQty">Quantity</label>
+        <input type="number" id="ajQty" min="1" required>
+      </div>
+      <div class="form-group hidden" id="ajTotalGroup">
+        <label for="ajTotal">Corrected Total Quantity</label>
+        <input type="number" id="ajTotal" min="0" required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="ajDate">Date</label>
+          <input type="date" id="ajDate" required>
+        </div>
+        <div class="form-group">
+          <label for="ajTime">Time</label>
+          <input type="time" id="ajTime" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="ajRemarks">Remarks</label>
+        <input type="text" id="ajRemarks" placeholder="Optional">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Apply Adjustment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Item Detail Modal -->
+<div class="modal-backdrop hidden" id="allocItemDetailModal">
+  <div class="modal modal-xl">
+    <div class="modal-header">
+      <div>
+        <h2 id="aidTitle">Item Details</h2>
+        <p class="page-subtitle" id="aidSubtitle" style="margin-top:4px;font-size:.78rem"></p>
+      </div>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="table-wrap" style="padding:0 22px">
+      <h4 class="modal-sec-title">Currently Issued To</h4>
+      <table>
+        <thead><tr><th>Person</th><th>BELT No.</th><th>Posting</th><th>Qty (Remaining)</th><th>Issued On</th><th>Status</th></tr></thead>
+        <tbody id="aidAllottedBody"></tbody>
+      </table>
+      <h4 class="modal-sec-title" style="margin-top:18px">Transaction History</h4>
+      <table>
+        <thead><tr><th>Date</th><th>Time</th><th>Transaction</th><th>Qty</th><th>Previous</th><th>New</th><th>Person</th><th>Remarks</th><th>By</th></tr></thead>
+        <tbody id="aidHistoryBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Person Detail Modal -->
+<div class="modal-backdrop hidden" id="allocPersonDetailModal">
+  <div class="modal modal-xl">
+    <div class="modal-header">
+      <div>
+        <h2 id="apdTitle">Person Details</h2>
+        <p class="page-subtitle" id="apdSubtitle" style="margin-top:4px;font-size:.78rem"></p>
+      </div>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="table-wrap" style="padding:0 22px">
+      <h4 class="modal-sec-title">Currently Issued Items</h4>
+      <table>
+        <thead><tr><th>Item</th><th>Category</th><th>Qty (Remaining)</th><th>Lost</th><th>Issued Date</th><th>Status</th></tr></thead>
+        <tbody id="apdAllottedBody"></tbody>
+      </table>
+      <h4 class="modal-sec-title" style="margin-top:18px">Returned / Settled Items</h4>
+      <table>
+        <thead><tr><th>Item</th><th>Qty Returned</th><th>Condition</th><th>Issued Date</th><th>Return Date</th><th>Status</th></tr></thead>
+        <tbody id="apdReturnedBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Stat Detail / Export Modal -->
+<div class="modal-backdrop hidden" id="statDetailModal">
+  <div class="modal modal-xl">
+    <div class="modal-header">
+      <div>
+        <h2 id="statDetailTitle">Detail</h2>
+        <p class="page-subtitle" id="statDetailSubtitle" style="margin-top:4px;font-size:.78rem"></p>
+      </div>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="stat-toolbar">
+      <div class="stat-export-dd">
+        <button class="btn btn-sm btn-primary" id="statExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
+        <div class="stat-export-menu hidden" id="statExportMenu">
+          <button data-export="pdf"><span class="ee-ic">&#128196;</span> Download PDF</button>
+          <button data-export="excel"><span class="ee-ic">&#128229;</span> Download Excel</button>
+          <button data-export="word"><span class="ee-ic">&#128220;</span> Download Word</button>
+          <button data-export="print"><span class="ee-ic">&#128424;</span> Print</button>
+        </div>
+      </div>
+      <div class="stat-search-wrap">
+        <input type="text" class="stat-search" id="statSearch" placeholder="Search this list...">
+        <span class="stat-search-icon">&#128269;</span>
+      </div>
+      <span class="stat-toolbar-note" id="statDetailCount"></span>
+    </div>
+<div class="table-wrap" style="padding:0 22px 20px">
+      <table>
+        <thead id="statDetailHead"></thead>
+        <tbody id="statDetailBody"></tbody>
+      </table>
+      <div class="pager" id="pager_statDetail"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- View All Notifications Modal -->
+<div class="modal-backdrop hidden" id="notifAllModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h2>All Notifications</h2>
+      </div>
+      <button class="modal-close" id="notifAllModalClose">&times;</button>
+    </div>
+    <div class="notif-list-all" id="notifAllList"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" id="notifAllModalClose2">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast hidden" id="toast"></div>
+
+<script src="api-client.js?v=2026.09.211"></script>
+  <script src="app.js?v=2026.09.211"></script>
+<script src="ims-agent.js?v=2026.09.211" defer></script>
+<script src="item-profile.js?v=2026.09.211"></script>
+<script src="person-profile.js?v=2026.09.211"></script>
+<input type="file" id="attFileInput" multiple hidden>
+<div class="modal-backdrop hidden" id="camModal">
+  <div class="modal cam-modal">
+    <div class="modal-header">
+      <h2>Take Photo</h2>
+      <button class="modal-close" id="camCloseBtn">&times;</button>
+    </div>
+    <div class="cam-body">
+      <video id="camVideo" autoplay playsinline muted></video>
+      <div class="cam-hint" id="camHint">Starting camera…</div>
+      <div class="cam-flash" id="camFlash"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" id="camSwitchBtn">Flip</button>
+      <button type="button" class="btn btn-primary" id="camCaptureBtn">Capture</button>
+      <button type="button" class="btn btn-gold" id="camDoneBtn">Done</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="camFallbackInput" accept="image/*" capture="environment" style="display:none">
+<!-- Consumable: Add (multi-row, Add Stock style) -->
+<div class="modal-backdrop hidden" id="consAddModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>Add Consume Item</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="consAddForm">
+      <div class="as-cols-head cons-cols-head"><span>Category</span><span>Item</span><span>Quantity</span><span></span></div>
+      <div id="consRows"></div>
+      <div class="as-rows-toolbar">
+        <button type="button" class="btn btn-sm btn-outline" id="consAddItemBtn">+ Add Item</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="consDate">Date</label>
+          <input type="date" id="consDate">
+        </div>
+        <div class="form-group">
+          <label for="consTime">Time</label>
+          <input type="time" id="consTime">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Remarks</label>
+        <textarea id="consRemarks" rows="2" placeholder="Optional remarks..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Consumable Stock</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Consumable: Distribute -->
+<div class="modal-backdrop hidden" id="consDistModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Distribute Consumable Item</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="consDistForm">
+      <div class="form-row">
+        <div class="form-group"><label>Item Category</label><input type="text" id="cdCat" readonly></div>
+        <div class="form-group"><label>Item</label><input type="text" id="cdItem" readonly></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Available Quantity</label><input type="text" id="cdAvail" readonly></div>
+        <div class="form-group"><label>Distribution Quantity *</label><input type="number" id="cdQty" min="1" step="1" required placeholder="Quantity to distribute"></div>
+      </div>
+      <div class="form-group">
+        <label>Distributed To *</label>
+        <div class="combo" id="consToCombo">
+          <input type="text" class="combo-input input" placeholder="Type to search units / staff..." autocomplete="off">
+          <input type="hidden" class="combo-val">
+          <div class="combo-list hidden"></div>
+        </div>
+      </div>
+      <div class="form-group"><label>Distributed By</label><input type="text" id="cdBy" readonly></div>
+      <div class="form-group"><label>Remarks</label><textarea id="cdRemarks" rows="2" placeholder="Optional remarks..."></textarea></div>
+      <div class="att-bar">
+        <div class="att-bar-head"><label>Photo / Attachment</label><span class="att-count" id="attCount_consDist">0 files</span></div>
+        <div class="att-bar-actions">
+          <label class="att-btn att-btn-upload" title="Attach photo or file (any format)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> Upload<input type="file" data-att-add="consDist" multiple hidden></label>
+          <button type="button" class="att-btn att-btn-cam" data-att-cam="consDist"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Camera</button>
+        </div>
+        <div class="att-grid" id="attPreview_consDist"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Send Distribution Request</button>
+      </div>
+    </form>
+  </div>
+</div>
+<!-- Consumable: Loss -->
+<div class="modal-backdrop hidden" id="consLossModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Mark Consumable Quantity as Lost</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="consLossForm">
+      <div class="form-row">
+        <div class="form-group"><label>Item</label><input type="text" id="clItem" readonly></div>
+        <div class="form-group"><label>Available Quantity</label><input type="text" id="clAvail" readonly></div>
+      </div>
+      <div class="form-group"><label>Lost Quantity *</label><input type="number" id="clQty" min="1" step="1"></div>
+      <div class="form-group"><label>Remarks</label><textarea id="clRemarks" rows="2" placeholder="Optional remarks..."></textarea></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-red">Mark as Lost</button>
+      </div>
+    </form>
+  </div>
+</div>
+<!-- Consumable: Item details -->
+<div class="modal-backdrop hidden" id="consItemModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>Consumable Item Details</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div id="consItemBody" class="modal-body"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline hidden" id="consItemEditBtn">Edit</button>
+      <button type="button" class="btn btn-outline" data-close>Close</button>
+    </div>
+  </div>
+</div>
+<!-- Consumable: Transaction details -->
+<div class="modal-backdrop hidden" id="consTxnModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Transaction Details</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="modal-body" id="consTxnBody"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Consumable: Request review -->
+<div class="modal-backdrop hidden" id="consRequestModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>Consumable Distribution Request</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div id="consReqBody" class="modal-body"></div>
+    <div class="modal-footer" id="consReqFoot"></div>
+  </div>
+</div>
+<!-- Consumable: Reject -->
+<div class="modal-backdrop hidden" id="consRejectModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Reject Distribution Request</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="consRejectForm">
+      <div class="form-group">
+        <label>Rejection Reason *</label>
+        <textarea id="consRejectReason" rows="3" placeholder="Why is this distribution being rejected?"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-red">Reject Request</button>
+      </div>
+    </form>
+  </div>
+</div>
+<!-- Consumable: Recipient history -->
+<div class="modal-backdrop hidden" id="consRecipientModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>Recipient Distribution History</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div id="consRecipBody" class="modal-body"></div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline" data-close>Close</button></div>
+  </div>
+</div>
+<!-- Consumable: Edit item -->
+<div class="modal-backdrop hidden" id="consEditModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>Edit Consumable Item</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="consEditForm">
+      <div class="form-row">
+        <div class="form-group"><label>Item Category</label><input type="text" id="ceCat" readonly></div>
+        <div class="form-group"><label>Item Name *</label><input type="text" id="ceName"></div>
+      </div>
+      <div class="att-bar">
+        <div class="att-bar-head">
+          <label>Photo (replace)</label>
+          <span class="att-count" id="attCount_consEdit">0 files</span>
+        </div>
+        <div class="att-bar-actions">
+          <button type="button" class="att-btn att-btn-upload" data-att-add="consEdit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> Upload</button>
+          <button type="button" class="att-btn att-btn-cam" data-att-cam="consEdit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Camera</button>
+        </div>
+        <div class="att-grid" id="attPreview_consEdit"></div>
+      </div>
+      <div class="form-group"><label>Remarks</label><textarea id="ceRemarks" rows="2"></textarea></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========== DEV ADMIN: ADD/EDIT DISTRICT MODAL ========== -->
+<div class="modal-backdrop hidden" id="devDistModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="devDistTitle">Add New District</h2>
+      <button type="button" class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="devDistForm" novalidate>
+      <input type="hidden" id="ddEditId" value="">
+      <div class="form-group">
+        <label for="ddName">District Name <span class="req">*</span></label>
+        <input type="text" id="ddName" placeholder="e.g. Karnal District" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="ddCode">District Code <span class="req">*</span></label>
+          <input type="text" id="ddCode" placeholder="e.g. KNL" maxlength="5" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="ddHQ">Headquarters <span class="req">*</span></label>
+          <input type="text" id="ddHQ" placeholder="e.g. Karnal" autocomplete="off">
+        </div>
+      </div>
+      <div class="field-err" id="devDistErr"></div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-outline" id="devDistCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="devDistSubmit">Add District</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========== DEV ADMIN: DISTRICT LOCATIONS MODAL ========== -->
+<div class="modal-backdrop hidden" id="devLocModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Locations &mdash; <span id="devLocDistName"></span></h2>
+      <button type="button" class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="dev-loc-list" id="devLocList"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" id="devLocClose">Close</button>
+      <button type="button" class="btn btn-primary" id="devAddLocBtn">+ Add Location</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== DEV ADMIN: ADD LOCATION MODAL ========== -->
+<div class="modal-backdrop hidden" id="devLocAddModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2 id="devLocAddTitle">Add Location</h2>
+      <button type="button" class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="devLocAddForm" novalidate>
+      <input type="hidden" id="dlEditId" value="">
+      <div class="form-group">
+        <label for="dlType">Location Type <span class="req">*</span></label>
+        <select id="dlType" required>
+          <option value="">Select type...</option>
+          <option value="district">District HQ</option>
+          <option value="station">Police Station</option>
+          <option value="post">Police Post</option>
+          <option value="mhc">MHC Store</option>
+          <option value="staff">Staff</option>
+          <option value="office">Office</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="dlName">Location Name <span class="req">*</span></label>
+        <input type="text" id="dlName" placeholder="e.g. PS Sector 4" autocomplete="off">
+      </div>
+      <div class="field-err" id="devLocAddErr"></div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-outline" id="devLocAddCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="devLocAddSubmit">Add Location</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========== DEV ADMIN: ADD/EDIT USER MODAL ========== -->
+<div class="modal-backdrop hidden" id="devUserModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="devUserTitle">Add New User</h2>
+      <button type="button" class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="devUserForm" novalidate>
+      <input type="hidden" id="duEditId" value="">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="duUsername">Username <span class="req">*</span></label>
+          <input type="text" id="duUsername" placeholder="e.g. ps_sector4" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="duPassword">Password <span class="req">*</span></label>
+          <input type="password" id="duPassword" placeholder="Minimum 6 characters" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="duName">Display Name <span class="req">*</span></label>
+          <input type="text" id="duName" placeholder="e.g. PSI Ramesh Kumar" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="duMobile">Mobile <span class="req">*</span></label>
+          <input type="tel" id="duMobile" placeholder="10-digit mobile number" maxlength="10" autocomplete="off">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="duRole">Role <span class="req">*</span></label>
+          <select id="duRole">
+            <option value="user">General User</option>
+            <option value="mhc">MHC</option>
+            <option value="tsi">TSI</option>
+            <option value="station">Station Manager</option>
+            <option value="staff">Staff</option>
+            <option value="post">Police Post</option>
+            <option value="admin">District Admin</option>
+            <option value="devadmin">Developer Admin</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="duDistrict">District <span class="req">*</span></label>
+          <select id="duDistrict"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="duLocation">Location <span class="req">*</span></label>
+        <select id="duLocation"></select>
+      </div>
+      <div class="field-err" id="devUserErr"></div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-outline" id="devUserCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="devUserSubmit">Add User</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========== DEV ADMIN: CONFIRM MODAL ========== -->
+<div class="modal-backdrop hidden" id="devConfirmModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2 id="devConfirmTitle">Confirm</h2>
+      <button type="button" class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="modal-body"><p id="devConfirmBody" class="dev-confirm-text"></p></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" id="devConfirmCancel">Cancel</button>
+      <button type="button" class="btn btn-red" id="devConfirmOk">Confirm</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

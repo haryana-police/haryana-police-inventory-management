@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Haryana Police Inventory App — User Guide</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #1f2937;
+    background: #eef1f5;
+    line-height: 1.5;
+  }
+  .page {
+    max-width: 820px;
+    margin: 24px auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 18px rgba(15, 40, 70, 0.12);
+    overflow: hidden;
+  }
+  header {
+    background: linear-gradient(120deg, #1d4ed8, #0f2f6b);
+    color: #fff;
+    padding: 30px 40px 26px;
+  }
+  header h1 { font-size: 26px; margin-bottom: 6px; }
+  header .app-url {
+    font-size: 15px; background: rgba(255,255,255,0.16);
+    display: inline-block; padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.35);
+  }
+  header .tag { font-size: 13px; opacity: 0.85; margin-top: 10px; }
+  .section { padding: 24px 40px; border-bottom: 1px solid #e5e7eb; }
+  .section:last-child { border-bottom: none; }
+  h2 { font-size: 18px; color: #1d4ed8; margin-bottom: 12px; }
+  p { margin-bottom: 10px; font-size: 14px; }
+  ol { margin: 6px 0 6px 22px; font-size: 14px; }
+  ol li { margin-bottom: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { border: 1px solid #d1d5db; padding: 8px 10px; text-align: left; }
+  th { background: #eef4ff; color: #1d4ed8; font-weight: 600; }
+  tr:nth-child(even) td { background: #fafbfd; }
+  td.mono, .mono { font-family: Consolas, "Courier New", monospace; }
+  .note {
+    background: #fff7ed; border: 1px solid #fdba74; border-radius: 8px;
+    padding: 10px 14px; font-size: 13px; color: #7c2d12; margin-top: 12px;
+  }
+  .note b { color: #9a3412; }
+  .warn {
+    background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px;
+    padding: 10px 14px; font-size: 13px; color: #7f1d1d; margin-top: 8px;
+  }
+  ul { margin: 6px 0 6px 22px; font-size: 14px; }
+  ul li { margin-bottom: 6px; }
+  .badge { display: inline-block; background: #1d4ed8; color: #fff; font-size: 12px; padding: 1px 9px; border-radius: 12px; margin-right: 6px; }
+  footer { padding: 16px 40px; font-size: 12px; color: #6b7280; background: #f9fafb; text-align: center; }
+  @media print {
+    body { background: #fff; }
+    .page { margin: 0; box-shadow: none; border-radius: 0; max-width: none; }
+    header, .section { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <h1>Haryana Police Inventory App</h1>
+    <span class="app-url">https://hp-inventory.vercel.app</span>
+    <div class="tag">Works on any device with an internet browser — phone, laptop, tablet</div>
+  </header>
+
+  <div class="section">
+    <h2>How to Log In</h2>
+    <ol>
+      <li>Open <b class="mono">https://hp-inventory.vercel.app</b> in your browser.</li>
+      <li>Enter your <b>Username</b> and the <b>Password</b> provided to you by your admin (passwords are intentionally hidden in this guide).</li>
+      <li>Click <b>Sign In</b>.</li>
+      <li>Use the menu on the left to browse Dashboard, Inventory, Transactions, Demands, Inspections, Allotments, and Reports. The notification bell, <b>Users</b>, and <b>Districts</b> buttons are in the top bar.</li>
+    </ol>
+    <p>On the login screen you can also use <b>Remember me</b> and <b>Show password</b>. In demo mode, seeded user accounts appear as quick-login buttons at the bottom of the login screen — click one to sign in instantly with that account.</p>
+    <div class="note"><b>New here?</b> You can request an account yourself from the login screen — click <b>"Request Access / Sign Up"</b> and fill the form. An admin will approve it and create your login.</div>
+  </div>
+
+  <div class="section">
+    <h2>User Credentials</h2>
+    <table>
+      <thead>
+        <tr><th>Username</th><th>Password</th><th>Role</th><th>District</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="mono">developer</td><td class="mono">••••••••</td><td>Developer Admin</td><td>Gurugram</td></tr>
+        <tr><td class="mono">admin</td><td class="mono">••••••••</td><td>District Admin</td><td>Gurugram</td></tr>
+        <tr><td class="mono">admin2</td><td class="mono">••••••••</td><td>District Admin</td><td>Faridabad</td></tr>
+        <tr><td class="mono">user</td><td class="mono">••••••••</td><td>General User</td><td>Gurugram</td></tr>
+        <tr><td class="mono">mhc</td><td class="mono">••••••••</td><td>MHC</td><td>Gurugram</td></tr>
+        <tr><td class="mono">station</td><td class="mono">••••••••</td><td>Station Manager</td><td>Gurugram</td></tr>
+        <tr><td class="mono">fbd_user</td><td class="mono">••••••••</td><td>General User</td><td>Faridabad</td></tr>
+        <tr><td class="mono">fbd_mhc</td><td class="mono">••••••••</td><td>MHC</td><td>Faridabad</td></tr>
+      </tbody>
+    </table>
+    <div class="note"><b>Passwords are not listed in this guide for security reasons.</b> If you do not know your password, an admin can reset it from the <b>Users</b> tab (Edit user → set a new password), or use <b>"Forgot Password?"</b> on the login screen.</div>
+  </div>
+
+  <div class="section">
+    <h2>What Each Role Can Do</h2>
+    <ul>
+      <li><span class="badge">Developer Admin</span>Full access to everything, all districts. Can create / edit / delete any user, manage approvals, switch districts.</li>
+      <li><span class="badge">District Admin</span>Full access within their own district. Can manage users in that district, but cannot create Admin or Developer Admin accounts.</li>
+      <li><span class="badge">MHC</span>Can view and record material / MHC entries within their district.</li>
+      <li><span class="badge">TSI</span>Telecom / Signals inventory operator within their district (material, inspections, allotments).</li>
+      <li><span class="badge">Station Manager</span>Manages station-level inventory within their district.</li>
+      <li><span class="badge">Police Post</span>View / manage inventory for their post.</li>
+      <li><span class="badge">General User</span>Browsing and viewing data for their district.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Forgot Password?</h2>
+    <p>On the login screen click <b>"Forgot Password?"</b>, enter your username and registered mobile number. A request is sent to the admin, who will reset it for you.</p>
+  </div>
+
+  <div class="section">
+    <h2>Notes</h2>
+    <div class="warn"><b>Keep your password private.</b> Never share your login with others.</div>
+    <div class="warn"><b>Log out</b> when finished on a shared device.</div>
+    <p style="margin-top:10px">Passwords are stored securely (hashed) — not even admins can see your password. For help or a new account, contact the system admin / developer admin.</p>
+  </div>
+
+  <footer>Haryana Police Inventory — Internal User Guide</footer>
+</div>
+</body>
+</html>

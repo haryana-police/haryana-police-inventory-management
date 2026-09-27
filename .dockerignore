@@ -1,0 +1,11 @@
+.git
+.vercel
+.env*
+local-data/prod-backups
+local-data/*.backup-*.json
+local-data/db.backup-*.json
+*.tar
+Dockerfile
+docker-compose.yml
+.dockerignorelocal-data
+ims-server.log

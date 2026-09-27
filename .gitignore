@@ -1,0 +1,10 @@
+.vercel
+.env*
+node_modules/
+local-data/
+hp-inventory-image.tar
+*.bak_*
+*.bak
+ims-server.log
+vercel-deploy*.log
+*.tmp
