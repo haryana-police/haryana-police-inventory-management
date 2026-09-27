@@ -1,19 +1,14 @@
 #!/usr/bin/env node
 /**
- * local-dev.js — Haryana Police Inventory: local runner (zero dependencies).
+ * local-dev.js - Haryana Police Inventory: local runner (zero dependencies).
  *
- * Serves the static frontend AND the /api/* backend on one local port.
+ * Serves the static frontend AND the /api/* backend on one local port,
+ * backed by a file-based database. Nothing ever leaves this PC.
  *
- *   node local-dev.js [port] [--filedb] [--local] [--proxy] [--target=https://...]
+ *   node local-dev.js [port] [--no-open]
  *
- * Modes (auto-selected, can be forced):
- *   filedb : FULLY LOCAL. Runs api/index.js in this Node process with a
- *            file-backed database at local-data/db.json. No Postgres, no
- *            Neon, no internet, no secrets needed. (default of run-local.bat)
- *   local  : runs api/index.js against a REAL Postgres/Neon URL taken from
- *            DATABASE_URL in .env.local.
- *   proxy  : frontend served locally, /api/* forwarded to the deployed
- *            Vercel backend (live production data).
+ * The database is local-data/db.json (see api/_filepool.js). No Postgres,
+ * no connection string, no secrets, no internet required.
  */
 'use strict';
 
@@ -21,20 +16,13 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const Module = require('module');
 
 // ---------- CLI ----------
-let PORT = 3210; // 3000 is taken by another local dev server on this PC — avoid the fight
-let FORCE = null;               // 'filedb' | 'local' | 'proxy' | null (auto)
-let TARGET = 'https://hp-inventory.vercel.app';
+let PORT = 3210;               // 3000 is often taken by another local dev server on this PC
 let PROJECT_OVERRIDE = null;
 for (const a of process.argv.slice(2)) {
   if (/^\d+$/.test(a)) PORT = Number(a);
-  else if (a === '--filedb') FORCE = 'filedb';
-  else if (a === '--local') FORCE = 'local';
-  else if (a === '--proxy') FORCE = 'proxy';
-  else if (a.indexOf('--target=') === 0) TARGET = a.slice('--target='.length);
-  else if (a.indexOf('http') === 0) TARGET = a;
+  else if (a === '--filedb' || a === '--no-open') continue; // kept for run-local.bat compat
   else PROJECT_OVERRIDE = a;
 }
 
@@ -46,7 +34,7 @@ if (!PROJECT_DIR) {
   process.exit(1);
 }
 
-// ---------- env (.env.local -> .vercel/.env.production.local; shell vars win) ----------
+// ---------- env (.env.local; shell vars win) ----------
 function parseEnvFile(p) {
   try {
     const env = {};
@@ -62,115 +50,16 @@ function parseEnvFile(p) {
     return env;
   } catch (e) { return null; }
 }
-for (const f of ['.env.local', path.join('.vercel', '.env.production.local')]) {
+for (const f of ['.env.local']) {
   const env = parseEnvFile(path.join(PROJECT_DIR, f));
   if (env) for (const k of Object.keys(env)) if (!(k in process.env)) process.env[k] = env[k];
 }
 
-const DB_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || '';
-const DB_USABLE = /^postgres(ql)?:\/\//.test(DB_URL);
-const MODE = FORCE || (DB_USABLE ? 'local' : 'proxy');
 
-// ============================================================
-// FILE-BACKED DATABASE (mode: filedb)
-// The whole backend is a document store: app_state = ONE JSONB row, plus an
-// rt_events append-only log. This shim implements exactly the SQL surface
-// api/index.js uses (the same surface test/rbac.test.js stubs) and persists
-// it to a single JSON file. No Postgres install required.
-// ============================================================
-const DATA_DIR = path.join(PROJECT_DIR, 'local-data');
-const DATA_FILE = path.join(DATA_DIR, 'db.json');
-const FILE_DB_NOTIFY_CBS = new Set();
-
-function safeParse(v, d) {
-  if (v && typeof v === 'object') return v;
-  try { const o = JSON.parse(v); return (o && typeof o === 'object') ? o : d; } catch (e) { return d; }
-}
-
-class FilePool {
-  constructor() {
-    try { if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
-    this._load();
-  }
-  _empty() { return { app_state: null, rt_seq: 0, rt_events: [], rt_dedupe: {} }; }
-  _load() {
-    try { this.db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch (e) { this.db = null; }
-    if (!this.db || typeof this.db !== 'object') this.db = this._empty();
-    if (typeof this.db.app_state !== 'object' || this.db.app_state === null) this.db.app_state = {};
-    if (!Array.isArray(this.db.rt_events)) this.db.rt_events = [];
-    if (!this.db.rt_dedupe || typeof this.db.rt_dedupe !== 'object') this.db.rt_dedupe = {};
-    if (typeof this.db.rt_seq !== 'number') this.db.rt_seq = 0;
-    if (this.db.app_state && Object.keys(this.db.app_state).length > 0) this._persist();
-  }
-  _persist() {
-    try {
-      const tmp = DATA_FILE + '.tmp';
-      fs.writeFileSync(tmp, JSON.stringify(this.db));
-      try { fs.renameSync(tmp, DATA_FILE); }
-      catch (e) { fs.writeFileSync(DATA_FILE, JSON.stringify(this.db)); }
-    } catch (e) { console.error('[filedb] persist failed:', e && e.message); }
-  }
-  _notifyAll() {
-    for (const cb of Array.from(FILE_DB_NOTIFY_CBS)) {
-      try { cb('notification', { payload: 'new' }); } catch (e) {}
-    }
-  }
-  async query(sql, params) {
-    params = params || [];
-    const s = String(sql);
-    if (s.indexOf('CREATE TABLE') === 0) return { rows: [] };
-    if (s.indexOf('SELECT data FROM app_state') >= 0) {
-      const has = this.db.app_state && Object.keys(this.db.app_state).length > 0;
-      return { rows: has ? [{ data: this.db.app_state }] : [] };
-    }
-    if (s.indexOf('INSERT INTO app_state') >= 0) {
-      this.db.app_state = safeParse(params[0], {});
-      this._persist();
-      return { rows: [] };
-    }
-    if (s.indexOf('FROM rt_events') >= 0 && s.indexOf('SELECT') === 0) {
-      const after = Number(params[0]) || 0;
-      const limit = Math.max(1, Number(params[1]) || 200);
-      const rows = this.db.rt_events
-        .filter(e => e.id > after)
-        .sort((a, b) => a.id - b.id)
-        .slice(0, limit)
-        .map(e => ({ id: e.id, type: e.type, title: e.title, message: e.message, scope: e.scope, payload: e.payload, created_at: e.created_at }));
-      return { rows };
-    }
-    if (s.indexOf('INSERT INTO rt_events') >= 0) {
-      const dedupe = params[5] || null;
-      if (dedupe) {
-        if (this.db.rt_dedupe[dedupe]) return { rows: [] };
-        this.db.rt_dedupe[dedupe] = true;
-      }
-      this.db.rt_events.push({
-        id: ++this.db.rt_seq,
-        type: params[0], title: params[1], message: params[2],
-        scope: safeParse(params[3], {}), payload: safeParse(params[4], {}),
-        dedupe, created_at: Number(params[6]) || Date.now(),
-      });
-      if (this.db.rt_events.length > 2000) this.db.rt_events = this.db.rt_events.slice(-1000);
-      this._persist();
-      this._notifyAll();
-      return { rows: [] };
-    }
-    if (s.indexOf('pg_notify') >= 0) { this._notifyAll(); return { rows: [] }; }
-    if (s.indexOf('LISTEN') === 0) return { rows: [] };
-    console.warn('[filedb] unhandled SQL:', s.slice(0, 120));
-    return { rows: [] };
-  }
-  async connect() {
-    const self = this;
-    const mine = new Set();
-    return {
-      query: (sql, params) => self.query(sql, params),
-      on: (event, cb) => { if (event === 'notification') { mine.add(cb); FILE_DB_NOTIFY_CBS.add(cb); } },
-      release: () => { for (const cb of mine) FILE_DB_NOTIFY_CBS.delete(cb); mine.clear(); },
-    };
-  }
-}
-
+// ---------- database ----------
+// The file-backed pool lives with the API (api/_filepool.js) so the backend
+// and this runner share one instance (and one notification channel).
+const { DATA_FILE } = require(path.join(PROJECT_DIR, 'api', '_filepool.js'));
 // ---------- static serving ----------
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -203,7 +92,7 @@ function serveStatic(res, rel) {
   });
 }
 
-// ---------- Vercel-style res wrapper ----------
+// ---------- response helpers ----------
 function wrap(res) {
   res.status = c => { res.statusCode = c; return res; };
   res.json = obj => {
@@ -227,8 +116,8 @@ function readBody(req) {
   });
 }
 
-// ---------- local API mode (real Postgres/Neon) ----------
-function handleApiLocal(req, res, pathname) {
+// ---------- API handler ----------
+function handleApi(req, res, pathname) {
   const rest = pathname === '/api' ? '' : pathname.slice('/api/'.length);
   const seg = rest.split('/').filter(Boolean); // handler decodes parts itself
   const query = {};
@@ -241,61 +130,8 @@ function handleApiLocal(req, res, pathname) {
   return p.then(() => apiHandler(req, res));
 }
 
-// ---------- proxy API mode ----------
-function handleApiProxy(req, res, pathname) {
-  let target;
-  try { target = new URL(TARGET); } catch (e) { res.statusCode = 500; res.end('Bad --target URL'); return; }
-  const mod = target.protocol === 'http:' ? http : https;
-  const headers = Object.assign({}, req.headers);
-  headers.host = target.host;
-  delete headers.connection;
-  const opts = {
-    protocol: target.protocol,
-    hostname: target.hostname,
-    port: target.port || (target.protocol === 'http:' ? 80 : 443),
-    method: req.method,
-    path: req.url,
-    headers,
-  };
-  const up = mod.request(opts, upres => {
-    const h = Object.assign({}, upres.headers);
-    delete h['transfer-encoding'];
-    delete h.connection;
-    res.writeHead(upres.statusCode || 502, h);
-    upres.pipe(res);
-  });
-  up.on('error', e => {
-    if (!res.headersSent) {
-      res.statusCode = 502;
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ error: 'Upstream unreachable: ' + (e && e.message || e) + ' — is ' + TARGET + ' online?' }));
-    } else { try { res.end(); } catch (e2) {} }
-  });
-  req.pipe(up);
-  req.on('error', () => { try { up.destroy(); } catch (e) {} });
-}
-
-// ---------- acquire the serverless handler ----------
-let apiHandler = null;
-if (MODE === 'local') {
-  if (!DB_USABLE) {
-    console.error('[x] --local needs a REAL Neon connection string in .env.local');
-    console.error('    Current DATABASE_URL value is not a postgres:// URL. Example:');
-    console.error('      DATABASE_URL=postgresql://USER:PASSWORD@ep-xxx.region.aws.neon.tech/neondb?sslmode=require');
-    console.error('    Copy it from the Neon dashboard, or Vercel -> your project -> Settings -> Environment Variables.');
-    process.exit(1);
-  }
-  apiHandler = require(path.join(PROJECT_DIR, 'api', 'index.js'));
-} else if (MODE === 'filedb') {
-  // Feed the handler a file-backed Pool instead of pg. Same interception
-  // pattern test/rbac.test.js uses — proven against this exact handler.
-  const origLoad = Module._load;
-  Module._load = function (request) {
-    if (request === 'pg') return { Pool: FilePool };
-    return origLoad.apply(this, arguments);
-  };
-  apiHandler = require(path.join(PROJECT_DIR, 'api', 'index.js'));
-}
+// ---------- load the API handler ----------
+const apiHandler = require(path.join(PROJECT_DIR, 'api', 'index.js'));
 
 // ---------- one-time vendor bootstrap (binary assets only) ----------
 // Text libraries ship in vendor/. The two BINARY assets below are fetched
@@ -359,8 +195,7 @@ const server = http.createServer((req, res) => {
 
   if (pathname === '/api' || pathname.indexOf('/api/') === 0 || pathname === '/api/') {
     const t0 = Date.now();
-    if (MODE === 'proxy') { handleApiProxy(req, res, pathname); return; }
-    const done = handleApiLocal(req, res, pathname);
+    const done = handleApi(req, res, pathname);
     done.then(() => console.log('[api]', req.method, pathname, '->', res.statusCode, '(' + (Date.now() - t0) + 'ms)'))
       .catch(e => {
         console.error('[api] crashed:', e && (e.stack || e.message || e));
@@ -386,11 +221,6 @@ server.on('error', e => {
   }
 });
 
-function dbHost(url) {
-  try { const u = new URL(url); return u.protocol + '//' + u.hostname + (u.pathname || ''); }
-  catch (e) { return '(unparseable)'; }
-}
-
 ensureVendorBinaries(); // fire-and-forget: never blocks server start
 
 let currentPort = PORT;
@@ -403,20 +233,12 @@ server.listen(PORT, () => {
   console.log(line);
   console.log('  App:       ' + url + '   << open THIS in your browser');
   console.log('  Health:    ' + url + '/api/health');
-  if (MODE === 'filedb') {
-    console.log('  Mode:      FULLY LOCAL — frontend + API + database on this PC');
-    console.log('  Database:  ' + DATA_FILE);
-    console.log('  First run: empty DB -> the app auto-seeds defaults');
-    console.log('             (developer/dev@123, admin/admin123, admin2/admin123, user/user123)');
-    console.log('  Backup:    copy ' + DATA_FILE);
-    console.log('  Reset:     delete ' + DATA_FILE + ' and restart');
-  } else if (MODE === 'local') {
-    console.log('  Mode:      LOCAL backend (api/index.js in this Node process)');
-    console.log('  Database:  ' + dbHost(DB_URL) + '   << REAL Neon data!');
-  } else {
-    console.log('  Mode:      PROXY -> ' + TARGET + '  (deployed API, live data)');
-    console.log('  Tip:       run-local.bat defaults to --filedb (fully local).');
-  }
+  console.log('  Mode:      FULLY LOCAL - frontend + API + database on this PC');
+  console.log('  Database:  ' + DATA_FILE);
+  console.log('  First run: empty DB -> the app auto-seeds defaults');
+  console.log('             (developer/dev@123, admin/admin123, admin2/admin123, user/user123)');
+  console.log('  Backup:    copy ' + DATA_FILE);
+  console.log('  Reset:     delete ' + DATA_FILE + ' and restart');
   console.log('  Stop:      Ctrl+C');
   console.log(line);
   console.log('');

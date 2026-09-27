@@ -14,7 +14,7 @@ GLM 5.3 Flash remains the DeepSeek Harness dev/coding model — it is unrelated 
 
 ### Local (run-local.bat / node)
 1. Create an API key in Google AI Studio: https://aistudio.google.com/apikey
-2. Add to `.env.local` (Vercel CLI already creates this file for local dev):
+2. Add it to `.env.local` in the project folder (create the file if it doesn't exist):
 
 ```
 GEMINI_API_KEY=AIza...your-key...
@@ -28,10 +28,8 @@ GEMINI_MODEL=gemini-flash-latest
 
 Default is `gemini-flash-latest` — Google's stable alias that always points at the current recommended Flash model. Any valid Gemini model id works (e.g. `gemini-2.5-flash`).
 
-### Vercel (production)
-1. Vercel Dashboard → your project → Settings → Environment Variables.
-2. Add `GEMINI_API_KEY` (value: your AI Studio key) for Production + Preview.
-3. Redeploy (Deployments → latest → Redeploy) so the new env var is picked up.
+### Keeping the key safe
+`.env.local` is gitignored, so your key is never committed to the repo. It stays on this machine only — which means the app keeps working (on the offline NLU) even without it.
 
 ## Verify
 

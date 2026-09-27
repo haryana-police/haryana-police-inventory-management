@@ -443,7 +443,7 @@ __sortRenders.dashLow = renderDashboard;
 /* ==================== STORAGE ==================== */
 function storeKey(name) { return STORAGE_PREFIX + name; }
 function loadData(key) {
-  // When connected to Neon, api-client provides its own cache-backed loadData.
+  // When connected to the server, api-client provides its own cache-backed loadData.
   if (window.CONFIG && window.CONFIG.useRemote && window.__apiLoadFn) return window.__apiLoadFn(key);
   try { return JSON.parse(localStorage.getItem(storeKey(key))); } catch { return null; }
 }

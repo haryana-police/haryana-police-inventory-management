@@ -1,13 +1,12 @@
 {
   "name": "haryana-police-inventory",
   "version": "1.0.0",
-  "description": "Haryana Police Inventory Management System - Neon + Vercel",
-  "main": "api/database.js",
+  "description": "Haryana Police Inventory Management System - fully local (Node.js + file database)",
+  "main": "local-dev.js",
   "scripts": {
-    "start": "vercel dev"
+    "start": "node local-dev.js"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "pg": "^8.23.0"
+    "bcryptjs": "^2.4.3"
   }
 }

@@ -1,9 +1,9 @@
 // ============================================================
-// Realtime push: when the ws sidecar (Render) is reachable the app
+// Realtime push: when a websocket sidecar is reachable the app
 // receives instant pushed events; if it's offline the app falls back
 // to /api/rtstream long-poll automatically (see app.js __rt module).
 var CONFIG = {
-  useRemote: true,   // local server + JSON file database (fully local, no cloud)   // <- true uses Neon (PostgreSQL) backend
+  useRemote: true,   // true = use the local server + JSON file database (fully local, no cloud)
   apiBase: "",       // relative base; __api() APPENDS "/api/..." to it
   wsUrl: "", // no external sidecar — realtime uses the local /api/rtstream long-poll
 };
@@ -43,7 +43,7 @@ function __authToken() {
   } catch { return null; }
 }
 
-// Fetch full state from Neon into local cache.
+// Fetch full state from the server into local cache.
 async function __apiLoadAll() {
   const state = await __api("GET", "state");
   // state is a map: "hp_inventory.xxx" -> value
@@ -64,7 +64,7 @@ function __apiPersist() {
         __apiCache[__prefix + "users"] = res.users;
       }
     }).catch(e => {
-      console.error("save to Neon failed:", e);
+      console.error("save to server failed:", e);
       // RBAC: the server is the source of truth for inventory ownership.
       // If it rejected our save (401/403), resync the local cache with the
       // server's authoritative state so any rejected change is reverted
@@ -98,7 +98,7 @@ window.__apiSaveFn = function(key, data) {
   }
 };
 
-// Live refresh: fetch latest state from Neon into the local cache
+// Live refresh: fetch latest state from the server into the local cache
 // (no page reload needed). Called periodically by app.js.
 window.__apiPoll = function() {
   if (__apiSaveTimer !== null) return Promise.resolve();
@@ -106,7 +106,7 @@ window.__apiPoll = function() {
     .then(state => {
       Object.keys(state || {}).forEach(k => { __apiCache[k] = state[k]; });
     })
-    .catch(e => console.error("poll Neon failed:", e));
+    .catch(e => console.error("poll failed:", e));
 };
 
 function __ensureReady() {
@@ -119,6 +119,6 @@ function __ensureReady() {
 window.__apiReadyPromise = __bootPromise;
 __bootPromise = (async function __boot() {
   if (CONFIG.useRemote) {
-    try { await Promise.race([__apiLoadAll(), new Promise(res => setTimeout(res, 9000))]); } catch (e) { console.error("load from Neon failed:", e); }
+    try { await Promise.race([__apiLoadAll(), new Promise(res => setTimeout(res, 9000))]); } catch (e) { console.error("load from server failed:", e); }
   }
 })();

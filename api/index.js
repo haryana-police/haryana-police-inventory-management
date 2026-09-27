@@ -1,6 +1,6 @@
-// Vercel Serverless API - Haryana Police Inventory
+// Local API - Haryana Police Inventory
 // Document-store style: the whole app state is stored as one JSON blob
-// in a single Neon table row. This matches how the frontend uses
+// in a single file (local-data/db.json). This matches how the frontend uses
 // localStorage (loadData / saveData with a central JSON cache).
 //
 // SECURITY:
@@ -15,14 +15,11 @@
 //    for inventory; everyone else may only modify their OWN unit's records.
 //    Unauthorised writes are rejected with 401/403 — the UI can be bypassed,
 //    this gate cannot.
-const { Pool } = require('pg');
+const { Pool } = require('./_filepool');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { ITEM_STORE_KEY, diffItemWrites, authorizeItemWrites, authorizeUserCollectionWrite, diffConsumableWrites, authorizeConsumableWrites, diffStructureWrites, authorizeStructureWrites } = require('./_rbac');
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || process.env.POSTGRES_URL,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = new Pool();
 
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 const BCRYPT_ROUNDS = 12;
@@ -450,7 +447,7 @@ module.exports = async (req, res) => {
 async function route(req, res) {
   let path = req.query.path || [];
   if (!Array.isArray(path)) path = [path];
-  // Vercel's `:path*` may deliver joined strings ("auth,login" or "auth/login");
+  // The path may arrive as a joined string ("auth,login" or "auth/login");
   // normalise both into segment arrays.
   const seg = [];
   for (const p of path) {
@@ -505,7 +502,7 @@ async function route(req, res) {
     const bcryptHashed = users.filter(u => typeof u.password === 'string' && u.password.startsWith('$2')).length;
     return res.json({
       ok: true,
-      db: 'neon',
+      db: 'filedb',
       users: users.length,
       bcryptHashed,
       passwordsAllHashed: users.length > 0 && bcryptHashed === users.length,

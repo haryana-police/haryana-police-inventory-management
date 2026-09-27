@@ -13,14 +13,13 @@ function __getState() {
   } catch (e) {}
   return null;
 }
-let __pgPool = null;
+let __filePool = null;
 async function __stateAsync() {
   const s = __getState();
   if (s && Object.keys(s).length) return s;
   try {
-    if (!process.env.DATABASE_URL) return null;
-    if (!__pgPool) { const P = require("pg"); __pgPool = new P.Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 2 }); }
-    const rr = await __pgPool.query("SELECT data FROM app_state WHERE id=1");
+    if (!__filePool) { const P = require("./_filepool"); __filePool = new P.Pool(); }
+    const rr = await __filePool.query("SELECT data FROM app_state WHERE id=1");
     return rr.rows.length ? rr.rows[0].data : null;
   } catch (e) { return null; }
 }

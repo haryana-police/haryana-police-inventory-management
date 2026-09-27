@@ -1,14 +1,14 @@
 # Haryana Police Inventory App — User Guide
 
-**App URL:** https://hp-inventory.vercel.app
+**App URL:** http://localhost:3210
 
-The app works on any device with an internet browser (phone, laptop, tablet).
+The app runs on your own computer. Start the server (`run-local.bat`, or `npm start`); it prints the exact address to open — usually **http://localhost:3210**. If that port is busy the server picks the next free one, so always copy the `App:` line it shows.
 
 ---
 
 ## How to Log In
 
-1. Open **https://hp-inventory.vercel.app** in your browser.
+1. Open **http://localhost:3210** in your browser.
 2. Enter your **Username** and the **Password** provided to you by your admin (passwords are intentionally hidden in this guide).
 3. Click **Sign In**.
 4. Use the menu on the left to browse Dashboard, Inventory, Transactions, Demands, Inspections, Allotments, and Reports. The notification bell (top-right), **Users**, and **Districts** buttons are in the top bar.
