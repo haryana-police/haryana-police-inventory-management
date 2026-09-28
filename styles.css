@@ -437,6 +437,10 @@ tbody tr { transition: background .12s; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: linear-gradient(90deg, rgba(30,58,95,.04), rgba(30,58,95,.01)); }
 .item-name { font-weight: 600; }
+/* Bilingual item name in a table cell: English on the first line, Hindi below it. */
+.nm-en { display: block; font-weight: 600; line-height: 1.35; }
+.nm-hi { display: block; font-size: .86em; line-height: 1.4; color: var(--muted); font-weight: 500; }
+td .nm-en:empty, td .nm-hi:empty { display: none; }
 .cat-badge {
   display: inline-block; font-size: .72rem; font-weight: 600; padding: 4px 11px;
   border-radius: 999px; background: rgba(30,58,95,.08); color: var(--primary); white-space: normal;

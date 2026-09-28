@@ -9,6 +9,46 @@ const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
 const esc = (s) => { const d = document.createElement("div"); d.textContent = String(s); return d.innerHTML; };
 
+/* --- Bilingual item names ---------------------------------------------------
+   Item names are stored as one bilingual string, e.g. "Cooler Iron कूलर लोहा".
+   In tables we show the English half on the first line and the Devanagari half
+   on the second line, instead of running both together on one line.            */
+const DEVA_RE = /[\u0900-\u097F]/;
+function nameEnHi(name) {
+  const s = String(name == null ? "" : name);
+  const i = s.search(DEVA_RE);
+  if (i < 1) return null;                      // -1 = English only, 0 = Hindi only
+  const en = s.slice(0, i).trim();
+  const hi = s.slice(i).trim();
+  return en && hi ? { en: en, hi: hi } : null;
+}
+/* HTML for a table cell holding an item name: English on top, Hindi below. */
+function nameCell(name) {
+  const b = nameEnHi(name);
+  if (!b) return esc(name);
+  return '<span class="nm-en">' + esc(b.en) + '</span><span class="nm-hi">' + esc(b.hi) + '</span>';
+}
+window.nameCell = nameCell;
+window.nameEnHi = nameEnHi;
+/* Column-aware cell for the generic table renderers: an item-name column is drawn
+   bilingual, every other column is escaped as before. */
+const ITEM_COL_RE = /^\s*(item|item\s*\/\s*asset|item name|asset|item code)\s*$/i;
+function isItemCol(header) { return ITEM_COL_RE.test(String(header == null ? "" : header)); }
+function colCell(header, value) { return isItemCol(header) ? nameCell(value) : esc(value); }
+/* Same split, but styled inline. Print windows and the Word/PDF exports build their
+   own stylesheet, so the .nm-en / .nm-hi classes are not available there. */
+function nameCellInline(name) {
+  const b = nameEnHi(name);
+  if (!b) return esc(name);
+  return '<span style="display:block;font-weight:600">' + esc(b.en) + '</span>' +
+         '<span style="display:block;font-size:.88em;color:#64748b">' + esc(b.hi) + '</span>';
+}
+function colCellInline(header, value) { return isItemCol(header) ? nameCellInline(value) : esc(value); }
+window.nameCellInline = nameCellInline;
+window.colCellInline = colCellInline;
+window.isItemCol = isItemCol;
+window.colCell = colCell;
+
 window.addEventListener("error", e => {
   try {
     if (e && e.message) opencodeToast("Error: " + e.message, "error");
@@ -1495,7 +1535,7 @@ function renderStatDetail(filter) {
   const body = $("#statDetailBody");
   if (rows.length) {
     const pageRows = __pgRows("statDetail", rows);
-    body.innerHTML = pageRows.map((r, idx) => `<tr class="${idx % 2 ? "row-alt" : ""}">${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("");
+    body.innerHTML = pageRows.map((r, idx) => `<tr class="${idx % 2 ? "row-alt" : ""}">${r.map((c, ci) => `<td>${colCellInline((d.cols || [])[ci], c)}</td>`).join("")}</tr>`).join("");
     const tr = __statTotalRow();
     if (tr) {
       const cells = tr.map((c, ci) => `<td class="stat-total-cell">${ci === 0 ? "Total" : c === "" ? "" : esc(c)}</td>`).join("");
@@ -1522,7 +1562,7 @@ function printStatDetail() {
   if (!d.title) return;
   const rows = __statCurrentRows();
   let rowsHtml = rows.length
-    ? rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")
+    ? rows.map(r => `<tr>${r.map((c, ci) => `<td>${colCellInline((d.cols || [])[ci], c)}</td>`).join("")}</tr>`).join("")
     : `<tr><td colspan="${d.cols.length}" style="text-align:center;color:#888">No data</td></tr>`;
   const tr = __statTotalRow();
   if (tr) {
@@ -1936,7 +1976,7 @@ const condKeys = ["good", "poor", "damaged"];
 function printReport(d) {
   if (!d.title) return;
   const rowsHtml = d.rows.length
-    ? d.rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")
+    ? d.rows.map(r => `<tr>${r.map((c, ci) => `<td>${colCellInline((d.cols || [])[ci], c)}</td>`).join("")}</tr>`).join("")
     : `<tr><td colspan="${d.cols.length}" style="text-align:center;color:#888">No data</td></tr>`;
   const w = window.open("", "_blank");
   w.document.write(`<!DOCTYPE html><html><head><title>${esc(d.title)}</title>
@@ -2576,7 +2616,7 @@ function __renderCatItems(cid) {
         const acts = editable
           ? `<button class="btn btn-sm btn-outline" data-cit-edit="${i.id}">Edit</button> <button class="btn btn-sm btn-outline" data-cit-del="${i.id}">Delete</button>`
           : `<span class="muted" title="${esc(__rbacLockMsg())}">View only</span>`;
-        return `<tr data-cit-row="${i.id}"><td class="item-name"><span class="cit-name">${esc(i.name)}</span></td><td class="qty-strong">${i.quantity || 0}</td><td>${esc(i.unit || "")}</td><td class="actions-cell">${acts}</td></tr>`;
+        return `<tr data-cit-row="${i.id}"><td class="item-name"><span class="cit-name">${nameCell(i.name)}</span></td><td class="qty-strong">${i.quantity || 0}</td><td>${esc(i.unit || "")}</td><td class="actions-cell">${acts}</td></tr>`;
       }).join("")
     : `<tr class="empty-row"><td colspan="4">No items in this category yet.</td></tr>`;
 }
@@ -2961,7 +3001,7 @@ if (filtered.length) {
       const statusCls = { completed: "status-badge status-ok", pending: "status-badge status-low", overdue: "status-badge status-out" }[ins.status] || "cat-badge";
       const statusLabel = ins.status ? ins.status.charAt(0).toUpperCase() + ins.status.slice(1) : "Unknown";
       const typeLabel = ins.type ? ins.type.charAt(0).toUpperCase() + ins.type.slice(1) : "Unknown";
-      return `<tr><td>${esc(ins.date)}</td><td class="item-name">${esc(ins.itemName)}</td><td>${esc(ins.inspectedBy)}</td><td><span class="${typeCls}">${typeLabel}</span></td><td>${esc(loc ? loc.name : "")}</td><td><span class="${statusCls}">${statusLabel}</span></td><td><button type="button" class="btn btn-sm btn-loc" data-insp-view="${esc(ins.id)}">View</button></td></tr>`;
+      return `<tr><td>${esc(ins.date)}</td><td class="item-name">${nameCell(ins.itemName)}</td><td>${esc(ins.inspectedBy)}</td><td><span class="${typeCls}">${typeLabel}</span></td><td>${esc(loc ? loc.name : "")}</td><td><span class="${statusCls}">${statusLabel}</span></td><td><button type="button" class="btn btn-sm btn-loc" data-insp-view="${esc(ins.id)}">View</button></td></tr>`;
     }).join("");
 } else {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="6">No inspections found. Click "+ New Inspection" to add one.</td></tr>`;
@@ -3089,7 +3129,7 @@ function __inspExportExcel() {
 }
 function __inspExportWord() {
   const d = __inspData(); if (!d) return;
-  const rows = Object.keys(d).map(k => '<tr><th style="text-align:left;padding:6px 10px;border:1px solid #333;background:#eef2f7">' + esc(k) + '</th><td style="padding:6px 10px;border:1px solid #333">' + esc(String(d[k] || "-")) + '</td></tr>').join("");
+  const rows = Object.keys(d).map(k => '<tr><th style="text-align:left;padding:6px 10px;border:1px solid #333;background:#eef2f7">' + esc(k) + '</th><td style="padding:6px 10px;border:1px solid #333">' + colCellInline(k, String(d[k] || "-")) + '</td></tr>').join("");
   const html = '<html><head><meta charset="utf-8"><title>Inspection Record</title></head><body><h2>Inspection Record</h2><table style="border-collapse:collapse;width:100%">' + rows + '</table></body></html>';
   const blob = new Blob(["\ufeff", html], { type: "application/msword" });
   const a = document.createElement("a");
@@ -3100,7 +3140,7 @@ function __inspExportWord() {
 }
 function __inspExportPdf() {
   const d = __inspData(); if (!d) return;
-  const rows = Object.keys(d).map(k => '<tr><th style="text-align:left;padding:6px 10px;border:1px solid #333;background:#eef2f7">' + esc(k) + '</th><td style="padding:6px 10px;border:1px solid #333">' + esc(String(d[k] || "-")) + '</td></tr>').join("");
+  const rows = Object.keys(d).map(k => '<tr><th style="text-align:left;padding:6px 10px;border:1px solid #333;background:#eef2f7">' + esc(k) + '</th><td style="padding:6px 10px;border:1px solid #333">' + colCellInline(k, String(d[k] || "-")) + '</td></tr>').join("");
   const w = window.open("", "_blank", "width=900,height=700");
   if (!w) return toast("Allow pop-ups to download PDF.", "error");
   w.document.write('<html><head><title>Inspection Record</title><style>body{font-family:Segoe UI,Arial;padding:24px}h2{margin-top:0}</style></head><body><h2>Inspection Record</h2><table style="border-collapse:collapse;width:100%">' + rows + '</table><script>setTimeout(function(){window.print()},300)<' + '/script></body></html>');
@@ -3938,7 +3978,7 @@ function renderDistribution() {
         btns = `<span style="font-size:.72rem;color:var(--amber)">Awaiting recipient</span>`;
       }
       btns += ` <button type="button" class="btn btn-sm btn-outline" data-action="dist-details" data-id="${d.id}">Details</button>`;
-      return `<tr data-dist-id="${d.id}"><td>${start + idx + 1}</td><td class="item-name">${esc(it.itemName)}</td><td>${esc(it.categoryName || "—")}</td><td class="qty-strong">${it.qty}</td><td>${sender}</td><td>${esc(receiver)}</td><td><span class="${meta.cls}">${meta.label}</span></td><td>${new Date(d.createdAt).toLocaleDateString("en-IN")}</td><td class="actions-cell">${btns}</td></tr>`;
+      return `<tr data-dist-id="${d.id}"><td>${start + idx + 1}</td><td class="item-name">${nameCell(it.itemName)}</td><td>${esc(it.categoryName || "—")}</td><td class="qty-strong">${it.qty}</td><td>${sender}</td><td>${esc(receiver)}</td><td><span class="${meta.cls}">${meta.label}</span></td><td>${new Date(d.createdAt).toLocaleDateString("en-IN")}</td><td class="actions-cell">${btns}</td></tr>`;
     }).join("");
   } else {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="9">No distributions found. Click "+ Distribute Items" to distribute stock.</td></tr>`;
@@ -7593,7 +7633,7 @@ function openAllocPersonDetail(beltNo) {
   const active = mine.filter(a => allocOutstanding(a) > 0);
   const aBody = $("#apdAllottedBody");
   aBody.innerHTML = active.length
-    ? active.map(a => `<tr><td class="item-name">${esc(a.itemName)}</td><td><span class="cat-badge">${esc(a.categoryName)}</span></td><td class="qty-strong">${allocRemaining(a)}</td><td class="qty-strong" style="color:var(--red)">${allocLost(a)}</td><td>${a.createdAt ? fmtDate(a.createdAt) : "&mdash;"}</td><td>${allocStatusBadge(allocStatusOf(a))}</td></tr>`).join("")
+    ? active.map(a => `<tr><td class="item-name">${nameCell(a.itemName)}</td><td><span class="cat-badge">${esc(a.categoryName)}</span></td><td class="qty-strong">${allocRemaining(a)}</td><td class="qty-strong" style="color:var(--red)">${allocLost(a)}</td><td>${a.createdAt ? fmtDate(a.createdAt) : "&mdash;"}</td><td>${allocStatusBadge(allocStatusOf(a))}</td></tr>`).join("")
     : `<tr class="empty-row"><td colspan="6">No active issues.</td></tr>`;
 
   const done = mine.filter(a => allocOutstanding(a) <= 0);
@@ -7604,7 +7644,7 @@ function openAllocPersonDetail(beltNo) {
         const lastReturn = (a.returns && a.returns.length) ? a.returns[a.returns.length - 1] : null;
         const condTxt = lastReturn ? (condLabels[lastReturn.condition] || lastReturn.condition) : "&mdash;";
         const retDate = lastReturn ? (lastReturn.date || fmtDate(lastReturn.at)) : "&mdash;";
-        return `<tr><td class="item-name">${esc(a.itemName)}</td><td class="qty-strong">${a.qtyReturned || 0}</td><td>${esc(condTxt)}</td><td>${a.createdAt ? fmtDate(a.createdAt) : "&mdash;"}</td><td>${esc(retDate)}</td><td>${allocStatusBadge(allocStatusOf(a))}</td></tr>`;
+        return `<tr><td class="item-name">${nameCell(a.itemName)}</td><td class="qty-strong">${a.qtyReturned || 0}</td><td>${esc(condTxt)}</td><td>${a.createdAt ? fmtDate(a.createdAt) : "&mdash;"}</td><td>${esc(retDate)}</td><td>${allocStatusBadge(allocStatusOf(a))}</td></tr>`;
       }).join("")
     : `<tr class="empty-row"><td colspan="6">No settled issues.</td></tr>`;
 
@@ -8418,7 +8458,7 @@ function renderDocuments() {
       <td>${date}</td><td>${time}</td>
       <td><span class="status-badge status-neutral">${fmt}</span></td>
       <td>${esc(type)}</td>
-      <td class="item-name">${esc(item)}</td>
+      <td class="item-name">${nameCell(item)}</td>
       <td>${esc(by)}</td>
       <td class="item-name">${esc(r.fileName || "Untitled")}</td>
       <td class="actions-cell">${viewBtn} ${delBtn}</td>
@@ -11566,7 +11606,7 @@ function __renderConsCatItems(cid) {
         const acts = editable
           ? `<button class="btn btn-sm btn-outline" data-ccit-edit="${i.id}">Edit</button> <button class="btn btn-sm btn-outline act-dd-del" data-ccit-del="${i.id}">Delete</button>`
           : `<span class="muted">View only</span>`;
-        return `<tr data-ccit-row="${i.id}"><td class="item-name"><span class="cit-name">${esc(i.name)}</span></td><td>${q.total}</td><td>${q.available}</td><td class="actions-cell">${acts}</td></tr>`;
+        return `<tr data-ccit-row="${i.id}"><td class="item-name"><span class="cit-name">${nameCell(i.name)}</span></td><td>${q.total}</td><td>${q.available}</td><td class="actions-cell">${acts}</td></tr>`;
       }).join("")
     : `<tr class="empty-row"><td colspan="4">No items in this category yet.</td></tr>`;
 }
@@ -11888,7 +11928,7 @@ function renderConsStock() {
           ...((!isAdmin || !locF) && x.q.availForNew > 0 ? [{ label: "Distribute", attrs: `data-cons-dist="${x.i.id}"` }] : []),
           ...((!isAdmin || !locF) && x.q.availForNew > 0 ? [{ label: "Mark Lost", attrs: `data-cons-loss="${x.i.id}"` }] : [])
         ]) : `<button type="button" class="btn btn-sm btn-outline" data-cons-view="${x.i.id}">View</button>`;
-        return `<tr><td>${baseNo + idx + 1}</td><td class="item-name"><button type="button" class="linklike" data-cons-view="${x.i.id}" title="Open item details">${esc(x.i.name)}</button></td><td><span class="cat-badge">${esc(cat ? cat.name : "")}</span></td><td class="qty-strong">${x.q.total}</td><td class="qty-strong">${x.q.available}</td><td>${x.q.distributed}</td><td>${x.q.lost}</td><td><span class="status-badge">${esc(st)}</span></td><td>${acts}</td></tr>`;
+        return `<tr><td>${baseNo + idx + 1}</td><td class="item-name"><button type="button" class="linklike" data-cons-view="${x.i.id}" title="Open item details">${nameCell(x.i.name)}</button></td><td><span class="cat-badge">${esc(cat ? cat.name : "")}</span></td><td class="qty-strong">${x.q.total}</td><td class="qty-strong">${x.q.available}</td><td>${x.q.distributed}</td><td>${x.q.lost}</td><td><span class="status-badge">${esc(st)}</span></td><td>${acts}</td></tr>`;
       }).join("") +
       `<tr class="rpt-total-row"><td>Total</td><td></td><td></td><td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavail}</td><td>${tdist}</td><td>${tlost}</td><td></td><td></td></tr>`;
   const note = $("#consStockNote");
@@ -11919,7 +11959,8 @@ function exportConsStockPDF() {
   const rows = __consExportTableRows();
   const win = window.open("", "_blank");
   if (!win) return toast("Popup blocked.", "error");
-  win.document.write("<h2>Consumable Items \u2014 Item Consume</h2><table border=1 cellpadding=4 style=\"border-collapse:collapse\"><tr><th>Item</th><th>Category</th><th>Total</th><th>Available</th><th>Distributed</th><th>Lost</th><th>Status</th></tr>" + rows.map(r => "<tr>" + r.map(c => "<td>" + String(c) + "</td>").join("") + "</tr>").join("") + "</table>");
+  const __consPrintCols = ["Item", "Category", "Total", "Available", "Distributed", "Lost", "Status"];
+  win.document.write("<h2>Consumable Items \u2014 Item Consume</h2><table border=1 cellpadding=4 style=\"border-collapse:collapse\"><tr>" + __consPrintCols.map(h => "<th>" + h + "</th>").join("") + "</tr>" + rows.map(r => "<tr>" + r.map((c, ci) => "<td>" + colCellInline(__consPrintCols[ci], c) + "</td>").join("") + "</tr>").join("") + "</table>");
   win.document.close(); win.print();
 }
 function exportConsStockExcel() { exportConsStockCSV(); }
@@ -12043,7 +12084,7 @@ function renderConsLedger() {
     // removed: edit button moved to Item Consume tab
     return `<tr data-cons-txn="${t.id}">
       <td data-th="Item Category">${esc(r.categoryName)}</td>
-      <td data-th="Item"><button type="button" class="linklike" data-cons-item="${t.itemId}">${esc(r.itemName)}</button></td>
+      <td data-th="Item"><button type="button" class="linklike" data-cons-item="${t.itemId}">${nameCell(r.itemName)}</button></td>
       <td data-th="Quantity">${t.qty}</td>
       <td data-th="Date">${esc(fmtDate(t.date ? new Date(t.date) : t.createdAt))}</td>
       <td data-th="Distributed To">${__consRecipientLabel(t)}</td>
@@ -12108,7 +12149,7 @@ function renderConsDistByLoc() {
       <td data-th="Recipient"><button type="button" class="linklike" data-cons-recipient="${t.toType}:${t.toId}" data-cons-recipient-name="${esc(t.toName || "")}" data-cons-recipient-type="${t.toType}">${esc(t.toName || "")}</button> <span class="combo-badge">${t.toType === "unit" ? "UNIT" : "STAFF"}</span></td>
       <td data-th="Type">${t.toType === "unit" ? "Unit" : "Staff"}</td>
       <td data-th="Category">${esc(r.categoryName)}</td>
-      <td data-th="Item"><button type="button" class="linklike" data-cons-item="${t.itemId}">${esc(r.itemName)}</button></td>
+      <td data-th="Item"><button type="button" class="linklike" data-cons-item="${t.itemId}">${nameCell(r.itemName)}</button></td>
       <td data-th="Quantity">${t.qty}</td>
       <td data-th="Date">${esc(fmtDate(t.date ? new Date(t.date) : t.createdAt))}</td>
       <td data-th="Distributed By">${esc(t.byName || "")}</td>
@@ -12624,7 +12665,7 @@ function openConsRecipient(toType, toId, name) {
       const pend = st === "Pending Approval";
       const mine = __consIsRecipient(r2);
       const act = pend && mine ? `<button type="button" class="btn btn-sm btn-green" data-cons-approve="${r2.id}">Approve</button> <button type="button" class="btn btn-sm btn-red" data-cons-reject="${r2.id}">Reject</button>` : "";
-      return `<tr><td>${esc(fmtDate(r2.date ? new Date(r2.date) : r2.createdAt))}</td><td>${esc(cat)}</td><td>${esc(it.name || "(unknown)")}</td><td>${r2.qty}</td><td>${esc(r2.byName || "")}</td><td>${__consStatusBadge(st)}${act ? " " + act : ""}</td></tr>`;
+      return `<tr><td>${esc(fmtDate(r2.date ? new Date(r2.date) : r2.createdAt))}</td><td>${esc(cat)}</td><td>${nameCell(it.name || "(unknown)")}</td><td>${r2.qty}</td><td>${esc(r2.byName || "")}</td><td>${__consStatusBadge(st)}${act ? " " + act : ""}</td></tr>`;
     }).join("");
   };
   box.innerHTML =

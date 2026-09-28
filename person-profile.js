@@ -587,7 +587,7 @@
         var b = typeBadge(t.type);
         return '<tr data-tx="' + idx + '">' +
           '<td style="white-space:nowrap">' + fmtD(t.ts) + "<br><span style=\"color:var(--muted)\">" + fmtT(t.ts) + "</span></td>" +
-          '<td class="item-name">' + (window.__ipLink ? __ipLink({ id: t.itemId, name: t.itemName }) : esc(t.itemName)) +
+          '<td class="item-name">' + (window.__ipLink ? __ipLink({ id: t.itemId, name: t.itemName }) : (window.nameCell ? window.nameCell(t.itemName) : esc(t.itemName))) +
             (t.categoryName ? '<span style="display:block;color:var(--muted);font-size:.72rem">' + esc(t.categoryName) + "</span>" : "") + "</td>" +
           '<td><span class="ip-typebadge ' + b.cls + '">' + esc(t.type) + "</span></td>" +
           '<td class="' + b.qcls + '">' + fmtN(t.qty) + "</td>" +
@@ -636,7 +636,7 @@
     if (!active.length) { box.innerHTML = '<div class="ip-empty">Nothing currently held \u2014 all issued quantities have been returned, lost or cancelled.</div>'; return; }
     box.innerHTML = '<div class="ip-table-wrap"><table class="ip-tx-table" data-sortable="false"><thead><tr><th>Item</th><th>Category</th><th>Issued</th><th>Held</th><th>Lost</th><th>Issued On</th><th>Status</th></tr></thead><tbody>' +
       active.map(function (a) {
-        return "<tr><td>" + (window.__ipLink ? __ipLink({ id: a.itemId, name: a.itemName }) : esc(a.itemName)) + "</td>" +
+        return "<tr><td>" + (window.__ipLink ? __ipLink({ id: a.itemId, name: a.itemName }) : (window.nameCell ? window.nameCell(a.itemName) : esc(a.itemName))) + "</td>" +
           '<td><span class="cat-badge">' + esc(a.categoryName || catName(a.categoryId)) + "</span></td>" +
           '<td class="qty-strong">' + fmtN(a.qtyAllotted || 0) + '</td><td class="qty-strong">' + fmtN(out(a)) + "</td>" +
           '<td style="color:var(--red)">' + fmtN(Math.max(0, (a.qtyLost || 0) - (a.qtyRecovered || 0))) + "</td><td>" + fmtD(a.createdAt) + "</td>" +

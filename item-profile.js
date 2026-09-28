@@ -60,20 +60,26 @@
     var items = window.getItems ? getItems() : [];
     return items.find(function (i) { return (i.name || "").toLowerCase() === n; }) || null;
   }
+  /* Bilingual item name for table cells: English on line 1, Hindi on line 2.
+     nameCell() is defined in app.js; fall back to a plain escape if it is absent. */
+  function nameCellHtml(name) {
+    if (window.nameCell) return window.nameCell(name);
+    return esc(name);
+  }
   window.__ipLink = function (obj) {
     try {
       var it = obj && obj.id ? obj : (obj ? findByName(obj.name || obj.itemName) : null);
       var nm = (obj && (obj.name || obj.itemName)) || (it && it.name) || "";
-      if (it && it.id) return '<a href="javascript:void(0)" class="ip-item-link" data-ip-id="' + esc(it.id) + '" title="Open Item Profile">' + esc(nm) + "</a>";
-      return esc(nm);
+      if (it && it.id) return '<a href="javascript:void(0)" class="ip-item-link" data-ip-id="' + esc(it.id) + '" title="Open Item Profile">' + nameCellHtml(nm) + "</a>";
+      return nameCellHtml(nm);
     } catch (e) { return esc((obj && (obj.name || obj.itemName)) || ""); }
   };
   window.__ipLinkByName = function (name) {
     try {
       var it = findByName(name);
-      if (it && it.id) return '<a href="javascript:void(0)" class="ip-item-link" data-ip-id="' + esc(it.id) + '" title="Open Item Profile">' + esc(name) + "</a>";
+      if (it && it.id) return '<a href="javascript:void(0)" class="ip-item-link" data-ip-id="' + esc(it.id) + '" title="Open Item Profile">' + nameCellHtml(name) + "</a>";
     } catch (e) {}
-    return esc(name || "");
+    return nameCellHtml(name || "");
   };
 
   /* ---------- transaction derivation ---------- */
