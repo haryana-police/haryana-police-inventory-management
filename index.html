@@ -237,8 +237,9 @@
         <div class="nav-manage-wrap" data-admin-only>
           <button class="btn btn-sm btn-gold" id="manageMenuBtn" title="Manage">Manage <span class="manage-caret">&#9662;</span></button>
           <div class="manage-menu hidden" id="manageMenu">
-            <button type="button" class="manage-menu-item" data-maction="districts" data-dev-only><span class="mm-ic">&#128204;</span>Districts</button>
+            <button type="button" class="manage-menu-item" data-maction="districts" data-dev-only data-districts-entry><span class="mm-ic">&#128204;</span>Districts</button>
             <button type="button" class="manage-menu-item" data-maction="users" data-admin-only><span class="mm-ic">&#128101;</span>Users</button>
+            <button type="button" class="manage-menu-item" data-maction="igs" data-dev-only><span class="mm-ic">&#128973;</span>IG Admins</button>
             <button type="button" class="manage-menu-item" data-maction="locations" data-admin-only><span class="mm-ic">&#128205;</span>Locations</button>
           </div>
         </div>
@@ -609,14 +610,38 @@
       <div class="dev-topbar">
         <div class="dev-topbar-left">
           <button type="button" class="btn btn-outline btn-sm" id="devDistBack">&#8592; Back</button>
-          <h2 class="dev-page-title">Manage Districts</h2>
+          <h2 class="dev-page-title" id="devDistTitle">Manage Districts</h2>
         </div>
         <button type="button" class="btn btn-primary" id="devAddDistBtn">+ Add New District</button>
       </div>
       <div class="dev-toolbar" style="margin:14px 0 16px">
         <input type="text" id="devDistSearch" placeholder="Search by name, code or headquarters..." autocomplete="off">
+        <span id="devDistCount" class="cons-badge cons-b-blue">0</span>
       </div>
+      <div class="dev-table-wrap"><table class="dev-table dev-table-districts"><thead><tr>
+        <th>District</th><th>Code</th><th>Headquarters</th><th>IG Range</th><th>Locations</th><th>Users</th><th>Items</th><th>Actions</th>
+      </tr></thead><tbody id="devDistBody"></tbody></table></div>
       <div class="dev-cards" id="devDistList"></div>
+    </section>
+    <!-- ========== DEV ADMIN: MANAGE IG ADMINS VIEW ========== -->
+    <section id="view-manage-igs" class="view hidden">
+      <div class="dev-topbar">
+        <div class="dev-topbar-left">
+          <button type="button" class="btn btn-outline btn-sm" id="devIgsBack">&#8592; Back</button>
+          <h2 class="dev-page-title">Manage IG Admins</h2>
+        </div>
+        <button type="button" class="btn btn-primary" id="devAddIgBtn">+ Add New IG Admin</button>
+      </div>
+      <div class="dev-toolbar" style="margin:14px 0 16px">
+        <input type="text" id="devIgSearch" placeholder="Search by name, username or district..." autocomplete="off">
+        <span id="devIgCount" class="cons-badge cons-b-blue">0</span>
+      </div>
+      <div id="devIgGap"></div>
+      <div class="dev-table-wrap"><table class="dev-table dev-table-igs"><thead><tr>
+        <th>Name</th><th>Username</th><th>IG Range</th><th>Districts</th><th>Users</th><th>Items</th><th>Actions</th>
+      </tr></thead><tbody id="devIgBody"></tbody></table></div>
+      <div class="ig-tabs" id="devIgTabs"></div>
+      <div class="dev-cards" id="devIgList"></div>
     </section>
     <!-- ========== DEV ADMIN: MANAGE USERS VIEW ========== -->
     <section id="view-manage-users" class="view hidden">
@@ -2314,6 +2339,7 @@
               <option value="staff">Staff</option>
               <option value="post">Police Post</option>
               <option value="admin">District Admin</option>
+              <option value="ig" data-dev-only>Inspector General</option>
               <option value="devadmin" data-dev-only>Developer Admin</option>
             </select>
           </div>
@@ -2326,6 +2352,25 @@
           <div class="form-group">
             <label for="nuLocation">Location</label>
             <select id="nuLocation"></select>
+          </div>
+          <div></div>
+        </div>
+        <div class="form-row hidden" id="nuIgRow">
+          <div class="form-group">
+            <label for="nuIgDistrictsBtn">Districts this IG handles</label>
+            <div class="ig-dd" id="nuIgDd">
+              <button type="button" class="ig-dd-trigger" id="nuIgDistrictsBtn" aria-expanded="false">
+                <span id="nuIgDistrictsSummary">No district selected</span>
+                <span class="ig-dd-caret">&#9662;</span>
+              </button>
+              <div class="ig-dd-panel hidden" id="nuIgDistrictsPanel">
+                <input type="search" class="ig-dd-search" id="nuIgDistrictsSearch" placeholder="Search district..." autocomplete="off">
+                <div class="ig-dd-list" id="nuIgDistricts"></div>
+              </div>
+            </div>
+            <p class="ig-hint">An Inspector General sees and manages every unit inside the
+              districts ticked here, and nothing outside them. The District field above stays
+              their home district.</p>
           </div>
           <div></div>
         </div>
@@ -2342,6 +2387,74 @@
   </div>
 </div>
 
+
+<!-- Add / Edit IG Admin: the form on its own, without the user list -->
+<div class="modal-backdrop hidden" id="igModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="igModalTitle">Add New IG Admin</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="user-add-section">
+      <p class="ig-hint" id="igFormIntro">An Inspector General holds one IG Range and administers every district under it, and nothing outside it.</p>
+      <form id="igForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="igfUsername">Username</label>
+            <input type="text" id="igfUsername" required minlength="3" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="igfPassword">Password</label>
+            <input type="text" id="igfPassword" placeholder="Leave blank to keep current" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="igfName">Display Name</label>
+            <input type="text" id="igfName" required>
+          </div>
+          <div class="form-group">
+            <label for="igfMobile">Mobile</label>
+            <input type="tel" id="igfMobile" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="igfHqLoc">IG Range</label>
+            <select id="igfHqLoc"></select>
+          </div>
+          <div class="form-group">
+            <label>State</label>
+            <input type="text" id="igfState" value="Haryana" readonly>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Districts under this IG Range</label>
+          <div class="ig-dd" id="igfDd">
+            <button type="button" class="ig-dd-trigger" id="igfDistrictsBtn" aria-expanded="false">
+              <span id="igfDistrictsSummary">No district selected</span>
+              <span class="ig-dd-caret">&#9662;</span>
+            </button>
+            <div class="ig-dd-panel hidden" id="igfDistrictsPanel">
+              <input type="search" class="ig-dd-search" id="igfDistrictsSearch" placeholder="Search district..." autocomplete="off">
+              <div class="ig-dd-list" id="igfDistricts"></div>
+            </div>
+          </div>
+          <p class="ig-hint">These are the districts of the chosen IG Range, and they decide what this IG can reach. An IG with no district cannot be deleted.</p>
+        </div>
+        <input type="hidden" id="igfEditId" value="">
+        <input type="hidden" id="igfHqType" value="igRange">
+        <div class="form-actions">
+          <button type="button" class="btn btn-outline" id="igfCancel" style="display:none">Cancel Edit</button>
+          <button type="submit" class="btn btn-primary" id="igfSubmit">Add IG Admin</button>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close>Close</button>
+    </div>
+  </div>
+</div>
 <!-- Manage Districts Modal -->
 <div class="modal-backdrop hidden" id="districtsModal">
   <div class="modal modal-lg">
@@ -3087,7 +3200,7 @@
 <div class="modal-backdrop hidden" id="devDistModal">
   <div class="modal">
     <div class="modal-header">
-      <h2 id="devDistTitle">Add New District</h2>
+      <h2 id="devDistModalTitle">Add New District</h2>
       <button type="button" class="modal-close" data-close>&times;</button>
     </div>
     <form id="devDistForm" novalidate>
@@ -3095,6 +3208,11 @@
       <div class="form-group">
         <label for="ddName">District Name <span class="req">*</span></label>
         <input type="text" id="ddName" placeholder="e.g. Karnal District" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="ddRange">IG Range <span class="req">*</span></label>
+        <select id="ddRange" required></select>
+        <p class="ig-hint">The district sits under this IG Range, so the IG Admin holding it can see everything below.</p>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -3143,12 +3261,19 @@
         <label for="dlType">Location Type <span class="req">*</span></label>
         <select id="dlType" required>
           <option value="">Select type...</option>
-          <option value="district">District HQ</option>
-          <option value="station">Police Station</option>
-          <option value="post">Police Post</option>
-          <option value="mhc">MHC Store</option>
-          <option value="staff">Staff</option>
-          <option value="office">Office</option>
+          <optgroup label="Above the districts">
+            <option value="phq">PHQ</option>
+            <option value="igRange">IG Range</option>
+          </optgroup>
+          <optgroup label="Inside a district">
+            <option value="district">District HQ</option>
+            <option value="otherHq">Other HQ</option>
+            <option value="station">Police Station</option>
+            <option value="post">Police Post</option>
+            <option value="mhc">MHC Store</option>
+            <option value="staff">Staff</option>
+            <option value="office">Office</option>
+          </optgroup>
         </select>
       </div>
       <div class="form-group">
@@ -3204,15 +3329,36 @@
             <option value="staff">Staff</option>
             <option value="post">Police Post</option>
             <option value="admin">District Admin</option>
+            <option value="ig">Inspector General</option>
             <option value="devadmin">Developer Admin</option>
           </select>
+        </div>
+        <div class="form-group">
+          <label for="duState">State</label>
+          <input type="text" id="duState" value="Haryana" readonly>
+        </div>
+      </div>
+      <!-- A state-level role is placed at the PHQ, never inside a district. -->
+      <div class="form-row hidden" id="duHqRow">
+        <div class="form-group">
+          <label for="duHqLoc" id="duHqLabel">PHQ <span class="req">*</span></label>
+          <select id="duHqLoc"></select>
+          <input type="hidden" id="duHqType" value="">
+          <p class="ig-hint" id="duHqHint"></p>
+        </div>
+        <div></div>
+      </div>
+      <div class="form-row" id="duDistrictRow">
+        <div class="form-group">
+          <label for="duRange">IG Range <span class="req">*</span></label>
+          <select id="duRange"></select>
         </div>
         <div class="form-group">
           <label for="duDistrict">District <span class="req">*</span></label>
           <select id="duDistrict"></select>
         </div>
       </div>
-      <div class="form-group">
+      <div class="form-group" id="duLocationGroup">
         <label for="duLocation">Location <span class="req">*</span></label>
         <select id="duLocation"></select>
       </div>

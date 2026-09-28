@@ -45,33 +45,31 @@ const DEMO_LOGIN_ENABLED = process.env.IMS_DEMO_LOGIN !== '0';
 // accounts created by provisionDistrictStaff(). Passwords live here only so the
 // server can PROVE the caller is entitled to the account - the browser is
 // never sent this table.
+// Every demo account shares one published password, so the panel can be handed
+// to someone without reading out eight separate credentials. The server still
+// proves entitlement by comparing against this table before issuing a session,
+// so an account whose password was changed stops being a demo account.
+const DEMO_PASSWORD = 'hp@123';
 const DEMO_SEED_ACCOUNTS = [
-  { username: 'developer', password: 'dev@123' },
-  { username: 'admin',     password: 'admin123' },
-  { username: 'admin2',    password: 'admin123' },
-  { username: 'user',      password: 'user123' },
-  { username: 'fbd_user',  password: 'user123' },
-  { username: 'mhc',       password: 'mhc123' },
-  { username: 'fbd_mhc',   password: 'mhc123' },
-  { username: 'station',   password: 'station123' },
-  { username: 'it.staff.gurugramdist',   password: 'Staff@123' },
-  { username: 'mto.staff.gurugramdist',  password: 'Staff@123' },
-  { username: 'it.staff.faridabaddist',  password: 'Staff@123' },
-  { username: 'mto.staff.faridabaddist', password: 'Staff@123' },
-];
+  'developer', 'admin', 'admin2', 'user', 'fbd_user', 'mhc', 'fbd_mhc', 'station',
+  'it.staff.gurugramdist', 'mto.staff.gurugramdist',
+  'it.staff.faridabaddist', 'mto.staff.faridabaddist',
+  'it.staff.panipatdistr', 'mto.staff.panipatdistr',
+  'ig', 'ig.fbd',
+].map(username => ({ username, password: DEMO_PASSWORD }));
 
 // Mirrors ROLE_LABELS in app.js, kept server-side so the demo list is built from
 // the same vocabulary the app already uses - no role is invented.
 const ROLE_LABELS = {
-  devadmin: 'Developer Admin', admin: 'District Admin', station: 'Station Manager',
-  staff: 'Staff', mhc: 'MHC', tsi: 'TSI', post: 'Police Post',
+  devadmin: 'Developer Admin', ig: 'Inspector General', admin: 'District Admin',
+  station: 'Station Manager', staff: 'Staff', mhc: 'MHC', tsi: 'TSI', post: 'Police Post',
   user: 'General User', itstaff: 'Computer/IT Staff', mtostaff: 'MTO Staff',
 };
 
 // Display order on the login page, and the accent colour each role gets.
-const DEMO_ROLE_ORDER = ['devadmin', 'admin', 'station', 'user', 'mhc', 'post', 'itstaff', 'mtostaff'];
+const DEMO_ROLE_ORDER = ['devadmin', 'ig', 'admin', 'station', 'user', 'mhc', 'post', 'itstaff', 'mtostaff'];
 const DEMO_ROLE_ACCENT = {
-  devadmin: 'violet', admin: 'blue', station: 'teal', user: 'amber',
+  devadmin: 'violet', ig: 'gold', admin: 'blue', station: 'teal', user: 'amber',
   mhc: 'green', post: 'rose', itstaff: 'cyan', mtostaff: 'indigo',
 };
 
@@ -94,6 +92,12 @@ async function listDemoAccounts() {
     const l = Array.isArray(list) ? list.find(x => x && x.id === locId) : null;
     return (l && l.name) || '';
   };
+  // A Developer Admin sits at the PHQ and an IG at an IG Range; both live in the
+  // state scope rather than under a district, so the card is built from there.
+  const hqList = (locMap && locMap.__hq__) || [];
+  const hqName = id => { const l = hqList.find(x => x && x.id === id); return (l && l.name) || ''; };
+  const rangeNameOf = id => hqName(id);
+  const districtsInRange = (rangeId) => dists.filter(d => d && d.rangeId === rangeId);
   const out = [];
   for (const seed of DEMO_SEED_ACCOUNTS) {
     const u = users.find(x => x && String(x.username || '').toLowerCase() === seed.username);
@@ -105,8 +109,15 @@ async function listDemoAccounts() {
       role: role,
       roleLabel: ROLE_LABELS[role] || role,
       accent: DEMO_ROLE_ACCENT[role] || 'blue',
-      district: distName(u.districtId),
-      location: locName(u.locationId, u.districtId),
+      // a state-level role is placed at the PHQ or an IG Range, not a district
+      district: u.locationType === 'phq' || u.locationType === 'igRange' ? '' : distName(u.districtId),
+      location: u.locationType === 'phq' || u.locationType === 'igRange' ? hqName(u.locationId) : locName(u.locationId, u.districtId),
+      locationType: u.locationType || null,
+      range: u.rangeId ? rangeNameOf(u.rangeId) : null,
+      // An IG spans every district of its range, so the card lists them all.
+      districts: u.role === 'ig' && u.rangeId
+        ? districtsInRange(u.rangeId).map(d => d.name).filter(Boolean)
+        : (Array.isArray(u.districtIds) && u.districtIds.length ? u.districtIds.map(distName).filter(Boolean) : null),
       initials: String(u.name || u.username).trim().charAt(0).toUpperCase(),
     });
   }
@@ -194,7 +205,7 @@ function provisionDistrictStaff(state) {
         changed = true;
       }
       if (!list.some(u => u && u.role === def.role && u.districtId === distId)) {
-        list.push({ id: 'us_' + crypto.randomBytes(8).toString('hex'), username: def.uname, name: def.name, role: def.role, districtId: distId, locationId: def.locId, mobile: '', password: 'Staff@123', active: true, createdAt: Date.now() });
+        list.push({ id: 'us_' + crypto.randomBytes(8).toString('hex'), username: def.uname, name: def.name, role: def.role, districtId: distId, locationId: def.locId, mobile: '', password: DEMO_PASSWORD, active: true, createdAt: Date.now() });
         changed = true;
       }
       for (const u of list) {
@@ -685,9 +696,9 @@ async function route(req, res) {
     // it, the demo card is refused rather than becoming a silent bypass.
     let ok = false;
     if (user.password && String(user.password).startsWith('$2')) {
-      ok = await bcrypt.compare(seed.password, user.password);
+      ok = await bcrypt.compare(DEMO_PASSWORD, user.password);
     } else {
-      ok = user.password === seed.password;
+      ok = user.password === DEMO_PASSWORD;
     }
     if (!ok) {
       recordFailure(ip);
@@ -796,7 +807,9 @@ function validateAllocState(state) {
       // roles; everyone else is denied.
       const { user: ucUser } = await authFromRequest(req);
       const ucVerdict = authorizeUserCollectionWrite(
-        ucUser ? { id: ucUser.id, username: ucUser.username, role: ucUser.role, districtId: ucUser.districtId } : null,
+        // districtIds must travel with the session user: it is what scopes an
+        // Inspector General, and leaving it out would silently empty their reach.
+        ucUser ? { id: ucUser.id, username: ucUser.username, role: ucUser.role, districtId: ucUser.districtId, districtIds: ucUser.districtIds } : null,
         currentUsers,
         incomingUsers
       );
@@ -817,7 +830,7 @@ function validateAllocState(state) {
     // the previously stored record. 403 on any violation.
     const { user: rbacUser } = await authFromRequest(req);
     const rbacVerdict = authorizeItemWrites(
-      rbacUser ? { id: rbacUser.id, username: rbacUser.username, role: rbacUser.role, locationId: rbacUser.locationId, districtId: rbacUser.districtId } : null,
+      rbacUser ? { id: rbacUser.id, username: rbacUser.username, role: rbacUser.role, locationId: rbacUser.locationId, districtId: rbacUser.districtId, districtIds: rbacUser.districtIds } : null,
       diffItemWrites(current, incoming),
       { freshInstall: currentUsers.length === 0, prevState: current, nextState: incoming }
     );
@@ -833,7 +846,7 @@ function validateAllocState(state) {
     }
     // RBAC GATE (consumables): district-scoped, immutable one-way ledger.
     const consVerdict = authorizeConsumableWrites(
-      rbacUser ? { id: rbacUser.id, username: rbacUser.username, role: rbacUser.role, locationId: rbacUser.locationId, districtId: rbacUser.districtId } : null,
+      rbacUser ? { id: rbacUser.id, username: rbacUser.username, role: rbacUser.role, locationId: rbacUser.locationId, districtId: rbacUser.districtId, districtIds: rbacUser.districtIds } : null,
       diffConsumableWrites(current, incoming),
       { prevState: current, nextState: incoming }
     );
@@ -843,7 +856,7 @@ function validateAllocState(state) {
     }
     // RBAC GATE (structure): districts / locations / users management.
     const structVerdict = authorizeStructureWrites(
-      rbacUser ? { id: rbacUser.id, username: rbacUser.username, role: rbacUser.role, locationId: rbacUser.locationId, districtId: rbacUser.districtId } : null,
+      rbacUser ? { id: rbacUser.id, username: rbacUser.username, role: rbacUser.role, locationId: rbacUser.locationId, districtId: rbacUser.districtId, districtIds: rbacUser.districtIds } : null,
       current, incoming
     );
     if (structVerdict && structVerdict.ok !== true) {
@@ -906,7 +919,7 @@ function validateAllocState(state) {
         const stateNow = await getState();
         const currentUsers = Array.isArray(stateNow['hp_inventory.users']) ? stateNow['hp_inventory.users'] : [];
         const ucVerdict = authorizeUserCollectionWrite(
-          { id: user.id, username: user.username, role: user.role, districtId: user.districtId },
+          { id: user.id, username: user.username, role: user.role, districtId: user.districtId, districtIds: user.districtIds },
           currentUsers,
           body.value
         );
@@ -931,7 +944,7 @@ function validateAllocState(state) {
           nextAll = { ...prevAll, [distId]: body.value };
         }
         const verdict = authorizeItemWrites(
-          { id: user.id, username: user.username, role: user.role, locationId: user.locationId, districtId: user.districtId },
+          { id: user.id, username: user.username, role: user.role, locationId: user.locationId, districtId: user.districtId, districtIds: user.districtIds },
           diffItemWrites({ [ITEM_STORE_KEY]: prevAll }, { [ITEM_STORE_KEY]: nextAll }),
           { freshInstall: usersNow.length === 0, prevState: { [ITEM_STORE_KEY]: prevAll }, nextState: { [ITEM_STORE_KEY]: nextAll } }
         );

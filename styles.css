@@ -850,6 +850,17 @@ td .nm-en:empty, td .nm-hi:empty { display: none; }
 .role-station [data-dev-only],
 .role-post [data-dev-only] { display: none !important; }
 
+/* An IG administers whole districts, so it keeps the admin-only menus - but the
+   Developer-Admin-only ones stay hidden: an IG account itself is created, changed
+   and removed by the Developer Admin alone. */
+/* An IG administers whole districts, so it keeps the admin-only menus - and the
+   Districts page too, the same page the Developer Admin gets, showing only the
+   districts of the IG's own range. Everything else marked Developer-Admin-only
+   stays hidden: an IG account is created, changed and removed by the Developer
+   Admin alone, and districts themselves are created and deleted there too. */
+.role-ig [data-dev-only]:not([data-districts-entry]) { display: none !important; }
+.role-ig [data-ig-hidden] { display: none !important; }
+
 /* ==================== VIEW TRANSITION ==================== */
 .view { animation: viewIn .28s var(--ease); min-width: 0; max-width: 100%; }
 @keyframes viewIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -1840,6 +1851,12 @@ th[data-sort-col]:focus-visible { outline: 2px solid var(--primary); outline-off
 .dev-table tbody tr{transition:background .12s}
 .dev-table tbody tr:hover{background:rgba(255,255,255,.03)}
 .dev-u-name{font-weight:600}
+.dev-u-name{font-weight:600}
+/* your own row is tinted so the missing Delete button reads as deliberate, not broken */
+.dev-table tbody tr.is-self{background:rgba(37,99,235,.05)}
+.dev-table tbody tr.is-self:hover{background:rgba(37,99,235,.08)}
+.dev-self-tag{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;background:rgba(37,99,235,.12);color:#1d4ed8;font-size:.68rem;font-weight:700;letter-spacing:.02em;vertical-align:middle}
+.dev-self-tag-mute{background:rgba(100,116,139,.14);color:#64748b}
 .dev-u-user{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:#1e3a8a;font-weight:600}
 .dev-empty-cell{color:var(--muted);text-align:center;padding:26px 10px !important;font-size:.85rem}
 .dev-empty{border:1px dashed var(--border);border-radius:14px;padding:34px 16px;text-align:center;color:var(--muted)}
@@ -2665,4 +2682,1182 @@ td .cat-badge { white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) {
   .demo-card, .demo-arrow, .demo-toggle, .login-submit { transition: none; }
   .demo-card:hover, .demo-card.is-active { transform: none; }
+}
+
+/* ==================== INSPECTOR GENERAL ==================== */
+/* The district column that belongs to the IG role alone. */
+.ig-district-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+.ig-district-opt {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  cursor: pointer;
+  font-size: .84rem;
+  transition: border-color .15s, background .15s;
+}
+.ig-district-opt:hover { border-color: var(--gold); }
+.ig-district-opt input { accent-color: var(--gold); cursor: pointer; }
+.ig-district-opt:has(input:checked) {
+  border-color: var(--gold);
+  background: var(--gold-soft, rgba(212, 175, 55, .10));
+}
+.ig-district-opt span { flex: 1; color: var(--text); }
+.ig-district-opt em { font-style: normal; color: var(--muted); font-size: .74rem; font-weight: 600; letter-spacing: .04em; }
+.ig-hint { margin: 8px 0 0; color: var(--muted); font-size: .76rem; line-height: 1.5; }
+
+/* The covering Inspector General, shown on each district row in Manage District. */
+.dr-ig {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+  flex-wrap: wrap;
+}
+.dr-ig-label {
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  color: #6b5410;
+  background: var(--gold, #d4af37);
+  border-radius: 4px;
+  padding: 2px 7px;
+  line-height: 1.5;
+}
+.dr-ig-name { font-size: .8rem; color: var(--text); font-weight: 600; }
+.dr-ig-none .dr-ig-label { background: var(--border); color: var(--muted); }
+.dr-ig-none .dr-ig-name { color: var(--muted); font-weight: 500; }
+
+/* Gold accent for the Inspector General card on the demo panel. */
+.demo-card.accent-gold {
+  --accent: #d4af37;
+  --accent-soft: rgba(212, 175, 55, .12);
+  --accent-glow: rgba(212, 175, 55, .30);
+  --accent-line: rgba(212, 175, 55, .40);
+}
+/* The districts an IG administers, shown as chips on the Manage IG Admins page. */
+.ig-card .ig-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 9px;
+}
+.ig-scope-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 175, 55, .55);
+  background: rgba(212, 175, 55, .13);
+  color: #6b5410;
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, transform .15s;
+}
+.ig-scope-chip:hover { background: rgba(212, 175, 55, .24); transform: translateY(-1px); }
+.ig-scope-chip::after { content: '\2192'; font-size: .9em; }
+.ig-scope-none {
+  font-size: .78rem;
+  color: var(--muted);
+  font-style: italic;
+}
+/* A menu row that explains why the action is unavailable instead of offering it. */
+.act-dd-off {
+  color: var(--muted) !important;
+  cursor: not-allowed;
+  opacity: .75;
+}
+.act-dd-off:hover { background: transparent !important; color: var(--muted) !important; }
+
+/* ---- IG tabs: one tab per Inspector General ---- */
+.ig-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--line,#e2e8f0);padding-bottom:0}
+.ig-tab{display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border:1px solid transparent;border-bottom:none;border-radius:9px 9px 0 0;background:transparent;color:#4a5568;font:inherit;font-size:13px;font-weight:600;cursor:pointer;max-width:260px}
+.ig-tab:hover{background:#eef2f7;color:#1a2332}
+.ig-tab.is-active{background:#fff;border-color:var(--line,#e2e8f0);color:#12284a;box-shadow:0 -2px 0 0 #16305a inset}
+.ig-tab.is-active .ig-tab-n{background:#16305a;color:#fff}
+.ig-tab-n{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:19px;padding:0 6px;border-radius:10px;background:#dfe6ef;color:#3d4a5c;font-size:11px;font-weight:700}
+.ig-tabs:empty{display:none}
+
+/* ---- searchable district dropdown ---- */
+.ig-dd{position:relative}
+.ig-dd-trigger{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font:inherit;font-size:14px;color:#1a2332;cursor:pointer;text-align:left}
+.ig-dd-trigger:hover{border-color:#94a3b8}
+.ig-dd-trigger.is-open{border-color:#16305a;box-shadow:0 0 0 3px rgba(22,48,90,.12)}
+.ig-dd-trigger .ig-dd-caret{color:#64748b;font-size:12px;flex:0 0 auto;transition:transform .15s}
+.ig-dd-trigger.is-open .ig-dd-caret{transform:rotate(180deg)}
+.ig-dd-panel{position:absolute;z-index:40;left:0;right:0;top:calc(100% + 4px);border:1px solid #cbd5e1;border-radius:9px;background:#fff;box-shadow:0 12px 28px rgba(16,24,40,.16);padding:8px}
+.ig-dd-search{width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:7px;font:inherit;font-size:13px;margin-bottom:6px}
+.ig-dd-search:focus{outline:none;border-color:#16305a;box-shadow:0 0 0 3px rgba(22,48,90,.12)}
+.ig-dd-list{max-height:250px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.ig-dd-row{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:6px;cursor:pointer;font-size:13px}
+.ig-dd-row:hover{background:#f1f5f9}
+.ig-dd-row.is-on{background:#e8eef7}
+.ig-dd-row input[type=checkbox]{flex:0 0 auto;width:15px;height:15px;cursor:pointer;accent-color:#16305a}
+.ig-dd-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ig-dd-row em{flex:0 0 auto;font-style:normal;font-size:11px;color:#64748b;letter-spacing:.02em}
+.ig-dd-empty{padding:12px 9px;font-size:13px;color:#64748b;text-align:center}
+.ig-dd-panel .hidden{display:none !important}
+
+
+/* An IG Range can be set up long before anyone is appointed to it. The IG Admins
+   page has no account to draw a card for in that case, so the gap is listed here
+   instead of leaving the range looking like it was never created at all. */
+.ig-gap{margin:0 0 14px;padding:12px 14px;border:1px dashed rgba(180,83,9,.45);border-radius:10px;background:rgba(245,158,11,.07)}
+.ig-gap-head{font-weight:600;color:#92400e;margin-bottom:8px;font-size:.9rem}
+.ig-gap-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(180,83,9,.18)}
+.ig-gap-row:first-of-type{border-top:0}
+.ig-gap-name{font-weight:600;color:#1f2937}
+.ig-gap-dists{color:#64748b;font-size:.85rem;flex:1 1 200px;min-width:0}
+
+/* ==================================================================
+   DARK BUTTON THEME
+   Every button in the site is dark. The variants used to differ in hue -
+   white outline, gold, red, pale blue, white ghost - so a page of actions
+   read as a bag of sweets rather than one set of controls. They now share
+   a single dark surface and are told apart by how light that surface is
+   and by the hover accent, never by turning white. Text on every one of
+   them is light on dark, so contrast is unchanged or better.
+   ================================================================== */
+:root {
+  --btn-face: linear-gradient(180deg, #1b3358 0%, #142744 100%);
+  --btn-face-hi: linear-gradient(180deg, #27456f 0%, #1c3355 100%);
+  --btn-face-lo: linear-gradient(180deg, #142744 0%, #0e1c31 100%);
+  --btn-ink: #e6edf7;
+  --btn-ink-dim: #a9bad2;
+  --btn-line: rgba(148, 163, 184, .34);
+  --btn-line-hi: rgba(148, 163, 184, .6);
+}
+
+.btn,
+.att-btn, .att-btn-cam, .att-btn-upload, .pager-btn, .report-tab,
+.ig-scope-chip, .manage-menu-item, .act-dd-btn, .act-dd-del,
+.combo-new, .scp-del, .as-row-remove, .fd-row-remove, .att-thumb-x,
+.ig-dd-trigger, .modal-close, .maint-lightbox-close, .notif-bell,
+.sidebar-toggle, .theme-toggle, .lang-toggle, .demo-toggle, .toggle-pass,
+.cb-opt, .suggest-item, .hist-photo-chip, .login-submit {
+  background: var(--btn-face);
+  color: var(--btn-ink);
+  border: 1px solid var(--btn-line);
+}
+
+.btn:hover, .att-btn:hover, .att-btn-cam:hover, .att-btn-upload:hover,
+.pager-btn:hover, .report-tab:hover, .ig-scope-chip:hover, .manage-menu-item:hover,
+.act-dd-btn:hover, .act-dd-del:hover, .combo-new:hover, .scp-del:hover,
+.as-row-remove:hover, .fd-row-remove:hover, .att-thumb-x:hover, .ig-dd-trigger:hover,
+.modal-close:hover, .maint-lightbox-close:hover, .notif-bell:hover,
+.sidebar-toggle:hover, .theme-toggle:hover, .lang-toggle:hover, .demo-toggle:hover,
+.toggle-pass:hover, .cb-opt:hover, .suggest-item:hover, .hist-photo-chip:hover,
+.login-submit:hover {
+  background: var(--btn-face-hi);
+  color: #fff;
+  border-color: var(--btn-line-hi);
+}
+
+/* the variants that already had their own meaning keep it, but darker */
+.btn-primary {
+  background: linear-gradient(180deg, #24466e 0%, #1a3358 100%);
+  color: #fff;
+  border: 1px solid rgba(148, 163, 184, .4);
+}
+.btn-primary:hover { background: linear-gradient(180deg, #2d5482 0%, #21416b 100%); }
+
+.btn-red, .btn-danger {
+  background: linear-gradient(180deg, #991b1b 0%, #6b1414 100%);
+  color: #fde8e8;
+  border: 1px solid rgba(239, 68, 68, .5);
+}
+.btn-red:hover, .btn-danger:hover {
+  background: linear-gradient(180deg, #b91c1c 0%, #7f1d1d 100%);
+  color: #fff;
+}
+
+.btn-green {
+  background: linear-gradient(180deg, #14532d 0%, #0d3b21 100%);
+  color: #dcfce7;
+  border: 1px solid rgba(34, 197, 94, .45);
+}
+.btn-green:hover { background: linear-gradient(180deg, #166534 0%, #14532d 100%); color: #fff; }
+
+/* Locations keeps a cool blue cast; the Manage button keeps a gold edge */
+.btn-loc {
+  background: linear-gradient(180deg, #14304f 0%, #102741 100%);
+  color: #bfdbfe;
+  border: 1px solid rgba(59, 130, 246, .45);
+}
+.btn-loc:hover { background: linear-gradient(180deg, #1c4068 0%, #14304f 100%); color: #dbeafe; }
+
+.btn-gold {
+  background: linear-gradient(180deg, #1b3358 0%, #142744 100%);
+  color: #f3e2b3;
+  border: 1px solid rgba(212, 168, 67, .55);
+  box-shadow: 0 4px 14px rgba(8, 16, 30, .35);
+}
+.btn-gold:hover {
+  background: linear-gradient(180deg, #27456f 0%, #1c3355 100%);
+  color: #fbeec4;
+  box-shadow: 0 8px 22px rgba(8, 16, 30, .5);
+}
+
+.btn-dark {
+  background: linear-gradient(180deg, #142744 0%, #0b1728 100%);
+  color: var(--btn-ink);
+  border: 1px solid var(--btn-line);
+}
+.btn-dark:hover { background: linear-gradient(180deg, #1c3355 0%, #142744 100%); color: #fff; }
+
+/* selected states - an active tab or toggle has to look pressed, not just tinted */
+.report-tab.is-active, .report-tab.active, .pager-btn.is-active, .pager-btn.active {
+  background: linear-gradient(180deg, #2d5482 0%, #21416b 100%);
+  color: #fff;
+  border-color: rgba(148, 163, 184, .6);
+}
+
+.sidebar-toggle.on, .theme-toggle.on, .lang-toggle.on, .toggle-pass.on {
+  background: linear-gradient(180deg, #2d5482 0%, #21416b 100%);
+  color: #fff;
+}
+
+/* text-only buttons keep the dark face but drop the border so they stay quiet */
+.linklike, .forgot-pass-link {
+  background: transparent;
+  color: #8fb4e8;
+  border-color: transparent;
+}
+.linklike:hover, .forgot-pass-link:hover {
+  background: rgba(27, 51, 88, .55);
+  color: #cfe0f7;
+}
+
+/* dropdown rows are buttons too - they were transparent, which on a dark panel
+   left the text sitting on whatever was behind it */
+.combo-opt, .suggest-new {
+  background: var(--btn-face);
+  color: var(--btn-ink);
+  border: 1px solid var(--btn-line);
+}
+.combo-opt:hover, .suggest-new:hover {
+  background: var(--btn-face-hi);
+  color: #fff;
+  border-color: var(--btn-line-hi);
+}
+.combo-opt.combo-new, .suggest-new .suggest-name { color: #fcd34d; }
+
+/* .btn-outline and .btn-outline-light carry their own rules, so the group above
+   never reached them - without this they were the last white buttons left */
+.btn-outline {
+  background: var(--btn-face);
+  color: var(--btn-ink);
+  border: 1px solid var(--btn-line);
+}
+.btn-outline:hover {
+  background: var(--btn-face-hi);
+  color: #fff;
+  border-color: var(--btn-line-hi);
+}
+.btn-outline-light {
+  background: linear-gradient(180deg, #1b3358 0%, #142744 100%);
+  color: var(--btn-ink);
+  border: 1px solid var(--btn-line);
+}
+.btn-outline-light:hover {
+  background: linear-gradient(180deg, #27456f 0%, #1c3355 100%);
+  color: #fff;
+  border-color: var(--btn-line-hi);
+}
+
+/* the sidebar is already a dark panel, so its links only need to stay legible */
+.sidebar-link { background: transparent; }
+.sidebar-link:hover { background: rgba(255, 255, 255, .07); }
+.sidebar-link.active { background: rgba(255, 255, 255, .12); }
+
+/* A dark row inside a white dropdown looks like a mistake, so the panels that
+   hold these buttons go dark with them. */
+.combo-list, .cb-menu, .act-dd-menu, .stat-export-menu {
+  background: var(--btn-face-lo);
+  border-color: var(--btn-line);
+  color: var(--btn-ink);
+}
+.combo-list .combo-empty, .cb-menu .combo-empty { color: var(--btn-ink-dim); }
+.combo-opt .combo-badge {
+  background: rgba(148, 163, 184, .18);
+  color: var(--btn-ink-dim);
+}
+.combo-opt:hover, .combo-opt.is-active {
+  background: var(--btn-face-hi);
+  color: #fff;
+}
+   TOUCH DEVICES
+   A finger needs about 44px to hit reliably and a phone has no hover to fall
+   back on, so controls get their size from the pointer, not from the screen.
+   ================================================================== */
+@media (hover: none) and (pointer: coarse) {
+  /* 32px is fine for a mouse and too small for a thumb */
+  .btn-sm { height: 40px; padding: 0 16px; }
+  .btn { min-height: 44px; }
+  .pager-btn { min-width: 40px; height: 40px; }
+
+  /* things that only show a hint on hover need the hint to be always visible */
+  .btn:disabled { opacity: .45; }
+
+  /* a tap should not fire twice through a synthesised mouse event */
+  .btn { touch-action: manipulation; }
+
+  /* the dropdown menus hang off a topbar that is narrow on a phone */
+  .dropdown-menu,
+  #manageNavMenu,
+  .act-dd-menu,
+  .stat-export-menu,
+  .cb-menu {
+    max-width: calc(100vw - 24px);
+  }
+  #manageNavMenu { position: fixed; right: 12px; left: 12px; min-width: 0; }
+  #manageNavMenu .dropdown-item {
+    padding: 12px 14px;
+    font-size: .95rem;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .manage-menu-item { padding: 12px 14px; min-height: 44px; }
+
+  /* form controls need room for a fingertip and must not zoom the page when
+     focused, which is what a 16px-or-lower input does on iOS */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  select, textarea {
+    font-size: max(16px, .95em);
+    min-height: 44px;
+  }
+  textarea { min-height: 96px; }
+}
+/* ==================================================================
+   NO HORIZONTAL SCROLLING, ANYWHERE
+   The rule for this app: no page, no table and no dialog box ever gets a
+   horizontal scrollbar, at any screen size.
+
+   A wide table used to be dealt with by letting it scroll sideways inside a
+   rounded box. That is not good enough - you lose the column you are reading
+   and the row you are comparing against. Instead, below 1024px every row
+   becomes its own card and each cell is labelled with its own column name, so
+   the table is read top to bottom instead of side to side. Above 1024px the
+   grid layout is kept and long text is made to wrap, which is what actually
+   stops a long code or name from pushing the page wide.
+
+   overflow-x: clip is used rather than hidden because clip does not turn the
+   element into a scroll container, so it cannot be scrolled by accident and
+   it does not interfere with position: sticky on the table headers.
+   ================================================================== */
+
+/* A long word - a code, a serial number, a URL - breaks instead of widening
+   the thing it sits in. Without this a single unbreakable string is enough to
+   give the whole page a horizontal scrollbar. */
+table, td, th,
+.card, .panel, .modal, .modal-body, .modal-footer, .form-group, .detail-grid,
+.stat-card, .notif-panel, .dev-card, .list-row, .rpt-value {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+img, video, canvas, svg, iframe, embed, object {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Nothing is allowed to be wider than the space it was given. */
+.table-wrap,
+.dev-table-wrap,
+.panel,
+.card,
+.modal,
+.modal-body {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* The single most important rule for the goal. These two wrappers are the only
+   places in the app that used to offer a sideways scroll. They now clip: if
+   something is genuinely too wide the grid layout below is what stops it, and
+   clipping is the backstop for the case that slips through. */
+.table-wrap,
+.dev-table-wrap {
+  overflow-x: clip;
+}
+
+@media (max-width: 1024px) {
+  /* the rounded box and the sideways scroll are both gone - the rows carry
+     their own border now, so the box would only add a stray outline */
+  .table-wrap,
+  .dev-table-wrap {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  .table-wrap > table,
+  .dev-table-wrap > table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 10px;
+    table-layout: fixed;
+  }
+
+  /* the column names are written on the cells now, so the header row can go */
+  .table-wrap > table > thead,
+  .dev-table-wrap > table > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .table-wrap > table > tbody > tr,
+  .dev-table-wrap > table > tbody > tr {
+    display: block;
+    background: var(--panel, var(--card, #fff));
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(15, 23, 42, .05));
+    overflow: hidden;
+  }
+
+  .table-wrap > table > tbody > tr:hover,
+  .dev-table-wrap > table > tbody > tr:hover {
+    background: var(--panel, var(--card, #fff));
+  }
+
+  .table-wrap > table > tbody > td,
+  .dev-table-wrap > table > tbody > td {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 9px 14px;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    white-space: normal;
+  }
+
+  .table-wrap > table > tbody > td:last-child,
+  .dev-table-wrap > table > tbody > td:last-child {
+    border-bottom: 0;
+  }
+
+  /* the label, copied onto the cell by applyTableHeaders() from the header it
+     belongs to, so it can never disagree with the table it came from */
+  .table-wrap > table > tbody > td::before,
+  .dev-table-wrap > table > tbody > td::before {
+    content: attr(data-th);
+    flex: 0 0 38%;
+    max-width: 38%;
+    font-weight: 650;
+    font-size: .74rem;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--muted);
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  /* the actions cell is a row of controls rather than a value, so it gets the
+     full width of the card and the buttons share it */
+  .table-wrap > table > tbody > td.dev-acts,
+  .dev-table-wrap > table > tbody > td.dev-acts,
+  .table-wrap > table > tbody > td:last-child,
+  .dev-table-wrap > table > tbody > td:last-child {
+    flex-wrap: wrap;
+  }
+  .table-wrap > table > tbody > td.dev-acts::before,
+  .dev-table-wrap > table > tbody > td.dev-acts::before { flex: 0 0 100%; }
+  .table-wrap > table > tbody > td.dev-acts .btn,
+  .dev-table-wrap > table > tbody > td.dev-acts .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-width: 0;
+  }
+  /* a cell with no column name is a spacer or a totals row: it reads as a line
+     of its own instead of as a label with an empty value */
+  .table-wrap > table > tbody > td:not([data-th]),
+  .dev-table-wrap > table > tbody > td:not([data-th]) {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .table-wrap > table > tbody > td:not([data-th])::before,
+  .dev-table-wrap > table > tbody > td:not([data-th])::before { content: none; }
+}
+
+/* ==================================================================
+   DIALOG BOXES NEVER SCROLL SIDEWAYS
+   Every dialog is capped against the viewport rather than against a fixed
+   pixel width, and its contents are allowed to wrap. The internal layouts
+   collapse to a single column before they get the chance to push the box wide.
+   ================================================================== */
+.modal {
+  max-width: calc(100vw - 24px);
+  overflow-x: clip;
+  min-width: 0;
+}
+
+/* the size classes are a wish, not a demand - the viewport always wins */
+.modal-lg,
+.modal-xl,
+#demandDetailsModal .modal,
+#distDetailModal .modal,
+#maintDetailModal .modal,
+#demandFulfillModal .modal,
+#demandReviewModal .modal,
+#demandModal.modal-lg,
+#demandActionModal .modal,
+#consTxnModal .modal,
+#viewItemModal .modal,
+.ip-modal-box,
+.cam-modal {
+  max-width: calc(100vw - 24px);
+  width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+.modal-backdrop { padding: 12px; }
+.modal-body,
+.modal-header,
+.modal-footer {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* a table inside a dialog obeys the same rule as one on a page */
+.modal .table-wrap,
+.modal .dev-table-wrap { overflow-x: clip; }
+
+/* multi column layouts inside a dialog collapse before they can overflow */
+@media (max-width: 1024px) {
+  .modal .form-row.two-col,
+  .modal .form-row.three-col,
+  .modal .detail-grid,
+  .modal .grid-2,
+  .modal .grid-3,
+  .modal .stat-grid,
+  .modal .alloc-item-row,
+  .modal .location-add-row {
+    grid-template-columns: 1fr;
+  }
+  .modal .alloc-item-row,
+  .modal .location-add-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .modal .alloc-item-row .form-group,
+  .modal .location-add-row select {
+    min-width: 0;
+    width: auto;
+  }
+}
+/* ==================================================================
+   DROPDOWN MENUS AND DIALOG BUTTONS ARE VISIBLE WITHOUT HOVER
+
+   The dark button theme gave the panels the same dark face as the buttons
+   inside them. A dropdown row was #142744 and the panel behind it was
+   #142744 - a contrast ratio of 1.18 to 1, which is to say the rows were
+   invisible until the pointer arrived and the hover rule lightened them. On a
+   touch screen there is no hover at all, so the menu was simply a blank box.
+
+   The fix is separation, not brightness: the panel sits well below the rows in
+   lightness, the rows sit clearly above it, and every row carries a real
+   border so the edge is visible even in a bright room. Hover and focus then
+   only nudge a row that is already legible.
+   ================================================================== */
+:root {
+  --menu-panel: linear-gradient(180deg, #05080f 0%, #03050a 100%);
+  --menu-panel-line: rgba(160, 185, 220, .5);
+  --menu-item-face: linear-gradient(180deg, #33578f 0%, #28456f 100%);
+  --menu-item-face-hi: linear-gradient(180deg, #4470b0 0%, #35578f 100%);
+  --menu-item-line: rgba(175, 200, 235, .62);
+  --menu-item-ink: #eef4fd;
+}
+
+/* the panel is the darkest surface in the app so the rows read as objects on it */
+.act-dd-menu,
+.cb-menu,
+.combo-list,
+.stat-export-menu,
+#manageNavMenu,
+.person-suggest,
+.notif-panel {
+  background: var(--menu-panel);
+  border: 1px solid var(--menu-panel-line);
+  color: var(--menu-item-ink);
+  box-shadow: 0 18px 40px rgba(2, 6, 18, .55);
+}
+
+/* every row that lives inside one of those panels */
+.act-dd-menu .act-dd-btn,
+.act-dd-menu .act-dd-del,
+.stat-export-menu button,
+.cb-menu .cb-opt,
+.cb-menu .combo-new,
+.combo-list .combo-opt,
+.combo-list .combo-new,
+.combo-list .combo-empty,
+.suggest-item,
+.suggest-new,
+#manageNavMenu .dropdown-item,
+.manage-menu-item,
+.hist-photo-chip,
+.act-dd-btn,
+.act-dd-del,
+.cb-opt,
+.combo-opt,
+.combo-new {
+  background: var(--menu-item-face);
+  color: var(--menu-item-ink);
+  border: 1px solid var(--menu-item-line);
+}
+
+/* hover and keyboard focus both move a row that is already visible */
+.act-dd-menu .act-dd-btn:hover,
+.act-dd-menu .act-dd-del:hover,
+.stat-export-menu button:hover,
+.cb-menu .cb-opt:hover,
+.combo-list .combo-opt:hover,
+.suggest-item:hover,
+.suggest-new:hover,
+#manageNavMenu .dropdown-item:hover,
+.manage-menu-item:hover,
+.act-dd-btn:hover,
+.act-dd-del:hover,
+.cb-opt:hover,
+.combo-opt:hover,
+.combo-new:hover,
+.act-dd-btn:focus-visible,
+.cb-opt:focus-visible,
+.combo-opt:focus-visible,
+.suggest-item:focus-visible,
+#manageNavMenu .dropdown-item:focus-visible,
+.manage-menu-item:focus-visible,
+.stat-export-menu button:focus-visible {
+  background: var(--menu-item-face-hi);
+  color: #fff;
+  border-color: rgba(190, 215, 245, .8);
+}
+
+/* the delete row keeps saying delete, but it is now a solid dark red you can
+   actually see rather than a red outline on a dark panel */
+.act-dd-del,
+.act-dd-menu .act-dd-del {
+  background: linear-gradient(180deg, #a03333 0%, #852828 100%);
+  border-color: rgba(254, 202, 202, .65);
+  color: #ffe4e4;
+}
+.act-dd-del:hover,
+.act-dd-menu .act-dd-del:hover,
+.act-dd-del:focus-visible {
+  background: linear-gradient(180deg, #c24141 0%, #a03333 100%);
+  border-color: rgba(252, 200, 200, .8);
+}
+
+/* the empty-state line and the badge sit on the panel, not on a row */
+.cb-menu .cb-empty,
+.combo-list .combo-empty,
+.combo-opt .combo-badge {
+  color: #c7d8ef;
+}
+.combo-opt .combo-badge {
+  background: rgba(165, 190, 224, .22);
+}
+/* ==================================================================
+   DROPDOWN ITEMS ARE WHITE
+
+   These are the rows that open when you press Actions. They were unreadable
+   for two reasons at once: a row declared without its own class came out of the
+   builder as class="" and so was an unstyled browser button, and the rows that
+   did have a class were painted the same dark navy as the panel behind them.
+   Both are fixed here by painting every row white with dark text, which is the
+   familiar menu treatment and cannot be missed whether or not the pointer
+   happens to be over it. Touch screens have no hover at all, so this is the
+   only state that matters there.
+   ================================================================== */
+.act-dd-menu > button,
+.act-dd-item,
+.stat-export-menu > button,
+.stat-export-menu button,
+.cb-menu > button,
+.cb-menu .cb-opt,
+.cb-menu .combo-new,
+.combo-list > button,
+.combo-list .combo-opt,
+.combo-list .combo-new,
+.suggest-item,
+.suggest-new,
+#manageNavMenu .dropdown-item,
+.manage-menu-item,
+.hist-photo-chip {
+  background: #ffffff;
+  color: #14203a;
+  border: 1px solid #c4cedd;
+  box-shadow: 0 1px 2px rgba(2, 6, 18, .28);
+}
+
+.act-dd-menu > button:hover,
+.act-dd-item:hover,
+.stat-export-menu button:hover,
+.cb-menu .cb-opt:hover,
+.combo-list .combo-opt:hover,
+.suggest-item:hover,
+.suggest-new:hover,
+#manageNavMenu .dropdown-item:hover,
+.manage-menu-item:hover,
+.hist-photo-chip:hover,
+.act-dd-item:focus-visible,
+.cb-menu .cb-opt:focus-visible,
+.combo-list .combo-opt:focus-visible,
+#manageNavMenu .dropdown-item:focus-visible,
+.manage-menu-item:focus-visible,
+.stat-export-menu button:focus-visible {
+  background: #e8eef7;
+  color: #0b1220;
+  border-color: #7d90ad;
+}
+
+/* Delete keeps saying delete in red, on the same white row as everything else */
+.act-dd-menu .act-dd-del,
+.act-dd-menu > button.act-dd-del {
+  background: #ffffff;
+  color: #b01616;
+  border: 1px solid #eeb4b4;
+}
+.act-dd-menu .act-dd-del:hover,
+.act-dd-menu > button.act-dd-del:hover,
+.act-dd-menu .act-dd-del:focus-visible {
+  background: #fdecec;
+  color: #8f0f0f;
+  border-color: #d47070;
+}
+
+/* a row that is turned off says so in the text, not only in a title tooltip */
+.act-dd-del.act-dd-off,
+.act-dd-menu .act-dd-off {
+  color: #7a8699;
+  border-color: #d7dde6;
+  cursor: not-allowed;
+}
+.act-dd-menu .act-dd-off:hover {
+  background: #ffffff;
+  color: #7a8699;
+  border-color: #d7dde6;
+}
+
+/* the export menu and the manage menu have their own text colours */
+.stat-export-menu button { color: #14203a; }
+.suggest-item .suggest-name,
+.combo-opt .combo-name { color: #14203a; }
+.suggest-item .suggest-sub,
+.combo-opt .combo-sub { color: #5b6a80; }
+.combo-opt .combo-badge {
+  background: #e3ebf6;
+  color: #33445c;
+}
+.cb-menu .cb-empty,
+.combo-list .combo-empty { color: #64748b; }
+/* ==================================================================
+   MODERN LAYER
+
+   Nothing here changes what the app does or what it looks like at a glance.
+   It is the set of decisions that were being made slightly differently in a
+   hundred places: twenty-two different heading sizes, twenty different corner
+   radii and ninety-three different shadows. Written down once, the app stops
+   looking assembled and starts looking designed.
+   ================================================================== */
+:root {
+  /* corner radii - four steps is enough, and they are named by size not by
+     where they happen to be used */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+
+  /* elevation - each step is one step further from the page. Shadows fade with
+     height, so a raised surface is a wider and softer shadow, not a darker one */
+  --elev-1: 0 1px 2px rgba(15, 23, 42, .05), 0 1px 3px rgba(15, 23, 42, .04);
+  --elev-2: 0 2px 4px rgba(15, 23, 42, .05), 0 4px 10px rgba(15, 23, 42, .06);
+  --elev-3: 0 6px 16px rgba(15, 23, 42, .09), 0 2px 6px rgba(15, 23, 42, .05);
+  --elev-4: 0 18px 44px rgba(15, 23, 42, .16), 0 6px 16px rgba(15, 23, 42, .08);
+
+  /* type - a scale with a fixed ratio so a heading is always visibly a heading */
+  --fs-xs: .75rem;
+  --fs-sm: .82rem;
+  --fs-base: .9rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.375rem;
+  --fs-2xl: 1.75rem;
+  --lh-tight: 1.25;
+  --lh-normal: 1.5;
+
+  /* where a sticky table header has to stop so it does not slide under the
+     top bar */
+  --sticky-top: var(--topbar-h);
+}
+
+[data-theme="dark"] {
+  /* a dark surface cannot cast a shadow you can see, so the lift is carried by
+     a lighter border instead of by the shadow alone */
+  --elev-1: 0 1px 2px rgba(0, 0, 0, .40);
+  --elev-2: 0 2px 6px rgba(0, 0, 0, .45);
+  --elev-3: 0 8px 20px rgba(0, 0, 0, .50);
+  --elev-4: 0 20px 50px rgba(0, 0, 0, .60);
+}
+
+/* ---- the structural surfaces now share the scale ---- */
+.card,
+.panel,
+.stat-card,
+.dev-card,
+.dev-dist-card,
+.cons-card,
+.form-card {
+  border-radius: var(--r-lg);
+  box-shadow: var(--elev-1);
+  transition: box-shadow .18s var(--ease), border-color .18s var(--ease),
+              transform .18s var(--ease);
+}
+.card:hover,
+.panel:hover,
+.stat-card:hover,
+.stat-card.clickable:hover {
+  box-shadow: var(--elev-2);
+}
+
+.modal {
+  border-radius: var(--r-xl);
+  box-shadow: var(--elev-4);
+}
+
+.table-wrap,
+.dev-table-wrap {
+  border-radius: var(--r-lg);
+  box-shadow: var(--elev-1);
+}
+
+.act-dd-menu,
+.cb-menu,
+.combo-list,
+.stat-export-menu,
+#manageNavMenu,
+.notif-panel,
+.suggest-list {
+  border-radius: var(--r-md);
+  box-shadow: var(--elev-4);
+}
+
+/* ---- headings read from the scale ---- */
+.page-header h1,
+.page-header h2,
+.view-title,
+.dev-page-title {
+  font-size: var(--fs-xl);
+  line-height: var(--lh-tight);
+  letter-spacing: -.01em;
+}
+.card-header h3,
+.card-header h4,
+.panel-title,
+.section-title {
+  font-size: var(--fs-lg);
+  line-height: var(--lh-tight);
+  letter-spacing: -.005em;
+}
+.card-header p,
+.panel-sub {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+}
+
+/* ---- the whole app lines its text to one rhythm ---- */
+body,
+.card,
+.panel,
+.modal-body,
+.table-wrap,
+.dev-table-wrap {
+  line-height: var(--lh-normal);
+}
+.table-wrap td,
+.table-wrap th,
+.dev-table td,
+.dev-table th {
+  line-height: var(--lh-normal);
+}
+
+/* ---- sticky column headers on a wide screen ----
+   A table taller than the window used to take its column names away with it,
+   leaving a column of numbers nobody can read. The header stays put instead.
+   Below 1025px the table is a stack of cards and has no header row to keep.
+   ================================================================== */
+@media (min-width: 1025px) {
+  .table-wrap > table > thead > tr > th,
+  .dev-table-wrap > table > thead > tr > th,
+  table > thead > tr > th {
+    position: sticky;
+    top: var(--sticky-top);
+    z-index: 3;
+    /* an opaque background is required, otherwise the rows scroll through the
+       letters instead of behind them */
+    background: var(--card, #fff);
+    box-shadow: inset 0 -1px 0 var(--border);
+  }
+  [data-theme="dark"] table > thead > tr > th {
+    background: var(--card);
+  }
+  /* a sortable header still needs to look clickable once it stops moving */
+  th.sortable:hover {
+    background: var(--panel, #f1f5f9);
+  }
+}
+
+/* ---- one focus ring for the whole app ----
+   Tabbing through a form used to move between controls with almost no visible
+   cue. Every interactive thing now gets the same ring, offset so it never sits
+   under the border of the control it belongs to.
+   ================================================================== */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--primary-light, #3b6ea5);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+/* controls that already draw their own ring keep it - two rings at once is
+   just a thicker border with extra steps */
+.btn:focus-visible,
+.pager-btn:focus-visible,
+.act-dd-btn:focus-visible,
+.report-tab:focus-visible,
+.login-submit:focus-visible,
+.modal-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+/* the white dropdown rows need a ring that shows on white */
+.act-dd-item:focus-visible,
+.cb-menu .cb-opt:focus-visible,
+.combo-list .combo-opt:focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: -2px;
+  background: #e8eef7;
+}
+
+/* ---- scrollbars, so a long table has a visible edge ---- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, .45) transparent;
+}
+*::-webkit-scrollbar { width: 11px; height: 11px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, .40);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, .62); }
+[data-theme="dark"] *::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, .38);
+  background-clip: content-box;
+}
+[data-theme="dark"] *::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, .60);
+}
+
+/* ---- a tap should never leave a highlight behind ---- */
+button,
+a,
+label,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- animation is decoration; someone who has asked for less of it gets less */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .card:hover,
+  .panel:hover,
+  .stat-card:hover { transform: none; }
+}
+/* ==================================================================
+   LOGIN FIELD ICONS STAY VISIBLE
+
+   The icon sat in the input at left:13px with only the faint 42% white the
+   rest of the dark panel uses, and nothing pinned its height or its layer. Two
+   things then went wrong at once once the field had text in it: the input is a
+   replaced element and can paint over an absolutely positioned sibling in some
+   browsers, and the icon was dim enough to lose against the input's brighter
+   focused background. The result was an icon that was there when the field was
+   empty and gone the moment you could read the field.
+
+   Three things are pinned here so it cannot come back: the icon's height is set
+   by the element rather than left to the flex container to guess, the icon is
+   given its own layer above the input, and the icon carries its own contrast so
+   it does not depend on the field being empty or unfocused.
+   ================================================================== */
+.login-left .field-wrap {
+  position: relative;
+}
+
+.login-left .field-wrap .field-icon {
+  /* its own layer, so no amount of input styling can hide it */
+  z-index: 3;
+  /* pin the height instead of letting the flex container work it out */
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+  left: 13px;
+  width: 18px;
+  height: 18px;
+  /* readable against both the resting and the focused field */
+  color: rgba(255,255,255,.66);
+  /* a thin dark halo so the strokes keep their shape on the lighter field */
+  filter: drop-shadow(0 1px 1px rgba(2, 6, 18, .85));
+}
+
+/* the input must not be able to paint over the icon or the eye toggle */
+.login-left .field-wrap input {
+  position: relative;
+  z-index: 1;
+}
+
+.login-left .field-wrap .toggle-pass {
+  z-index: 3;
+}
+
+/* focused: gold, and louder than before rather than quieter */
+.field-wrap:focus-within .field-icon {
+  color: var(--gold);
+  filter: drop-shadow(0 1px 2px rgba(2, 6, 18, .9));
+}
+/* ==================================================================
+   LOGIN PAGE BUTTONS ARE WHITE
+
+   The login screen is the one page a user sees before the app exists, so its
+   buttons are set apart from the rest of the app rather than sharing the dark
+   button theme. They are white with dark text on both halves of the screen:
+
+     left  - the form sits on the navy gradient, so a white button is the one
+             thing on the page that plainly says press me
+     right - the demo accounts sit on the light panel, so the cards are white
+             too and are separated by a border and a shadow rather than by
+             being a different colour
+
+   The two "forgot password" and "request access" links stay as they are.
+   They are links wearing a button's clothes, and putting a white box behind
+   them would shout at someone who has simply forgotten a password.
+   ================================================================== */
+
+/* ---- the sign in button ---- */
+.login-submit,
+.login-left .login-submit {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 2px 10px rgba(2, 6, 18, .35);
+}
+.login-submit:hover,
+.login-left .login-submit:hover {
+  background: #eef2f8;
+  color: #0b1220;
+  border-color: #ffffff;
+  box-shadow: 0 4px 16px rgba(2, 6, 18, .42);
+}
+.login-submit:active,
+.login-left .login-submit:active { background: #dde4ee; }
+.login-submit:disabled,
+.login-left .login-submit:disabled {
+  background: #cfd7e3;
+  color: #5a6a80;
+  border-color: #cfd7e3;
+  cursor: not-allowed;
+}
+
+/* ---- the eye that shows the password ---- */
+.login-left .field-wrap .toggle-pass {
+  background: #ffffff;
+  color: #33445c;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 3px rgba(2, 6, 18, .30);
+}
+.login-left .field-wrap .toggle-pass:hover,
+.login-left .field-wrap .toggle-pass.on {
+  background: #eef2f8;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+/* ---- recent sign in chips (these sit on the navy side) ---- */
+.quick-login-chip {
+  background: #ffffff;
+  color: #14203a;
+  border: 1px solid rgba(255, 255, 255, .85);
+  box-shadow: 0 2px 8px rgba(2, 6, 18, .32);
+}
+.quick-login-chip:hover {
+  background: #eef2f8;
+  color: #0b1220;
+  border-color: #ffffff;
+}
+.quick-login-label { color: rgba(255, 255, 255, .72); }
+
+/* ---- the demo account cards (these sit on the light side) ---- */
+.demo-card {
+  background: #ffffff;
+  color: #14203a;
+  border: 1px solid #d3dbe6;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 2px 8px rgba(15, 23, 42, .05);
+}
+.demo-card:hover {
+  background: #ffffff;
+  color: #0b1220;
+  border-color: var(--primary-light, #3b6ea5);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, .13);
+  transform: translateY(-1px);
+}
+.demo-card .demo-name,
+.demo-card .demo-role,
+.demo-card .demo-loc { color: #14203a; }
+.demo-card .demo-role,
+.demo-card .demo-loc { color: #5b6a80; }
+
+/* ---- the demo panel toggle ---- */
+.login-right .demo-toggle {
+  background: #ffffff;
+  color: #33445c;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .06);
+}
+.login-right .demo-toggle:hover {
+  background: #eef2f8;
+  color: #0f172a;
+  border-color: #94a3b8;
 }

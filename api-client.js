@@ -65,16 +65,24 @@ function __apiPersist() {
       }
     }).catch(e => {
       console.error("save to server failed:", e);
-      // RBAC: the server is the source of truth for inventory ownership.
-      // If it rejected our save (401/403), resync the local cache with the
-      // server's authoritative state so any rejected change is reverted
-      // locally too, then re-render.
-      if (e && (e.status === 403 || e.status === 401)) {
+      // RBAC: the server is the source of truth. Any rejection - not just 401/403
+      // - means the change never landed, so the local cache is pulled back to the
+      // server's authoritative state and the reason is shown to the user. A 400
+      // used to be logged and dropped, which left a form claiming success for a
+      // change the server had actually thrown away.
+      var st = e && e.status;
+      if (st && st >= 400) {
         __api("GET", "state").then(s => {
           Object.keys(s || {}).forEach(k => { __apiCache[k] = s[k]; });
           if (typeof window.__rbacResynced === "function") window.__rbacResynced(e);
           else if (typeof render === "function") { try { render(); } catch (e2) {} }
         }).catch(() => {});
+        return;
+      }
+      // no status means the request never reached the server: tell the user that
+      // too, rather than letting the optimistic success toast stand.
+      if (typeof window.__writeFailed === "function") {
+        window.__writeFailed(e);
       }
     });
   }, 400);

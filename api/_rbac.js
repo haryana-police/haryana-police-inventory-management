@@ -21,12 +21,41 @@
 const ITEM_STORE_KEY = 'hp_inventory.items';
 const DISTRIBUTION_KEY_PREFIX = 'hp_inventory.distributions_';
 
-// Fields whose change constitutes a real inventory EDIT/DELETE. Deliberately
-// EXCLUDED: allotted, damagedReturned, lostReturned — those move through the
-// allotment workflows (allot / return / mark lost) which are a separate
-// feature with their own rules; counting them here would 403 legitimate
-// allotment saves. Any change to the fields below (the record itself) is
-// what this guard polices.
+// ---------------------------------------------------------------------------
+// DISTRICT SCOPE
+// Every role is confined to a set of districts. Most roles hold exactly one
+// (user.districtId). An Inspector General (role 'ig') is given several through
+// user.districtIds, and is confined to exactly those - never all of them.
+//
+// devadmin returns null, meaning "every district"; that role is separately
+// blocked from every inventory write below, so the wide scope is read-only.
+// ---------------------------------------------------------------------------
+function userDistricts(user) {
+  if (!user) return [];
+  if (user.role === 'devadmin') return null;
+  if (user.role === 'ig') {
+    const list = Array.isArray(user.districtIds) ? user.districtIds.filter(Boolean) : [];
+    // districtId stays the primary district so everything that already reads it
+    // (badges, default tab, session restore) keeps working unchanged.
+    if (user.districtId && list.indexOf(user.districtId) < 0) list.unshift(user.districtId);
+    return list;
+  }
+  return user.districtId ? [user.districtId] : [];
+}
+function inDistrictScope(user, districtId) {
+  const d = userDistricts(user);
+  return d === null || d.indexOf(districtId) >= 0;
+}
+// True for the roles that administer a whole district rather than one unit.
+function isDistrictWideRole(user) {
+  return !!(user && (user.role === 'admin' || user.role === 'ig'));
+}
+function districtScopeLabel(user) {
+  const d = userDistricts(user);
+  if (d === null) return 'all districts';
+  if (!d.length) return 'no district';
+  return d.length === 1 ? d[0] : d.join(', ');
+}
 const CONTENT_FIELDS = [
   'name', 'categoryId', 'unit', 'quantity', 'minStock', 'locationId',
   'conditionCounts',
@@ -133,6 +162,24 @@ function firstViolation(writes, user, exempt) {
     //  - delete: the stored record being removed must belong to the caller
     const prev = kind === 'delete' ? entry.item : (entry.prev || null);
     const storedLoc = prev && prev.locationId !== undefined ? prev.locationId : it.locationId;
+    // An IG administers whole districts and owns no unit, so the test is district
+    // membership rather than unit ownership: any record inside one of the
+    // districts assigned to the account, and nothing outside them. An IG can
+    // therefore never reach a district that was not ticked for it, and an edit
+    // cannot move a record out of the IG's scope.
+    if (user.role === 'ig') {
+      if (!inDistrictScope(user, entry.districtId)) {
+        return {
+          kind,
+          itemId: it.id,
+          itemName: it.name || '',
+          locationId: storedLoc !== undefined ? storedLoc : (it.locationId || null),
+          districtId: entry.districtId,
+          reason: `the record is in district ${entry.districtId}, outside the districts assigned to this IG (${districtScopeLabel(user)})`,
+        };
+      }
+      return null;
+    }
     const owned = kind === 'add'
       ? it.locationId === user.locationId
       : storedLoc === user.locationId;
@@ -203,10 +250,14 @@ function authorizeUserCollectionWrite(user, currentUsers, incomingUsers) {
   if (cur.length === 0) return null; // fresh bootstrap / seed
   if (!user) return { status: 401, code: 'RBAC_UNAUTHENTICATED', error: 'Authentication required to modify user accounts.' };
   if (user.role === 'devadmin') return null;
-  if (user.role !== 'admin') {
+  if (!isDistrictWideRole(user)) {
     return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: 'Only administrators can modify user accounts.' };
   }
-  const dist = user.districtId;
+  // An IG is scoped to the districts assigned to it, not to a single one; every
+  // check below uses inDistrictScope(), so an IG reaches its own districts and
+  // nothing beyond them.
+  const isIg = user.role === 'ig';
+  const scopeName = isIg ? 'your assigned districts' : 'your own district';
   const curById = new Map(cur.filter(Boolean).map(u => [u.id, u]));
   const incIds = new Set(inc.filter(Boolean).map(u => u.id));
   const stripPw = (u) => { const c = Object.assign({}, u); delete c.password; return c; };
@@ -219,7 +270,9 @@ function authorizeUserCollectionWrite(user, currentUsers, incomingUsers) {
     if (!u) return false;
     const p = curById.get(u.id);
     const wasRole = p ? p.role : undefined;
-    return (u.role === 'admin' || u.role === 'devadmin') && u.role !== wasRole;
+    // 'ig' joins the privileged set: an Inspector General spans several districts,
+    // so it must be the Developer Admin alone who can hand the role out.
+    return (u.role === 'admin' || u.role === 'devadmin' || u.role === 'ig') && u.role !== wasRole;
   });
   if (roleEscalation) {
     return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: 'Only the Developer Admin can assign admin roles.' };
@@ -231,25 +284,46 @@ function authorizeUserCollectionWrite(user, currentUsers, incomingUsers) {
     if (!u) continue;
     const p = curById.get(u.id);
     if (!p) {
-      // New account: must be created inside the admin's own district.
-      if (u.districtId !== dist) {
-        return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: `District Admins can only create users inside their own district ("${u.username || u.id}").`, detail: { userId: u.id, districtId: u.districtId } };
+      // New account: must land inside the caller's district scope.
+      if (!inDistrictScope(user, u.districtId)) {
+        return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: `You can only create users inside ${scopeName} ("${u.username || u.id}").`, detail: { userId: u.id, districtId: u.districtId } };
       }
       continue;
     }
     // District Admins can never manage administrator accounts (even a rename
     // of a fellow admin) — that stays Developer-Admin-only.
-    if ((p.role === 'admin' || p.role === 'devadmin') && changed(p, u)) {
+    if ((p.role === 'admin' || p.role === 'devadmin' || p.role === 'ig') && changed(p, u)) {
       return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: 'Only the Developer Admin can manage administrator accounts.', detail: { userId: u.id } };
     }
     if (!changed(p, u)) continue; // untouched in this write
-    if (p.districtId !== dist || u.districtId !== dist) {
-      return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: `District Admins can only manage users inside their own district ("${u.username || u.id}").`, detail: { userId: u.id, districtId: u.districtId } };
+    if (!inDistrictScope(user, p.districtId) || !inDistrictScope(user, u.districtId)) {
+      return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: `You can only manage users inside ${scopeName} ("${u.username || u.id}").`, detail: { userId: u.id, districtId: u.districtId } };
     }
   }
   for (const p of cur) {
-    if (p && !incIds.has(p.id) && p.districtId !== dist) {
-      return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: `District Admins cannot remove users from another district ("${p.username || p.id}").`, detail: { userId: p.id, districtId: p.districtId } };
+    // An Inspector General account is Developer-Admin-only in every direction:
+    // creation and promotion are blocked by the escalation guard above, editing
+    // by the privileged-account guard, and removal here. A district admin or a
+    // fellow IG cannot touch one even inside their own districts, because an IG
+    // spans districts and therefore outranks any single-district scope.
+    if (p && !incIds.has(p.id) && (p.role === 'admin' || p.role === 'devadmin' || p.role === 'ig')) {
+      // The last Developer Admin is the only way back into this application, so it
+      // can be edited but never removed - not even by another Developer Admin.
+      if (p.role === 'devadmin' && cur.filter(x => x && x.role === 'devadmin').length <= 1) {
+        return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: `This is the only Developer Admin account, so it cannot be deleted ("${p.username || p.id}").`, detail: { userId: p.id, role: p.role } };
+      }
+      // An IG that still answers for a district may not be removed: clear its scope
+      // first, so no district is ever left without the IG above it.
+      if (p.role === 'ig') {
+        const scope = Array.isArray(p.districtIds) && p.districtIds.length ? p.districtIds : [p.districtId];
+        if (scope.filter(Boolean).length) {
+          return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: `This IG Admin still handles ${scope.filter(Boolean).length} district(s) ("${p.username || p.id}"). Clear the districts first, then delete.`, detail: { userId: p.id, role: p.role, districts: scope.filter(Boolean) } };
+        }
+      }
+      return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: `Only the Developer Admin can remove an account with the ${p.role === 'ig' ? 'Inspector General' : 'administrator'} role ("${p.username || p.id}").`, detail: { userId: p.id, role: p.role } };
+    }
+    if (p && !incIds.has(p.id) && !inDistrictScope(user, p.districtId)) {
+      return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: `You cannot remove users from outside ${scopeName} ("${p.username || p.id}").`, detail: { userId: p.id, districtId: p.districtId } };
     }
   }
   return null;
@@ -603,7 +677,19 @@ function __consArr(state, key, distId) {
 const STRUCT_DISTRICTS_KEY = "hp_inventory.districts";
 const STRUCT_LOCATIONS_KEY = "hp_inventory.locations";
 const STRUCT_USERS_KEY = "hp_inventory.users";
-const STRUCT_LOC_TYPES = ["district", "station", "post", "mhc", "staff", "office"];
+const STRUCT_LOC_TYPES = ["phq", "igRange", "district", "otherHq", "station", "post", "mhc", "staff", "office"];
+/* PHQ and IG Range sit above the districts, so they live under one reserved key
+   in the location map instead of a district. They are never districts themselves. */
+const STRUCT_HQ_SCOPE = "__hq__";
+const STRUCT_HQ_TYPES = ["phq", "igRange"];
+function __stIsHqType(t) { return STRUCT_HQ_TYPES.indexOf(String(t || "")) >= 0; }
+function __stHqLocations(state) {
+  const v = __stLocMap(state)[STRUCT_HQ_SCOPE];
+  return Array.isArray(v) ? v : [];
+}
+function __stDistrictsInRange(districts, rangeId) {
+  return districts.filter(d => d && rangeId && d.rangeId === rangeId);
+}
 
 function __stArrOf(state, key) {
   const v = state ? state[key] : null;
@@ -614,11 +700,25 @@ function __stLocMap(state) {
   return (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
 }
 function __stNormDist(d) {
-  return { id: d.id || "", name: d.name || "", code: String(d.code || "").toUpperCase(), headquarters: d.headquarters || "" };
+  return { id: d.id || "", name: d.name || "", code: String(d.code || "").toUpperCase(), headquarters: d.headquarters || "", rangeId: d.rangeId || "" };
 }
+/* Every field that decides WHERE a role sits must take part in the diff, or a
+   change to it would be invisible here and the placement rules would never run. */
 function __stNormUser(u) {
-  return { id: u.id || "", username: String(u.username || "").toLowerCase(), name: u.name || "", mobile: u.mobile || "", role: u.role || "", districtId: u.districtId || "", locationId: u.locationId || "" };
+  return {
+    id: u.id || "",
+    username: String(u.username || "").toLowerCase(),
+    name: u.name || "",
+    mobile: u.mobile || "",
+    role: u.role || "",
+    districtId: u.districtId || "",
+    locationId: u.locationId || "",
+    locationType: u.locationType || "",
+    rangeId: u.rangeId || "",
+    districtIds: Array.isArray(u.districtIds) ? u.districtIds.filter(Boolean).slice().sort() : [],
+  };
 }
+
 function __stNormLoc(l) {
   return { id: l.id || "", name: l.name || "", type: l.type || "", districtId: l.districtId || "" };
 }
@@ -696,27 +796,92 @@ function authorizeStructureWrites(user, prevState, nextState) {
       return __structDeny(400, "RBAC_DISTRICT_DUPLICATE", "A district with this name already exists.");
     if (nextDistricts.some(x => x && x.id !== w.districtId && String(x.code || "").trim().toUpperCase() === code.toUpperCase()))
       return __structDeny(400, "RBAC_DISTRICT_CODE_TAKEN", "District code already exists.");
+    // A district hangs under exactly one IG Range, and that range must really
+    // exist: it is what an IG Admin's reach is derived from.
+    const ranges = __stHqLocations(nextState).filter(l => l && l.type === "igRange");
+    if (!w.district.rangeId) return __structDeny(400, "RBAC_DISTRICT_RANGE", "Choose the IG Range this district falls under.");
+    if (!ranges.some(r => r.id === w.district.rangeId)) return __structDeny(400, "RBAC_DISTRICT_RANGE", "That IG Range does not exist.");
   }
 
   /* ---------- LOCATIONS: devadmin anywhere, district admin own district ---------- */
   for (const w of writes.locations) {
-    if (!isDev) {
-      if (!isAdmin) return __structDeny(403, "RBAC_LOC_FORBIDDEN", "You are not allowed to manage locations.");
-      if (w.districtId !== user.districtId) return __structDeny(403, "RBAC_LOC_SCOPE", "You can only manage locations in your own district.");
+    const loc = w.location || w.prev || {};
+    const isHq = __stIsHqType(loc.type);
+    if (isHq) {
+      // The PHQ and the IG Ranges belong to the state, not to any district: they
+      // are Developer-Admin-only and must sit in the reserved state scope.
+      if (!isDev) return __structDeny(403, "RBAC_LOC_HQ_FORBIDDEN", "Only the Developer Admin can manage the PHQ and IG Ranges.");
+      if (w.districtId !== STRUCT_HQ_SCOPE) return __structDeny(400, "RBAC_LOC_HQ_SCOPE", `${__stLocTypeName(loc.type)} records belong to the state and cannot be filed under a district.`);
+    } else {
+      if (!isDev) {
+        if (!isAdmin) return __structDeny(403, "RBAC_LOC_FORBIDDEN", "You are not allowed to manage locations.");
+        if (w.districtId !== user.districtId) return __structDeny(403, "RBAC_LOC_SCOPE", "You can only manage locations in your own district.");
+      }
+      if (!nextDistricts.some(d => d && d.id === w.districtId)) return __structDeny(400, "RBAC_LOC_DISTRICT", "That district does not exist.");
     }
     const list = Array.isArray(nextLocMap[w.districtId]) ? nextLocMap[w.districtId] : [];
     if (w.op === "delete") {
-      const used = nextUsers.some(u => u && u.districtId === w.districtId && u.locationId === w.locationId);
+      // a state-level unit is referenced by locationType, not by districtId
+      const used = nextUsers.some(u => u && (isHq
+        ? (u.locationId === w.locationId && (u.role === "devadmin" || u.rangeId === w.locationId))
+        : (u.districtId === w.districtId && u.locationId === w.locationId)));
       if (used) return __structDeny(400, "RBAC_LOC_IN_USE", "Location still has users. Reassign them first.");
       continue;
     }
-    const loc = w.location || {};
     const name = String(loc.name || "").trim();
     if (!name) return __structDeny(400, "RBAC_LOC_NAME", "Location name is required.");
     if (STRUCT_LOC_TYPES.indexOf(String(loc.type || "")) === -1) return __structDeny(400, "RBAC_LOC_TYPE", "Invalid location type.");
     if (list.some(x => x && x.id !== w.locationId && String(x.name || "").trim().toLowerCase() === name.toLowerCase()))
-      return __structDeny(400, "RBAC_LOC_DUPLICATE", "A location with this name already exists in this district.");
+      return __structDeny(400, "RBAC_LOC_DUPLICATE", "A location with this name already exists here.");
   }
+
+/* Where a role is allowed to sit in the hierarchy:
+   Developer Admin -> PHQ, IG Admin -> IG Range, everyone else -> a district.
+   This is the one place that decides it, so the forms and the guard can never
+   disagree about what a role belongs to. */
+function __stRoleHomeType(role) {
+  if (role === "devadmin") return "phq";
+  if (role === "ig") return "igRange";
+  return null;
+}
+
+function __stValidateUserPlacement(nextDistricts, nextLocMap, u, isAdd) {
+  const role = String(u.role || "");
+  const want = __stRoleHomeType(role);
+  if (want) {
+    // state-level role: attached to a PHQ or an IG Range, never to a district
+    if (String(u.locationType || "") !== want)
+      return __structDeny(400, "RBAC_USER_HOME_TYPE", want === "phq"
+        ? "A Developer Admin must be attached to a PHQ location."
+        : "An IG Admin must be attached to an IG Range location.");
+    const hq = __stHqLocations({ [STRUCT_LOCATIONS_KEY]: nextLocMap });
+    if (!hq.some(l => l && l.id === u.locationId && l.type === want))
+      return __structDeny(400, "RBAC_USER_HOME_LOCATION", want === "phq"
+        ? "Select an existing PHQ location."
+        : "Select an existing IG Range location.");
+    if (want === "igRange") {
+      if (!u.rangeId) return __structDeny(400, "RBAC_USER_RANGE", "Choose the IG Range this Inspector General will hold.");
+      if (!hq.some(l => l && l.id === u.rangeId && l.type === "igRange"))
+        return __structDeny(400, "RBAC_USER_RANGE", "That IG Range does not exist.");
+      const inRange = __stDistrictsInRange(nextDistricts, u.rangeId).map(d => d.id);
+      const claimed = Array.isArray(u.districtIds) ? u.districtIds.filter(Boolean) : [];
+      if (!claimed.length) return __structDeny(400, "RBAC_USER_RANGE_EMPTY", "That IG Range currently has no district under it.");
+      // no smuggling: every claimed district really has to sit inside the range
+      const outside = claimed.filter(id => inRange.indexOf(id) < 0);
+      if (outside.length) return __structDeny(403, "RBAC_USER_RANGE_SCOPE", "An IG Admin may only hold the districts that fall under their own IG Range.");
+    }
+    return null;
+  }
+  // district-level role: a real district, and a unit inside it
+  const d = nextDistricts.find(x => x && x.id === u.districtId);
+  if (!d) return __structDeny(400, "RBAC_USER_DISTRICT", isAdd ? "Choose the district for this account." : "That district does not exist.");
+  const locs = Array.isArray(nextLocMap[u.districtId]) ? nextLocMap[u.districtId] : [];
+  if (u.locationId && !locs.some(l => l && l.id === u.locationId)) return __structDeny(400, "RBAC_USER_LOCATION", "Location does not belong to the selected district.");
+  // the account inherits the range its district sits in, so the form can show it
+  if (u.rangeId !== d.rangeId) u.rangeId = d.rangeId;
+  return null;
+}
+
 
   /* ---------- USERS ---------- */
   if (!fresh) {
@@ -726,7 +891,9 @@ function authorizeStructureWrites(user, prevState, nextState) {
         const scopeDistrict = w.op === "delete" ? (w.prev ? w.prev.districtId : w.user && w.user.districtId) : w.user.districtId;
         if (scopeDistrict !== user.districtId) return __structDeny(403, "RBAC_USER_SCOPE", "You can only manage users in your own district.");
         const effRole = w.op === "delete" ? (w.prev ? w.prev.role : "") : w.user.role;
-        if (effRole === "admin" || effRole === "devadmin") return __structDeny(403, "RBAC_USER_ADMIN_TARGET", "You cannot manage admin accounts.");
+        // An IG account spans districts and is therefore Developer-Admin-only,
+        // exactly like an administrator account.
+        if (effRole === "admin" || effRole === "devadmin" || effRole === "ig") return __structDeny(403, "RBAC_USER_ADMIN_TARGET", "You cannot manage administrator or Inspector General accounts.");
         if (w.op === "edit" && w.prev && w.prev.districtId !== w.user.districtId) return __structDeny(403, "RBAC_USER_MOVE", "District cannot be changed.");
       }
       if (w.op === "add") {
@@ -737,15 +904,14 @@ function authorizeStructureWrites(user, prevState, nextState) {
           return __structDeny(400, "RBAC_USER_TAKEN", "Username already exists.");
         if (!String(u.name || "").trim()) return __structDeny(400, "RBAC_USER_DISPLAY", "Display name is required.");
         if (!/^\d{10}$/.test(String(u.mobile || "").trim())) return __structDeny(400, "RBAC_USER_MOBILE", "Mobile number must be exactly 10 digits.");
-        const knownRoles = ["devadmin", "admin", "user", "mhc", "tsi", "station", "staff", "post", "itstaff", "unit", "role"];
+        const knownRoles = ["devadmin", "ig", "admin", "user", "mhc", "tsi", "station", "staff", "post", "itstaff", "mtostaff", "unit", "role"];
         if (knownRoles.indexOf(String(u.role || "")) === -1) return __structDeny(400, "RBAC_USER_ROLE", "Invalid role.");
         if ((u.role === "admin" || u.role === "devadmin") && !isDev) return __structDeny(403, "RBAC_USER_ROLE_FORBIDDEN", "You cannot assign admin roles.");
         const pw = String(u.password || "");
         if (!pw) return __structDeny(400, "RBAC_USER_PASSWORD", "Password is required.");
         if (pw.indexOf("$2") !== 0 && pw.length < 6) return __structDeny(400, "RBAC_USER_PASSWORD_WEAK", "Password must be at least 6 characters.");
-        if (!nextDistricts.some(d => d && d.id === u.districtId)) return __structDeny(400, "RBAC_USER_DISTRICT", "District does not exist.");
-        const locs = nextLocMap[u.districtId] || [];
-        if (!locs.some(l => l && l.id === u.locationId)) return __structDeny(400, "RBAC_USER_LOCATION", "Location does not belong to the selected district.");
+        const place = __stValidateUserPlacement(nextDistricts, nextLocMap, u, true);
+        if (place) return place;
       }
       if (w.op === "edit") {
         const u = w.user || {};
@@ -755,8 +921,8 @@ function authorizeStructureWrites(user, prevState, nextState) {
           return __structDeny(400, "RBAC_USER_TAKEN", "Username already taken.");
         if (u.mobile !== undefined && !/^\d{10}$/.test(String(u.mobile || "").trim())) return __structDeny(400, "RBAC_USER_MOBILE", "Mobile number must be exactly 10 digits.");
         if ((u.role === "admin" || u.role === "devadmin") && !isDev) return __structDeny(403, "RBAC_USER_ROLE_FORBIDDEN", "You cannot assign admin roles.");
-        const locs = nextLocMap[u.districtId] || [];
-        if (u.locationId && !locs.some(l => l && l.id === u.locationId)) return __structDeny(400, "RBAC_USER_LOCATION", "Location does not belong to the selected district.");
+        const place = __stValidateUserPlacement(nextDistricts, nextLocMap, u, false);
+        if (place) return place;
         if (w.prev && w.prev.role === "devadmin" && u.role !== "devadmin") {
           const otherDevs = nextUsers.filter(x => x && x.id !== u.id && x.role === "devadmin");
           if (!otherDevs.length) return __structDeny(400, "RBAC_LAST_DEVADMIN", "Cannot demote the last Developer Admin.");
@@ -766,7 +932,20 @@ function authorizeStructureWrites(user, prevState, nextState) {
       }
       if (w.op === "delete") {
         const prev = w.prev || {};
+        // An IG that still answers for a district may not be removed: clear its
+        // scope first, so no district is left without the IG above it. districtId
+        // alone counts, because it is the IG's home district.
+        if (prev.role === "ig") {
+          const scope = Array.isArray(prev.districtIds) && prev.districtIds.length ? prev.districtIds : [prev.districtId];
+          if (scope.filter(Boolean).length) {
+            return __structDeny(403, "RBAC_IG_HAS_DISTRICTS", `This IG Admin still handles ${scope.filter(Boolean).length} district(s) ("${prev.username || prev.id}"). Clear the districts first, then delete.`);
+          }
+        }
         if (prev.role === "devadmin") {
+          // A Developer Admin cannot remove their own account, even when a
+          // second one exists: the UI hides the button, and this is the same rule
+          // on the server so a hand-built request cannot do what the page won't.
+          if (user && prev.id === user.id) return __structDeny(400, "RBAC_SELF_DELETE", "You cannot delete your own account. Edit it instead.");
           const otherDevs = nextUsers.filter(x => x && x.id !== prev.id && x.role === "devadmin");
           if (!otherDevs.length) return __structDeny(400, "RBAC_LAST_DEVADMIN", "Cannot delete the last Developer Admin.");
         }
@@ -776,6 +955,21 @@ function authorizeStructureWrites(user, prevState, nextState) {
         }
       }
     }
+  }
+  /* ---------- keep every IG's reach in step with its IG Range ----------
+     The range is the source of truth: moving a district to another range has to
+     move that district in and out of the IG accounts holding those ranges, or a
+     stale districtIds would quietly keep an IG inside a district it lost. */
+  for (const u of nextUsers) {
+    if (!u || u.role !== "ig" || !u.rangeId) continue;
+    const inRange = __stDistrictsInRange(nextDistricts, u.rangeId).map(d => d.id);
+    const cur = Array.isArray(u.districtIds) ? u.districtIds.filter(Boolean) : [];
+    const same = cur.length === inRange.length && cur.every((id, i) => id === inRange[i]);
+    if (!same) u.districtIds = inRange.slice();
+    // an emptied range leaves nothing to file the account under, and a stale
+    // districtId left behind would keep that IG undeletable forever
+    if (!inRange.length) { if (u.districtId) u.districtId = ""; continue; }
+    if (u.districtId !== inRange[0]) u.districtId = inRange[0];
   }
   return { ok: true };
 }
