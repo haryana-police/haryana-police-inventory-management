@@ -1,11 +1,10 @@
 .vercel
 .env*
 node_modules/
-# local-data/ is now tracked on purpose (app database is version-controlled)
-local-data/db.backup-*.json
-# old Neon production dumps - archived to E:/hp-inventory-local-archive, never commit
-local-data/prod-*.json
-local-data/prod-backups/
+# The live app database is NOT tracked. It changes on every use, and it holds
+# account records, session records and item/person photographs, so it must never
+# reach a repository. Back it up by copying local-data/db.json somewhere safe.
+local-data/
 hp-inventory-image.tar
 *.bak_*
 *.bak
