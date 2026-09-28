@@ -37,14 +37,18 @@ class FilePool {
     if (!Array.isArray(this.db.rt_events)) this.db.rt_events = [];
     if (!this.db.rt_dedupe || typeof this.db.rt_dedupe !== 'object') this.db.rt_dedupe = {};
     if (typeof this.db.rt_seq !== 'number') this.db.rt_seq = 0;
-    if (this.db.app_state && Object.keys(this.db.app_state).length > 0) this._persist();
+    if (this.db.app_state && Object.keys(this.db.app_state).length > 0) this._persist(false);
   }
-  _persist() {
+  _persist(backup) {
     try {
+      const json = JSON.stringify(this.db);
       const tmp = DATA_FILE + '.tmp';
-      fs.writeFileSync(tmp, JSON.stringify(this.db));
+      fs.writeFileSync(tmp, json);
       try { fs.renameSync(tmp, DATA_FILE); }
-      catch (e) { fs.writeFileSync(DATA_FILE, JSON.stringify(this.db)); }
+      catch (e) { fs.writeFileSync(DATA_FILE, json); }
+      /* Keep a dated copy of every real save. Skipped for the normalisation
+         write that happens on load, and never allowed to fail the save. */
+      if (backup !== false) { try { require('./_backup').noteSaved(json); } catch (e) {} }
     } catch (e) { console.error('[filedb] persist failed:', e && e.message); }
   }
   _notifyAll() {

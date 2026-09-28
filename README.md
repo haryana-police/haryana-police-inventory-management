@@ -77,11 +77,37 @@ Everything lives in one file: `local-data/db.json`.
 
 | Task | How |
 |------|-----|
-| **Back up** | copy `local-data/db.json` somewhere safe |
-| **Restore** | copy a backup back over `local-data/db.json`, restart |
+| **Back up** | automatic — see below |
+| **Restore** | copy a backup from `local-data/backups/` over `local-data/db.json`, restart |
 | **Reset** | delete `local-data/db.json`, restart → fresh defaults are seeded |
 
-The folder `local-data/` is gitignored, so your data is never pushed to the repo.
+### Automatic backups
+
+Every time the app saves, the database is copied to
+`local-data/backups/db-YYYY-MM-DD_HHMMSS.json`, so you always have the state from
+just before a change went in. The newest 50 copies are kept and the rest are
+deleted, so the folder cannot grow without bound. A backup that fails is logged
+and ignored — it never stops a save.
+
+Two environment variables control it:
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `HP_BACKUP` | `1` | set to `0` to turn backups off |
+| `HP_BACKUP_KEEP` | `50` | how many copies to keep |
+
+Copies in `local-data/backups/` are gitignored, so they are never pushed.
+
+### Git and your data
+
+`local-data/db.json` **is** tracked by git on purpose: a data change then shows up
+as a modified file, which is the reminder that a backup is due. Pushing it is
+blocked by a `pre-push` hook, so data cannot leave the machine by accident:
+
+```powershell
+git push                    # blocked if local-data/ changed
+ALLOW_DATA_PUSH=1 git push  # allowed, on purpose
+```
 
 ---
 

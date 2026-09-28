@@ -6,6 +6,7 @@ node_modules/
 # reminder to take a backup.
 # Local safety copies and the old Neon production dumps are never committed.
 local-data/db.backup-*.json
+local-data/backups/
 local-data/prod-*.json
 local-data/prod-backups/
 hp-inventory-image.tar
