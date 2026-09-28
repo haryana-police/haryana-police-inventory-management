@@ -1,7 +1,11 @@
 .vercel
 .env*
 node_modules/
-local-data/
+# local-data/ is now tracked on purpose (app database is version-controlled)
+local-data/db.backup-*.json
+# old Neon production dumps - archived to E:/hp-inventory-local-archive, never commit
+local-data/prod-*.json
+local-data/prod-backups/
 hp-inventory-image.tar
 *.bak_*
 *.bak
