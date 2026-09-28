@@ -1861,6 +1861,28 @@ function actDD(items, forceDD) {
     `<div class="act-dd-menu hidden">${items.map(itemBtn).join("")}</div></div>`;
 }
 
+/* The Actions menu is absolutely positioned below its button, so on the last rows
+   of a long list it used to open off the bottom of the window. Measure the room on
+   each side and open upward when below is the worse option. */
+function actDdFlip(wrap) {
+  if (!wrap) return;
+  const trig = wrap.querySelector("[data-act-dd]");
+  const box = wrap.querySelector(".act-dd-menu");
+  if (!trig || !box) return;
+  wrap.classList.remove("drop-up");
+  const t = trig.getBoundingClientRect();
+  const below = window.innerHeight - t.bottom;
+  const above = t.top;
+  const need = box.getBoundingClientRect().height + 8;
+  if (below < need && above > below) wrap.classList.add("drop-up");
+}
+/* Re-measure while a menu is open, so scrolling or resizing cannot strand it. */
+function actDdReflow() {
+  $$(".act-dd-menu:not(.hidden)").forEach(box => actDdFlip(box.parentElement));
+}
+window.addEventListener("resize", actDdReflow);
+window.addEventListener("scroll", actDdReflow, true);
+
 function renderInventory() {
   const items = getItems();
   const cats = getCategories();
@@ -8820,7 +8842,7 @@ document.addEventListener("click", e => {
     const trig = e.target.closest("[data-act-dd]");
     if (trig) {
       const box = trig.parentElement.querySelector(".act-dd-menu");
-      if (box) box.classList.remove("hidden");
+      if (box) { box.classList.remove("hidden"); actDdFlip(trig.parentElement); }
     }
   });
   document.addEventListener("keydown", e => {

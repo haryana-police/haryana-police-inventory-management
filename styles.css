@@ -470,7 +470,13 @@ td .nm-en:empty, td .nm-hi:empty { display: none; }
   border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg);
   padding: 6px; display: flex; flex-direction: column; gap: 2px;
   animation: menuIn .14s var(--ease);
+  max-height: 62vh; overflow-y: auto;
 }
+/* On the last rows of a long list there is no room below, so the Actions menu
+   opens upward (actDdFlip in app.js sets .drop-up) instead of running off the
+   bottom of the window. The caret turns round to match. */
+.act-dd.drop-up > .act-dd-menu { top: auto; bottom: calc(100% + 6px); }
+.act-dd.drop-up .ee-caret { display: inline-block; transform: rotate(180deg); }
 .act-dd-menu button {
   display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 12px;
   background: none; border: none; border-radius: 8px; cursor: pointer;
