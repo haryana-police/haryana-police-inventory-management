@@ -23,52 +23,102 @@
 
 <!-- ==================== LOGIN SCREEN ==================== -->
 <div class="login-screen" id="loginScreen">
-  <div class="login-card">
-    <div class="login-emblem">
-      <div class="emblem-shield">
-        <img src="logo.jpg" alt="Haryana Police" style="width:80px;height:90px;object-fit:contain;">
-      </div>
-    </div>
-    <h1 class="login-title">Haryana Police</h1>
-    <p class="login-subtitle">Inventory Management System</p>
-    <div class="quick-login hidden" id="quickLogin">
-      <div class="quick-login-label">Quick Login</div>
-      <div class="quick-login-list" id="quickLoginList"></div>
-    </div>
-    <form id="loginForm" autocomplete="off">
-      <div class="form-group">
-        <label for="loginUser">Username</label>
-        <input type="text" id="loginUser" required placeholder="Enter your username" autocomplete="username">
-      </div>
-      <div class="form-group">
-        <label for="loginPass">Password</label>
-        <div class="password-wrap">
-          <input type="password" id="loginPass" required placeholder="Enter your password" autocomplete="current-password">
-          <button type="button" class="toggle-pass" id="togglePass" tabindex="-1" aria-label="Show password">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+  <div class="login-shell">
+
+    <!-- ---------- LEFT: credentials ---------- -->
+    <section class="login-left">
+      <div class="login-left-glow" aria-hidden="true"></div>
+      <div class="login-left-inner">
+
+        <div class="brand">
+          <div class="brand-emblem">
+            <img src="logo.jpg" alt="Haryana Police emblem">
+          </div>
+          <div class="brand-text">
+            <span class="brand-org">Haryana Police</span>
+            <span class="brand-sys">Inventory Management System</span>
+          </div>
+        </div>
+
+        <h1 class="login-title">IMS &ndash; Inventory Management System</h1>
+        <p class="login-subtitle">Smart Inventory <span class="dot">|</span> Secure Management</p>
+
+        <form id="loginForm" autocomplete="off">
+          <div class="form-group">
+            <label for="loginUser">Username</label>
+            <div class="field-wrap">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <input type="text" id="loginUser" required placeholder="Enter your username" autocomplete="username">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="loginPass">Password</label>
+            <div class="field-wrap">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <input type="password" id="loginPass" required placeholder="Enter your password" autocomplete="current-password">
+              <button type="button" class="toggle-pass" id="togglePass" tabindex="-1" aria-label="Show password">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="login-remember">
+            <label class="checkbox-label">
+              <input type="checkbox" id="rememberMe" checked>
+              <span>Remember me</span>
+            </label>
+          </div>
+
+          <p class="login-error hidden" id="loginError" role="alert" aria-live="polite">Invalid username or password</p>
+
+          <button type="submit" class="btn btn-primary btn-block login-submit" id="loginBtn">
+            <span class="btn-text">Sign In</span>
+            <span class="btn-loader hidden" id="loginLoader"></span>
           </button>
+
+          <div class="forgot-pass-wrap">
+            <button type="button" class="forgot-pass-link" id="forgotPassBtn">Forgot Password?</button>
+            <span class="login-sep">|</span>
+            <button type="button" class="forgot-pass-link" id="requestAccessBtn">Request Access / Sign Up</button>
+          </div>
+        </form>
+
+        <button type="button" class="demo-toggle" id="demoToggle" aria-expanded="true" aria-controls="demoPanel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          <span>Use Demo Account</span>
+          <svg class="demo-toggle-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+
+        <div class="quick-login hidden" id="quickLogin">
+          <div class="quick-login-label">Recent sign-ins</div>
+          <div class="quick-login-list" id="quickLoginList"></div>
+        </div>
+
+        <div class="login-footer">
+          <p class="login-hint">Authorized personnel only. Contact your system administrator for access.</p>
         </div>
       </div>
-      <div class="login-remember">
-        <label class="checkbox-label">
-          <input type="checkbox" id="rememberMe" checked>
-          <span>Remember me</span>
-        </label>
+    </section>
+
+    <!-- ---------- RIGHT: demo accounts ---------- -->
+    <aside class="login-right" id="demoPanel">
+      <div class="login-right-inner">
+        <div class="demo-head">
+          <span class="demo-eyebrow">Quick access</span>
+          <h2 class="demo-title">Demo Accounts</h2>
+          <p class="demo-sub">Click any account to sign in instantly.</p>
+        </div>
+        <p class="demo-error hidden" id="demoError" role="alert" aria-live="assertive"></p>
+        <div class="demo-list" id="demoList">
+          <div class="demo-loading" id="demoLoading"><span class="btn-loader"></span> Loading accounts&hellip;</div>
+        </div>
+        <p class="demo-note">
+          Demo sign-in is provided for evaluation. Each account is limited to the
+          records and actions its role allows.
+        </p>
       </div>
-      <p class="login-error hidden" id="loginError">Invalid username or password</p>
-      <button type="submit" class="btn btn-primary btn-block" id="loginBtn">
-        <span class="btn-text">Sign In</span>
-        <span class="btn-loader hidden" id="loginLoader"></span>
-      </button>
-      <div class="forgot-pass-wrap">
-        <button type="button" class="forgot-pass-link" id="forgotPassBtn">Forgot Password?</button>
-        <span class="login-sep">|</span>
-        <button type="button" class="forgot-pass-link" id="requestAccessBtn">Request Access / Sign Up</button>
-      </div>
-    </form>
-    <div class="login-footer">
-      <p class="login-hint">Authorized personnel only. Contact your system administrator for access.</p>
-    </div>
+    </aside>
+
   </div>
 </div>
 

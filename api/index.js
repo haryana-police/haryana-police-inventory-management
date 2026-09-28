@@ -24,6 +24,99 @@ const pool = new Pool();
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 const BCRYPT_ROUNDS = 12;
 
+// ---------------------------------------------------------------------------
+// DEMO LOGIN
+// One-click sign-in from the login page. The browser sends a USERNAME and
+// nothing else: the password is never part of the request, so it can never
+// leak through devtools, the page source, or a screenshot of the network tab.
+// The session it produces is an ordinary session - createSession() is the same
+// call POST /auth/login makes - so every downstream permission check behaves
+// exactly as it does for a typed login.
+//
+// Only accounts whose credentials are already published in this repository's
+// seed data are eligible, and only when the caller supplies the correct
+// password for that account. The allowlist is therefore not a way into the 34
+// real accounts: every other user in the database is unreachable here.
+//
+// IMS_DEMO_LOGIN=0 turns the whole thing off.
+const DEMO_LOGIN_ENABLED = process.env.IMS_DEMO_LOGIN !== '0';
+
+// The seed accounts from DEFAULT_USERS (app.js) plus the fixed district staff
+// accounts created by provisionDistrictStaff(). Passwords live here only so the
+// server can PROVE the caller is entitled to the account - the browser is
+// never sent this table.
+const DEMO_SEED_ACCOUNTS = [
+  { username: 'developer', password: 'dev@123' },
+  { username: 'admin',     password: 'admin123' },
+  { username: 'admin2',    password: 'admin123' },
+  { username: 'user',      password: 'user123' },
+  { username: 'fbd_user',  password: 'user123' },
+  { username: 'mhc',       password: 'mhc123' },
+  { username: 'fbd_mhc',   password: 'mhc123' },
+  { username: 'station',   password: 'station123' },
+  { username: 'it.staff.gurugramdist',   password: 'Staff@123' },
+  { username: 'mto.staff.gurugramdist',  password: 'Staff@123' },
+  { username: 'it.staff.faridabaddist',  password: 'Staff@123' },
+  { username: 'mto.staff.faridabaddist', password: 'Staff@123' },
+];
+
+// Mirrors ROLE_LABELS in app.js, kept server-side so the demo list is built from
+// the same vocabulary the app already uses - no role is invented.
+const ROLE_LABELS = {
+  devadmin: 'Developer Admin', admin: 'District Admin', station: 'Station Manager',
+  staff: 'Staff', mhc: 'MHC', tsi: 'TSI', post: 'Police Post',
+  user: 'General User', itstaff: 'Computer/IT Staff', mtostaff: 'MTO Staff',
+};
+
+// Display order on the login page, and the accent colour each role gets.
+const DEMO_ROLE_ORDER = ['devadmin', 'admin', 'station', 'user', 'mhc', 'post', 'itstaff', 'mtostaff'];
+const DEMO_ROLE_ACCENT = {
+  devadmin: 'violet', admin: 'blue', station: 'teal', user: 'amber',
+  mhc: 'green', post: 'rose', itstaff: 'cyan', mtostaff: 'indigo',
+};
+
+function demoSeedFor(username) {
+  const u = String(username || '').toLowerCase();
+  return DEMO_SEED_ACCOUNTS.find(a => a.username === u) || null;
+}
+
+// Builds the card list from accounts that actually exist in the database, so a
+// district that was never provisioned simply does not appear. Public fields
+// only - no password, ever.
+async function listDemoAccounts() {
+  const state = await getState();
+  const users = Array.isArray(state['hp_inventory.users']) ? state['hp_inventory.users'] : [];
+  const dists = Array.isArray(state['hp_inventory.districts']) ? state['hp_inventory.districts'] : [];
+  const locMap = state['hp_inventory.locations'];
+  const distName = id => { const d = dists.find(x => x && x.id === id); return (d && (d.name || d.code)) || ''; };
+  const locName = (locId, distId) => {
+    const list = (locMap && locMap[distId]) || [];
+    const l = Array.isArray(list) ? list.find(x => x && x.id === locId) : null;
+    return (l && l.name) || '';
+  };
+  const out = [];
+  for (const seed of DEMO_SEED_ACCOUNTS) {
+    const u = users.find(x => x && String(x.username || '').toLowerCase() === seed.username);
+    if (!u) continue;
+    const role = u.role || 'user';
+    out.push({
+      username: u.username,
+      name: u.name || u.username,
+      role: role,
+      roleLabel: ROLE_LABELS[role] || role,
+      accent: DEMO_ROLE_ACCENT[role] || 'blue',
+      district: distName(u.districtId),
+      location: locName(u.locationId, u.districtId),
+      initials: String(u.name || u.username).trim().charAt(0).toUpperCase(),
+    });
+  }
+  out.sort((a, b) => {
+    const d = DEMO_ROLE_ORDER.indexOf(a.role) - DEMO_ROLE_ORDER.indexOf(b.role);
+    return d !== 0 ? d : String(a.name).localeCompare(String(b.name));
+  });
+  return out;
+}
+
 // ---- rate limiting (per serverless instance; fine for this scale) ----
 const loginAttempts = new Map(); // ip -> { count, resetAt }
 
@@ -550,6 +643,59 @@ async function route(req, res) {
     try { if (provisionDistrictStaff(state)) await setState(state); } catch (e) { console.warn('[staff-provision]', e && e.message); }
     const token = await createSession(user.id);
     return res.json({ ok: true, token, user: publicUser(user) });
+  }
+
+  // ---------- DEMO ACCOUNTS (list) ----------
+  // Read-only: tells the login page which cards to draw. Returns no
+  // password and no user id, so it cannot be used to log in.
+  if (p0 === 'auth' && seg[1] === 'demo-users') {
+    if (!DEMO_LOGIN_ENABLED) return res.status(404).json({ error: 'Demo login is disabled on this server' });
+    try {
+      return res.json({ ok: true, enabled: true, accounts: await listDemoAccounts() });
+    } catch (e) {
+      console.error('[demo-users]', e && e.message);
+      return res.status(500).json({ error: 'Could not load demo accounts' });
+    }
+  }
+
+  // ---------- DEMO LOGIN (one click) ----------
+  // The request carries a username only. Entitlement is proven here by the
+  // server against its own seed table, and the resulting session is created
+  // by the same createSession() the normal login uses, so nothing downstream
+  // can tell a demo session from a typed one - RBAC still applies in full.
+  if (p0 === 'auth' && seg[1] === 'demo') {
+    const ip = clientIp(req);
+    if (!DEMO_LOGIN_ENABLED) return res.status(404).json({ error: 'Demo login is disabled on this server' });
+    if (rateLimited(ip)) return res.status(429).json({ error: 'Too many login attempts. Try again later.' });
+    const { username } = body;
+    if (!username) return res.status(400).json({ error: 'username required' });
+    const seed = demoSeedFor(username);
+    if (!seed) {
+      recordFailure(ip);
+      return res.status(403).json({ error: 'That account is not available as a demo account' });
+    }
+    const state = await getState();
+    const users = Array.isArray(state['hp_inventory.users']) ? state['hp_inventory.users'] : [];
+    const user = users.find(u => u && String(u.username || '').toLowerCase() === seed.username);
+    if (!user) {
+      recordFailure(ip);
+      return res.status(404).json({ error: 'That demo account no longer exists' });
+    }
+    // Prove the account still holds its published password. If somebody changed
+    // it, the demo card is refused rather than becoming a silent bypass.
+    let ok = false;
+    if (user.password && String(user.password).startsWith('$2')) {
+      ok = await bcrypt.compare(seed.password, user.password);
+    } else {
+      ok = user.password === seed.password;
+    }
+    if (!ok) {
+      recordFailure(ip);
+      return res.status(403).json({ error: 'This demo account is not available. Sign in with your password.' });
+    }
+    resetFailures(ip);
+    const token = await createSession(user.id);
+    return res.json({ ok: true, token, user: publicUser(user), demo: true });
   }
 
   // ---------- LOGOUT ----------

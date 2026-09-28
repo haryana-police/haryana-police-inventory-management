@@ -1056,6 +1056,156 @@ async function login(username, password) {
   return { user: null };
 }
 
+
+/* ===========================================================================
+   DEMO ACCOUNTS PANEL (login screen)
+   The card list is fetched from GET /api/auth/demo-users and the one-click
+   sign-in goes to POST /api/auth/demo. Neither request carries a password:
+   the browser never holds one, so nothing here can be read out of devtools or
+   the page source. The server returns an ordinary session, so everything
+   downstream (RBAC, district scoping, the dashboard each role lands on) is the
+   same code path a typed login uses - showApp() decides where to go, exactly
+   as it already did.
+   =========================================================================== */
+
+let __demoBusy = false;
+
+function __demoShell() {
+  return {
+    list: $("#demoList"),
+    error: $("#demoError"),
+    toggle: $("#demoToggle"),
+    panel: $("#demoPanel"),
+  };
+}
+
+function __demoShowError(msg) {
+  const s = __demoShell();
+  if (!s.error) { try { toast(msg, "error"); } catch (e) { /* ignore */ } return; }
+  s.error.textContent = msg;
+  s.error.classList.remove("hidden");
+}
+
+function __demoClearError() {
+  const s = __demoShell();
+  if (s.error) { s.error.textContent = ""; s.error.classList.add("hidden"); }
+}
+
+/* One card per account, grouped by role. Group order follows the order the
+   server sends, which is the role hierarchy the app already uses. */
+function __renderDemoCards(accounts) {
+  const s = __demoShell();
+  if (!s.list) return;
+  s.list.innerHTML = "";
+  if (!accounts || !accounts.length) {
+    s.list.innerHTML = '<div class="demo-empty">No demo accounts are available on this server. '
+      + "Use the sign-in form on the left.</div>";
+    return;
+  }
+  const groups = new Map();
+  for (const a of accounts) {
+    if (!groups.has(a.role)) groups.set(a.role, { label: a.roleLabel, accent: a.accent, items: [] });
+    groups.get(a.role).items.push(a);
+  }
+  const frag = document.createDocumentFragment();
+  for (const g of groups.values()) {
+    const wrap = document.createElement("div");
+    wrap.className = "demo-group";
+    const head = document.createElement("div");
+    head.className = "demo-group-head";
+    head.innerHTML = '<span>' + esc(g.label) + '</span>'
+      + '<span class="demo-group-count">' + g.items.length + '</span>';
+    wrap.appendChild(head);
+    for (const a of g.items) wrap.appendChild(__demoCard(a, g.accent));
+    frag.appendChild(wrap);
+  }
+  s.list.appendChild(frag);
+}
+
+function __demoCard(a, accent) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "demo-card accent-" + (accent || "blue");
+  btn.dataset.demoUser = a.username;
+  btn.setAttribute("aria-label", "Sign in as " + a.name + " (" + a.roleLabel + ")");
+  const where = [a.location, a.district].filter(Boolean);
+  btn.innerHTML =
+    '<span class="demo-avatar" aria-hidden="true">' + esc(a.initials || a.username.charAt(0).toUpperCase()) + '</span>' +
+    '<span class="demo-body">' +
+      '<span class="demo-name">' + esc(a.name) + '</span>' +
+      '<span class="demo-meta">' +
+        '<span class="demo-user">' + esc(a.username) + '</span>' +
+        (where.length ? '<span class="demo-sep">•</span><span class="demo-loc">' + esc(where.join(" · ")) + '</span>' : "") +
+        '<span class="demo-badge">' + esc(a.roleLabel) + '</span>' +
+      '</span>' +
+    '</span>' +
+    '<span class="demo-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>';
+  btn.addEventListener("click", () => __demoLogin(a.username, btn));
+  return btn;
+}
+
+async function __demoLogin(username, card) {
+  if (__demoBusy) return;
+  __demoBusy = true;
+  const s = __demoShell();
+  __demoClearError();
+  if (card) card.setAttribute("aria-busy", "true");
+  const btn = $("#loginBtn");
+  const loader = $("#loginLoader");
+  if (btn) btn.disabled = true;
+  if (loader) loader.classList.remove("hidden");
+  try {
+    const res = await __api("POST", "auth/demo", { username: username });
+    if (res && res.ok && res.user) {
+      // Identical to the typed-login success path in the submit handler below.
+      currentUser = res.user;
+      activeDistrictId = currentUser.districtId || "dist_1";
+      setActiveDistrict(activeDistrictId);
+      const rememberMe = !!$("#rememberMe") && $("#rememberMe").checked;
+      setAuth({ user: currentUser, token: res.token || null }, rememberMe);
+      addQuickUser({ username: currentUser.username, name: currentUser.name }, rememberMe);
+      showApp();
+      return;
+    }
+    __demoShowError("Could not sign in with that demo account. Please try again.");
+  } catch (err) {
+    const msg = (err && err.body && err.body.error) || "Could not sign in with that demo account.";
+    __demoShowError(msg);
+  } finally {
+    __demoBusy = false;
+    if (card) card.removeAttribute("aria-busy");
+    if (btn) btn.disabled = false;
+    if (loader) loader.classList.add("hidden");
+  }
+}
+
+async function __loadDemoAccounts() {
+  const s = __demoShell();
+  if (!s.list) return;
+  // No backend (file opened directly): there is no demo endpoint to call.
+  if (!window.CONFIG || !window.CONFIG.useRemote) {
+    s.list.innerHTML = '<div class="demo-empty">Demo sign-in needs the local server running. '
+      + "Start it with run-local.bat, then reload this page.</div>";
+    if (s.toggle) s.toggle.classList.add("hidden");
+    return;
+  }
+  s.list.innerHTML = '<div class="demo-loading"><span class="btn-loader"></span> Loading accounts&hellip;</div>';
+  try {
+    const res = await __api("GET", "auth/demo-users");
+    if (res && res.ok) __renderDemoCards(res.accounts || []);
+    else __renderDemoCards([]);
+  } catch (err) {
+    // 404 here means demo login is switched off on the server - that is a
+    // normal configuration, not a failure, so the panel just explains itself.
+    const off = err && err.status === 404;
+    s.list.innerHTML = off
+      ? '<div class="demo-empty">Demo sign-in is switched off on this server. '
+        + "Please sign in with your username and password.</div>"
+      : '<div class="demo-empty">Could not load demo accounts. Please sign in with your username and password.</div>';
+    if (s.toggle) s.toggle.classList.add("hidden");
+  }
+}
+
 let currentUser = null;
 
 function isAdmin() { return currentUser && (currentUser.role === "admin" || currentUser.role === "devadmin"); }
@@ -8700,11 +8850,22 @@ async function init() {
   }
 
   try { renderQuickLogin(); } catch (e) { console.error("quick login failed:", e); }
+  try { __loadDemoAccounts(); } catch (e) { console.error("demo accounts failed:", e); }
+
+  // "Use Demo Account" collapses/expands the demo panel on narrow screens and
+  // lets someone on a small screen get the form back to full height.
+  $("#demoToggle")?.addEventListener("click", () => {
+    const panel = $("#demoPanel");
+    const open = $("#demoToggle").getAttribute("aria-expanded") !== "false";
+    $("#demoToggle").setAttribute("aria-expanded", open ? "false" : "true");
+    if (panel) panel.classList.toggle("hidden", open);
+  });
 
   $("#loginForm").addEventListener("submit", async e => {
     e.preventDefault();
     const btn = $("#loginBtn");
     const loader = $("#loginLoader");
+    __demoClearError();
     if (btn) btn.disabled = true;
     if (loader) loader.classList.remove("hidden");
     try {
