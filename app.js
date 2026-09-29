@@ -1795,13 +1795,82 @@ function __updateRowCount(tbody) {
   }
 }
 
+// Binds one body, once. The flag is on the element because a body redrawn by
+// innerHTML is a different object each time and would otherwise be counted
+// twice over.
+function __bindRowCount(tb) {
+  if (!tb || !tb.dataset) return;
+  if (tb.dataset.rowcountBound === "1") return;
+  tb.dataset.rowcountBound = "1";
+  __updateRowCount(tb);
+}
+
+// A list that is not a table at all: a stack of divs, one per entry, the way
+// the admin pages draw locations, districts, users and categories. The rows are
+// recognised by shape rather than by a class name - the direct children that
+// are elements, minus the empty-message box - so a page gets counted without
+// having been listed here, and a new one is covered as it is written.
+const __CARDLIST_HINT = /-list$|-rows$|List$|Body$|Grid$/;
+const __CARDLIST_SKIP = /empty|placeholder|loading|no-?data|nothing/i;
+
+function __cardListRows(box) {
+  const kids = Array.from(box.children).filter(el => el.tagName !== "SCRIPT" && el.tagName !== "STYLE");
+  const real = kids.filter((el) => {
+    if (el.dataset && el.dataset.cardcount) return false;      // our own foot
+    const cls = String(el.className || "");
+    const t = (el.textContent || "").trim();
+    if (__CARDLIST_SKIP.test(cls)) return false;                // empty/loading
+    if (!t) return false;
+    return true;
+  });
+  return real;
+}
+
+function __updateCardListCount(box) {
+  if (!box || !box.dataset) return;
+  let foot = box.querySelector(":scope > [data-cardcount]");
+  const rows = __cardListRows(box);
+  const n = rows.length;
+  const key = n === 1 ? "1 row" : n + " rows";
+  const dict = (typeof __I18N !== "undefined" && __I18N) || null;
+  const hit = dict && dict[key];
+  const text = (window.__LANG === "hi" && hit) ? hit : key;
+  __rowCountBusy = true;
+  try {
+    if (!foot) {
+      foot = document.createElement("div");
+      foot.className = __ROWCOUNT_CLASS + " cardlist-count";
+      foot.dataset.cardcount = "1";
+      box.appendChild(foot);
+    }
+    foot.textContent = text;
+    foot.style.display = n === 0 ? "none" : "";
+  } finally {
+    __rowCountBusy = false;
+  }
+}
+
+function __bindCardList(box) {
+  if (!box || !box.dataset) return;
+  if (box.dataset.cardcountBound === "1") return;
+  box.dataset.cardcountBound = "1";
+  __updateCardListCount(box);
+}
+
+function __looksLikeCardList(el) {
+  if (!el || el.tagName === "TBODY" || el.tagName === "TABLE" || el.tagName === "TR") return false;
+  const id = el.id || "";
+  if (__CARDLIST_HINT.test(id)) return true;
+  const cls = String(el.className || "");
+  return /(users-list|districts-list|location-list|cat-list|dev-cards|dev-loc-list|notif-list|quick-login-list|demo-list)/.test(cls);
+}
+
 function __initRowCounts(root) {
   const scope = root || document;
-  scope.querySelectorAll("tbody").forEach(tb => {
-    if (tb.dataset.rowcountBound === "1") return;
-    tb.dataset.rowcountBound = "1";
-    __updateRowCount(tb);
-  });
+  scope.querySelectorAll("tbody").forEach(__bindRowCount);
+  if (scope === document) {
+    document.querySelectorAll("*").forEach((el) => { if (__looksLikeCardList(el)) __bindCardList(el); });
+  }
 }
 
 function __startRowCounter() {
@@ -1813,10 +1882,33 @@ function __startRowCounter() {
   }
   // Render functions rewrite innerHTML wholesale, so a MutationObserver is what
   // catches the change; there is no single "table drawn" event to listen to.
+  //
+  // Rows arriving in an existing body are counted by looking at that body. A
+  // whole table arriving is different: several of the admin pages build their
+  // list as a table written into a div, so the tbody is new each time and did
+  // not exist when the page loaded. Those are bound here as they appear, which
+  // is what the Manage Locations list and its neighbours needed - they were
+  // showing no count at all for exactly this reason.
   const obs = new MutationObserver((muts) => {
     for (const m of muts) {
-      if (m.type === "childList" && m.target && m.target.tagName === "TBODY") {
-        __updateRowCount(m.target);
+      if (m.type !== "childList" || !m.target) continue;
+      if (m.target.tagName === "TBODY") { __updateRowCount(m.target); continue; }
+      for (const added of Array.from(m.addedNodes || [])) {
+        if (added.nodeType !== 1) continue;
+        if (added.tagName === "TBODY") {
+          __bindRowCount(added);
+        } else if (added.querySelectorAll) {
+          added.querySelectorAll("tbody").forEach(__bindRowCount);
+          // A div-list that is filled in after load, like the location list
+          // behind its modal, is noticed here the first time it is drawn.
+          if (__looksLikeCardList(added)) __bindCardList(added);
+          added.querySelectorAll("*").forEach((el) => { if (__looksLikeCardList(el)) __bindCardList(el); });
+        }
+      }
+      // Rows already in a bound div-list changed: recount the nearest one.
+      if (m.target && m.target.nodeType === 1 && !__rowCountBusy) {
+        const box = m.target.closest ? m.target.closest('[id$="List"], [id$="Body"], [id$="Grid"], .users-list, .districts-list, .location-list, .cat-list, .dev-cards, .dev-loc-list, .notif-list') : null;
+        if (box && box.dataset && box.dataset.cardcountBound === "1") __updateCardListCount(box);
       }
     }
   });

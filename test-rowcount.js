@@ -57,5 +57,27 @@ for (const [cols, want] of [[3, 3], [7, 7], [1, 1], [0, 1]]) {
   ok(cols + ' header cols -> colspan ' + want, (cols || 1) === want);
 }
 
+// --- div-based lists (locations, districts, users, categories) ---------
+const __CARDLIST_SKIP = /empty|placeholder|loading|no-?data|nothing/i;
+function cardListRows(kids) {
+  return kids.filter((el) => {
+    if (el.dataset && el.dataset.cardcount) return false;
+    const cls = String(el.className || "");
+    const t = (el.textContent || "").trim();
+    if (__CARDLIST_SKIP.test(cls)) return false;
+    if (!t) return false;
+    return true;
+  });
+}
+const d = (cls, txt, dc) => ({ className: cls || '', textContent: txt || '', dataset: dc ? { cardcount: '1' } : {} });
+
+console.log('\ndiv-based lists:');
+ok('3 location-rows -> 3', cardListRows([d('location-row','A'), d('location-row','B'), d('location-row','C')]).length === 3);
+ok('its own count foot ignored', cardListRows([d('location-row','A'), d('rowcount-row cardlist-count','2 rows', true)]).length === 1);
+ok('empty message ignored', cardListRows([d('location-row','A'), d('dev-empty','No locations yet.')]).length === 1);
+ok('only an empty message -> 0', cardListRows([d('dev-empty','No locations yet.')]).length === 0);
+ok('blank node ignored', cardListRows([d('location-row','A'), d('spacer','')]).length === 1);
+ok('nothing -> 0', cardListRows([]).length === 0);
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

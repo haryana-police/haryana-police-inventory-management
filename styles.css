@@ -4034,4 +4034,17 @@ body.modal-open #appRoot {
   font-style: italic;
   padding: 6px 10px;
 }
-.rowcount-row[style*="display: none"] td.rowcount-cell { display: none; }
+.rowcount-row[style*="display: none"] td.rowcount-cell { display: none; }/* The count line for lists that are stacks of divs rather than tables (the
+   admin pages for locations, districts, users and categories). Same quiet
+   footnote as the table version, but full width and right aligned, with a
+   little space above so it reads as sitting under the list. */
+.cardlist-count {
+  display: block;
+  margin-top: 6px;
+  padding: 6px 2px;
+  text-align: right;
+  font-size: .78rem;
+  font-style: italic;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
