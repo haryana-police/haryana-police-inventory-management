@@ -50,10 +50,17 @@ const DEMO_LOGIN_ENABLED = process.env.IMS_DEMO_LOGIN !== '0';
 // proves entitlement by comparing against this table before issuing a session,
 // so an account whose password was changed stops being a demo account.
 const DEMO_PASSWORD = 'hp@123';
+// local-data/db.demo.json - the copy that ships with the project - puts this on
+// every account instead, so that a published demo never hands out a password
+// that was once a real one. The one-click demo sign-in below has to prove the
+// account still holds the password its own database was built with, so it
+// accepts the one that matches the database in front of it and not both. A real
+// installation still answers to DEMO_PASSWORD alone.
+const DEMO_DATA_PASSWORD = 'demo@123';
 const DEMO_SEED_ACCOUNTS = [
   'developer', 'admin', 'admin2', 'user', 'fbd_user', 'mhc', 'fbd_mhc', 'station',
   'it.staff.gurugramdist', 'mto.staff.gurugramdist',
-  'it.staff.faridabaddist', 'mto.staff.faridabaddist',
+  'it.staff.faridabaddis', 'mto.staff.faridabaddis',
   'it.staff.panipatdistr', 'mto.staff.panipatdistr',
   'ig', 'ig.fbd',
 ].map(username => ({ username, password: DEMO_PASSWORD }));
@@ -114,10 +121,18 @@ async function listDemoAccounts() {
       location: u.locationType === 'phq' || u.locationType === 'igRange' ? hqName(u.locationId) : locName(u.locationId, u.districtId),
       locationType: u.locationType || null,
       range: u.rangeId ? rangeNameOf(u.rangeId) : null,
-      // An IG spans every district of its range, so the card lists them all.
-      districts: u.role === 'ig' && u.rangeId
-        ? districtsInRange(u.rangeId).map(d => d.name).filter(Boolean)
-        : (Array.isArray(u.districtIds) && u.districtIds.length ? u.districtIds.map(distName).filter(Boolean) : null),
+      // Which districts this account may actually open. The stored districtIds
+      // are the authority - they are what the RBAC check reads - so they are
+      // used first. The range is only a fallback for an IG whose districtIds
+      // were never filled in. Reading the range first, as this used to, showed
+      // an account districts it has no permission for: two IGs can sit on one
+      // range while each answers for a different district, and the card then
+      // promised the one that was not theirs.
+      districts: Array.isArray(u.districtIds) && u.districtIds.length
+        ? u.districtIds.map(distName).filter(Boolean)
+        : (u.role === 'ig' && u.rangeId
+          ? districtsInRange(u.rangeId).map(d => d.name).filter(Boolean)
+          : null),
       initials: String(u.name || u.username).trim().charAt(0).toUpperCase(),
     });
   }
@@ -696,13 +711,19 @@ async function route(req, res) {
       recordFailure(ip);
       return res.status(404).json({ error: 'That demo account no longer exists' });
     }
-    // Prove the account still holds its published password. If somebody changed
-    // it, the demo card is refused rather than becoming a silent bypass.
+    // Prove the account still holds the password its own database was built
+    // with. If somebody changed it, the demo card is refused rather than
+    // becoming a silent bypass. Which password that is depends on the database:
+    // the bundled demo copy carries demo@123 and says so in its own state, a
+    // real installation carries the published demo password. Exactly one of the
+    // two is ever accepted, so this is not a wider door than before.
+    const isDemoData = state['hp_inventory.isDemoData'] === true;
+    const expected = isDemoData ? DEMO_DATA_PASSWORD : DEMO_PASSWORD;
     let ok = false;
     if (user.password && String(user.password).startsWith('$2')) {
-      ok = await bcrypt.compare(DEMO_PASSWORD, user.password);
+      ok = await bcrypt.compare(expected, user.password);
     } else {
-      ok = user.password === DEMO_PASSWORD;
+      ok = user.password === expected;
     }
     if (!ok) {
       recordFailure(ip);

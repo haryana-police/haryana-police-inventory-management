@@ -1630,12 +1630,36 @@ function watchTables() {
 function renderDistrictSelector() {
   const sel = $("#districtSelect");
   if (!sel) return;
-  const districts = getDistricts();
+  const all = getDistricts();
+  // Only the districts this account is actually entitled to. userDistricts()
+  // returns null for the Developer Admin, which means "every district", and the
+  // exact list for everybody else - an Inspector General sees the districts of
+  // their own IG Range and nothing beyond it. It used to list every district in
+  // the state for everyone, so a District Admin or an IG was shown places they
+  // can neither open nor switch to.
+  const scope = userDistricts(currentUser);
+  const districts = scope === null ? all : all.filter(d => scope.indexOf(d.id) >= 0);
+  if (!districts.length) {
+    sel.innerHTML = '<option value="">No district assigned</option>';
+    return;
+  }
+  // The district in view can be one this account no longer holds - left over
+  // from a previous login, or one the account was moved off. Falling back to
+  // the first district it does hold beats showing a blank selector.
+  if (!districts.some(d => d.id === activeDistrictId)) {
+    activeDistrictId = districts[0].id;
+    setActiveDistrict(districts[0].id);
+  }
   sel.innerHTML = districts.map(d => `<option value="${d.id}" ${d.id === activeDistrictId ? "selected" : ""}>${esc(d.name)}</option>`).join("");
 }
 
 function switchDistrict(newId) {
-  if (!isDevAdmin()) return;
+  // An Inspector General moves between the districts of their own range, so the
+  // selector has to work for them as well - applyRoleUI() already enables it for
+  // them. Anyone else is not a district switcher at all.
+  if (!isDevAdmin() && !isIg()) return;
+  if (!inDistrictScope(newId)) return toast("That district is not in your IG Range.", "error");
+  if (newId === activeDistrictId) return;
   activeDistrictId = newId;
   setActiveDistrict(newId);
   closeModals(); // per-district lists must not survive a district switch (2026.09.213)
@@ -13463,7 +13487,9 @@ $("#consRows")?.addEventListener("change", __consRowsChange);
 });
 
 /* ==================== DEV ADMIN: DISTRICTS & USERS ==================== */
-const __devPg = { dists: { q: "" }, igs: { q: "", active: null }, igDists: null, users: { q: "", type: "" }, dausers: { daId: null, q: "", type: "" }, adminLocs: { q: "" }, adminUsers: { q: "", type: "" } };
+// dausers carries either daId (opened from a District Admin row) or districtId
+// (opened from a district row) - renderDevDaUsers reads whichever is set.
+const __devPg = { dists: { q: "" }, igs: { q: "", active: null }, igDists: null, users: { q: "", type: "" }, dausers: { daId: null, districtId: null, q: "", type: "" }, adminLocs: { q: "" }, adminUsers: { q: "", type: "" } };
 let __devBound = false;
 const __devLocTypes = [
   // above the districts: one PHQ for the state, then the IG Ranges
@@ -13486,6 +13512,15 @@ function __devBtnLoading(btn, on) { if (!btn) return; btn.disabled = !!on; btn.c
 
 function __devApplyRoute() {
   const h = (location.hash || "").replace(/^#/, "");
+  // An Inspector General is not a Developer Admin, so without this branch every
+  // page they own bounced to the dashboard on reload: #dev-ig-dists and
+  // #dev-dist-users/... both start with "dev-" and were sent away below.
+  if (isIg()) {
+    if (h === "dev-ig-dists") { openIgDistricts(); return true; }
+    const mDist = h.match(/^dev-dist-users\/(.+)$/);
+    if (mDist) { openDevDistUsers(mDist[1]); return true; }
+    if (h.indexOf("dev-") === 0) { switchTab("dashboard"); return true; }
+  }
   if (!isDevAdmin()) {
     if (isAdmin() && currentUser.districtId) {
       if (h === "admin-locs") { openAdminLocs(); return true; }
@@ -13831,8 +13866,30 @@ function openDevUsers() {
 }
 function openDevDaUsers(daId) {
   if (!isDevAdmin()) return;
-  __devPg.dausers = { daId, q: "", type: "" };
+  // districtId cleared for the same reason as in openDevDistUsers.
+  __devPg.dausers = { daId, districtId: null, q: "", type: "" };
   history.replaceState(null, "", "#dev-dausers/" + daId);
+  switchTab("dausers");
+}
+
+/* The same users page, opened from a district row rather than from a District
+   Admin row. It is the same table, the same search box, the same Edit and
+   Delete - only what decides the list differs: a District Admin's page lists
+   the users of the district that admin sits in, this lists the users of the
+   district that was clicked. The page already takes its Edit and Delete
+   buttons from the row, so reusing it is what keeps the two identical. */
+function openDevDistUsers(districtId) {
+  const d = getDistricts().find(x => x.id === districtId);
+  if (!d) return toast("District not found.", "error");
+  if (!isDevAdmin() && !isIg()) return toast("Only Developer Admin or IG Admin can do this.", "error");
+  // An Inspector General must not be able to walk out of their own range by
+  // reaching this from anywhere else in the app.
+  if (!inDistrictScope(districtId)) return toast("That district is not in your IG Range.", "error");
+  // daId is cleared explicitly: renderDevDaUsers prefers daId when it is set, so
+  // a leftover value from a District Admin page would quietly list the wrong
+  // district's users under this district's name.
+  __devPg.dausers = { daId: null, districtId, q: "", type: "" };
+  history.replaceState(null, "", "#dev-dist-users/" + districtId);
   switchTab("dausers");
 }
 function __devClosePage() {
@@ -13906,6 +13963,7 @@ function renderDevDistricts() {
       '<td data-th="Users">' + nUsers + '</td>' +
       '<td data-th="Items">' + nItems + '</td>' +
       '<td data-th="Actions" class="dev-acts">' +
+        '<button type="button" class="btn btn-sm btn-dark" data-devdu-users="' + d.id + '">Users</button>' +
         '<button type="button" class="btn btn-sm btn-loc" data-devdd-locs="' + d.id + '">Locations</button>' +
         '<button type="button" class="btn btn-sm btn-outline" data-devdd-edit="' + d.id + '">Edit</button>' +
         delBtn +
@@ -14212,7 +14270,11 @@ function renderDevUsers() {
 function devDeleteUser(id) {
   if (!isAdmin()) return toast("Only District or Developer Admin can perform this action.", "error");
   const __tu = getUsers().find(u => u.id === id);
-  if (!isDevAdmin() && __tu && __tu.districtId !== currentUser.districtId) return toast("You can only delete users in your own district.", "error");
+  // inDistrictScope, not an equality test on districtId: an Inspector General
+  // answers for every district of their range, so one of the other districts
+  // they hold is as much theirs to manage as their home district. Comparing
+  // against currentUser.districtId alone would refuse those.
+  if (!isDevAdmin() && __tu && !inDistrictScope(__tu.districtId)) return toast("That user is not in a district you manage.", "error");
   const user = getUsers().find(u => u.id === id);
   if (!user) return;
   if (user.role === "admin" && __devDistUsers(user.districtId).length > 0) {
@@ -14519,17 +14581,37 @@ function saveDevUser(e) {
 function renderDevDaUsers() {
   const tbody = $("#devDauBody");
   if (!tbody) return;
-  const da = getUsers().find(u => u.id === __devPg.dausers.daId);
-  if (!da) { tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">District Admin not found.</td></tr>'; return; }
+  const pg = __devPg.dausers || {};
+  // Two ways in to this one page. Opened from a District Admin row it lists that
+  // admin's district; opened from a district row (a District Admin's own page
+  // and an IG Admin's, which is where the Users button now sits) it lists that
+  // district. Both produce the same table, so the page does not need to know
+  // which door it came through.
+  let distId = "";
+  let ownerLabel = "";
+  if (pg.daId) {
+    const da = getUsers().find(u => u.id === pg.daId);
+    if (!da) { tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">District Admin not found.</td></tr>'; return; }
+    distId = da.districtId;
+    ownerLabel = da.name;
+  } else if (pg.districtId) {
+    const d = getDistricts().find(x => x.id === pg.districtId);
+    if (!d) { tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">District not found.</td></tr>'; return; }
+    distId = d.id;
+    ownerLabel = d.name;
+  } else {
+    tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">Nothing selected.</td></tr>';
+    return;
+  }
   const title = $("#devDauTitle");
-  if (title) title.textContent = "Users of " + da.name;
-  const q = (__devPg.dausers.q || "").trim();
-  const type = __devPg.dausers.type || "";
-  const users = __devDistUsers(da.districtId)
+  if (title) title.textContent = "Users of " + ownerLabel;
+  const q = (pg.q || "").trim();
+  const type = pg.type || "";
+  const users = __devDistUsers(distId)
     .filter(u => __devUserMatches(u, q))
     .filter(u => !type || u.role === type);
   $("#devDauCount").textContent = users.length;
-  if (!users.length) { tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">No users found for this District Admin.</td></tr>'; return; }
+  if (!users.length) { tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">No users found for this district.</td></tr>'; return; }
   tbody.innerHTML = users.map(u =>
     '<tr data-devu-id="' + u.id + '">' +
     '<td data-th="Username"><span class="dev-u-user">' + esc(u.username) + '</span></td>' +
@@ -14581,7 +14663,19 @@ function bindDevAdmin() {
   // the row below them so the form can never show a stale combination
   on("duRole", "change", duSyncRole);
   on("duRange", "change", duSyncDistrict);
-  on("devDauBack", "click", openDevUsers);
+  // Back returns to whichever list this page was opened from: the districts
+  // table when it was reached from a district row, and the users list when it
+  // was reached from a District Admin row. Sending an IG back to the Developer
+  // Admin's users page - which they cannot open - used to be what happened.
+  on("devDauBack", "click", () => {
+    if (__devPg.dausers && __devPg.dausers.districtId) {
+      __devPg.dausers = { daId: null, districtId: null, q: "", type: "" };
+      if (isIg()) { history.replaceState(null, "", "#dev-ig-dists"); return switchTab("manage-districts"); }
+      if (isDevAdmin()) { history.replaceState(null, "", "#dev-districts"); return switchTab("manage-districts"); }
+      return switchTab("dashboard");
+    }
+    openDevUsers();
+  });
   on("devIgsBack", "click", __devClosePage);
   on("devDistBack", "click", devDistrictsBack);
   // the searchable district dropdown, in both forms
@@ -14650,9 +14744,10 @@ function bindDevAdmin() {
   on("devConfirmOk", "click", () => { const fn = __devConfirmFn; __devConfirmFn = null; closeModals(); if (fn) fn(); });
   on("devConfirmCancel", "click", () => { __devConfirmFn = null; closeModals(); });
   document.addEventListener("click", e => {
-    const t = e.target.closest("[data-devdd-locs],[data-devdd-edit],[data-devdd-del],[data-devda-users],[data-devda-edit],[data-devda-del],[data-devu-edit],[data-devu-del]");
+    const t = e.target.closest("[data-devdd-locs],[data-devdd-edit],[data-devdd-del],[data-devdu-users],[data-devda-users],[data-devda-edit],[data-devda-del],[data-devu-edit],[data-devu-del]");
     if (!t) return;
     else if (t.hasAttribute("data-devdd-locs")) openDevLocs(t.getAttribute("data-devdd-locs"));
+    else if (t.hasAttribute("data-devdu-users")) openDevDistUsers(t.getAttribute("data-devdu-users"));
     else if (t.hasAttribute("data-devdd-edit")) openDevDistModal(t.getAttribute("data-devdd-edit"));
     else if (t.hasAttribute("data-devdd-del")) devDeleteDistrict(t.getAttribute("data-devdd-del"));
     else if (t.hasAttribute("data-devda-users")) openDevDaUsers(t.getAttribute("data-devda-users"));
@@ -14665,14 +14760,17 @@ function bindDevAdmin() {
 
 function renderDevPagesTick() {
   if (!currentUser || !isAdmin()) return;
+  // An Inspector General reaches the districts page and the users page too -
+  // both renderers already narrow themselves to the districts of their IG Range
+  // - so gating them on isDevAdmin() left those two pages blank for an IG.
   const v1 = $("#view-manage-districts");
-  if (isDevAdmin() && v1 && !v1.classList.contains("hidden")) renderDevDistricts();
+  if ((isDevAdmin() || isIg()) && v1 && !v1.classList.contains("hidden")) renderDevDistricts();
   const vIg = $("#view-manage-igs");
   if (isDevAdmin() && vIg && !vIg.classList.contains("hidden")) renderDevIgs();
   const v2 = $("#view-manage-users");
   if (isDevAdmin() && v2 && !v2.classList.contains("hidden")) renderDevUsers();
   const v3 = $("#view-dausers");
-  if (isDevAdmin() && v3 && !v3.classList.contains("hidden")) renderDevDaUsers();
+  if ((isDevAdmin() || isIg()) && v3 && !v3.classList.contains("hidden")) renderDevDaUsers();
   const a1 = $("#view-admin-locs");
   if (a1 && !a1.classList.contains("hidden")) renderAdminLocs();
   const a2 = $("#view-admin-users");
