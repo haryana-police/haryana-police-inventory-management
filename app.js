@@ -1832,14 +1832,47 @@ function __bindRowCount(tb) {
 const __CARDLIST_HINT = /-list$|-rows$|List$|Body$|Grid$/;
 const __CARDLIST_SKIP = /empty|placeholder|loading|no-?data|nothing/i;
 
+// True when a row is nothing but controls: every scrap of text in it belongs to
+// a button or link, so there is no name, no figure and nothing to count. A
+// category row has its name in a span, so it is still counted; a strip of bare
+// buttons is not an entry in the list and must not be counted as one.
+function __isButtonsOnly(el) {
+  if (!el || !el.querySelectorAll) return false;
+  const controls = el.querySelectorAll("button, a.btn, [role=button], input[type=button], input[type=submit]");
+  if (!controls.length) return false;
+  let text = "";
+  try {
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => {
+        const p = n.parentElement;
+        if (p && p.closest && p.closest("button, a.btn, [role=button]")) return NodeFilter.FILTER_REJECT;
+        return (n.nodeValue && n.nodeValue.trim()) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      }
+    });
+    const parts = [];
+    while (walk.nextNode()) parts.push(walk.currentNode.nodeValue.trim());
+    text = parts.join("");
+  } catch (e) {
+    return false;   // cannot tell; count it rather than lose the row
+  }
+  return text.trim() === "";
+}
+
 function __cardListRows(box) {
   const kids = Array.from(box.children).filter(el => el.tagName !== "SCRIPT" && el.tagName !== "STYLE");
   const real = kids.filter((el) => {
     if (el.dataset && el.dataset.cardcount) return false;      // our own foot
+    // A child that is really a table in a wrapper - several of the admin pages
+    // write a whole table into a div - is not one row. The table body inside it
+    // is counted on its own and carries its own line, so counting the wrapper
+    // as well reported a list of thirty as one.
+    if (el.tagName === "TABLE" || (el.querySelector && el.querySelector("table"))) return false;
     const cls = String(el.className || "");
     const t = (el.textContent || "").trim();
     if (__CARDLIST_SKIP.test(cls)) return false;                // empty/loading
     if (!t) return false;
+    // A row that is nothing but buttons is a control, not an entry.
+    if (__isButtonsOnly(el)) return false;
     return true;
   });
   return real;

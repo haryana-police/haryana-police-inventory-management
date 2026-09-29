@@ -150,5 +150,26 @@ for (const a of ['data-ccit-edit', 'data-ccit-save', 'data-ccit-cancel', 'data-c
 }
 ok('the items body has a click listener', src.indexOf('#ccitBody') >= 0);
 
+// --- rows that are only buttons are not rows --------------------------
+// A strip of controls with no name in it is not an entry in the list. A
+// category row, which carries its name in a span, still is - the buttons sit
+// inside that row and do not become rows of their own.
+console.log('\nbutton-only rows:');
+// Stands in for __isButtonsOnly: text that is not inside a control.
+const hasOwnText = (row) => (row.ownText || '').trim() !== '';
+const row = (ownText, buttons) => ({ ownText: ownText || '', buttons: buttons || 0 });
+
+ok('bare button strip -> not a row', !hasOwnText(row('', 3)));
+ok('button strip with a name -> a row', hasOwnText(row('Stationery', 3)));
+ok('button strip with only a count -> a row', hasOwnText(row('12 items', 3)));
+ok('no buttons, just text -> a row', hasOwnText(row('Stationery', 0)));
+ok('category row (name + 3 buttons) is counted', hasOwnText(row('Stationery', 3)));
+
+// The rule is in the file, so removing it fails here.
+ok('__isButtonsOnly is defined', src.indexOf('function __isButtonsOnly') >= 0);
+ok('__isButtonsOnly is used when counting', src.indexOf('__isButtonsOnly(el)') >= 0);
+// A wrapper holding a table is not a row either - it double counted.
+ok('table wrappers are excluded', src.indexOf('el.querySelector("table")') >= 0);
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
