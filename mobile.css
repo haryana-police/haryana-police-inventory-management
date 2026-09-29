@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    mobile.css â€” Mobile-first responsive & premium UI layer
    Additive only: no business logic, no DOM removal.
    Loaded AFTER styles.css so it wins without !important wars.
@@ -61,6 +61,27 @@ button, .btn, a.btn, .linklike { touch-action: manipulation; }
   }
   .topbar-right::-webkit-scrollbar { display: none; }
   .user-section { min-width: 0; flex-shrink: 0; gap: 8px; }
+
+  /* The Manage dropdown is positioned absolutely inside .topbar-right, which
+     above is a sideways scroll box with overflow-y hidden. A child that is
+     positioned cannot paint outside its scroll container, so the menu was being
+     cut to the height of the topbar - on a phone the click appeared to do
+     nothing at all, for every role that has the button. The wrap is allowed to
+     paint over its scrolling parent, and the menu drops below the bar rather
+     than to the side of it, which is also where there is room. */
+  .topbar-right .nav-manage-wrap {
+    position: static;      /* the containing block moves out of the scroll box */
+  }
+  .topbar-right .manage-menu {
+    position: fixed;       /* escapes the scroll container entirely */
+    top: calc(var(--topbar-h, 56px) + 6px);
+    right: 10px;
+    left: 10px;
+    min-width: 0;
+    max-height: calc(100dvh - var(--topbar-h, 56px) - 24px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
   .district-select { min-width: 0 !important; max-width: 46vw; flex-shrink: 1; }
 }
 

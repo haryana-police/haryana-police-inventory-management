@@ -113,5 +113,29 @@ ok('row classes are refused outright', src.indexOf('A row of a list is never a l
 ok('token list is present', src.indexOf('__CARDLIST_CLASSES') >= 0);
 ok('the substring regex is gone', src.indexOf('|cat-list|dev-cards') < 0);
 
+// The Manage dropdown is positioned absolutely inside .nav-manage-wrap, and that
+// wrap sits inside .topbar-right, which on a phone is a sideways scroll box with
+// overflow-y hidden. A positioned element cannot paint outside the scroll
+// container it sits in, so the menu was clipped to nothing: tapping Manage did
+// nothing at all, for every role that has the button.
+const css = fs.readFileSync(path.join(__dirname, 'mobile.css'), 'utf8');
+const desk = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf8');
+const idx = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+
+console.log('Manage dropdown on a phone:');
+ok('the wrap is no longer a containing block', /\.topbar-right \.nav-manage-wrap\s*\{[^}]*position:\s*static/.test(css));
+ok('the menu escapes the scroll box', /\.topbar-right \.manage-menu\s*\{[^}]*position:\s*fixed/.test(css));
+ok('the menu scrolls if taller than the screen', /\.topbar-right \.manage-menu\s*\{[^}]*overflow-y:\s*auto/.test(css));
+
+console.log('\nthe scroll box it escapes is real:');
+ok('topbar-right clips on a phone', /overflow-y:\s*hidden/.test(css));
+ok('the wrap was a containing block by default', /position:\s*relative/.test(desk));
+
+console.log('\nthe fix has to be able to reach the browser:');
+const tag = (idx.match(/mobile\.css\?v=([\d.]+)/) || [])[1];
+ok('mobile.css carries a version', !!tag);
+ok('mobile.css is not left on a stale version', tag === '2026.09.229');
+ok('mobile.js bumped alongside it', /mobile\.js\?v=2026\.09\.229/.test(idx));
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
