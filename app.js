@@ -13983,8 +13983,23 @@ function igLoggedInRangeId() {
 }
 function igLoggedInDistricts() {
   const rid = igLoggedInRangeId();
-  if (!rid) return [];
-  return districtsInRange(rid);
+  if (rid) {
+    const byRange = districtsInRange(rid);
+    if (byRange.length) return byRange;
+  }
+  // A district only carries a range from the point the hierarchy was added to
+  // it. A database created before that has no rangeId on the district record,
+  // so matching on it finds nothing and the Inspector General is told their
+  // range has no district under it - while the account plainly names the
+  // districts it answers for. Where the range cannot answer, the account's own
+  // list is the authority, and the same is true of an IG whose range was never
+  // set. Returning nothing is only correct when neither can say.
+  const own = igDistrictsOf(currentUser || {});
+  if (own.length) {
+    const found = getDistricts().filter(d => d && own.indexOf(d.id) >= 0);
+    if (found.length) return found;
+  }
+  return [];
 }
 /* ==================== MANAGE IG ADMINS PAGE ==================== */
 /* One tab per Inspector General, so each account and the districts it answers
