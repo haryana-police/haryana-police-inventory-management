@@ -4020,3 +4020,18 @@ body.modal-open #appRoot {
 #ppTxModal .ip-modal-box,
 #ppEditModal .ip-modal-box { max-width: 900px; }
 .cam-modal { max-width: 800px; }
+
+/* Row count line under every table/list (app.js __updateRowCount).
+   Quieter than a totals row: it is a footnote, not a sum, so it is muted and
+   has no heavy rule above it. The border keeps it visually attached to the last
+   row without pretending to be one. */
+.rowcount-row td.rowcount-cell {
+  font-size: .78rem;
+  color: var(--muted);
+  background: rgba(0, 0, 0, .02);
+  border-top: 1px solid var(--border);
+  text-align: right;
+  font-style: italic;
+  padding: 6px 10px;
+}
+.rowcount-row[style*="display: none"] td.rowcount-cell { display: none; }

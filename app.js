@@ -1715,6 +1715,120 @@ const lowItems = __sortRows("dashLow", items.filter(i => i.quantity <= i.minStoc
   renderCharts();
 }
 
+/* ==================== ROW COUNT ON EVERY TABLE ==================== */
+/* Every list in the app gets a line at the bottom saying how many rows it is
+   showing. There are thirty table bodies and each is filled by its own render
+   function, so counting them one by one would mean thirty edits that any of
+   them could quietly undo the next time that list is redrawn. Instead this
+   watches the tables themselves and keeps the line in step: whenever rows are
+   added or removed, the count is recalculated and the line is rewritten.
+
+   The count is of the rows the user can actually see, so the count row itself
+   and the "nothing here" row are both left out - otherwise an empty list would
+   claim to have one row. A total that counts its own foot is a small lie that
+   is easy to miss. */
+
+const __ROWCOUNT_CLASS = "rowcount-row";
+
+// True for a row that is not one of the data rows: the "nothing here" line, a
+// subtotal or total, a group heading, or the count line itself. These are
+// furniture laid under the data, so counting them would report a list as
+// longer than the entries in it.
+function __isFootRow(r) {
+  if (!r) return true;
+  const cls = String(r.className || "");
+  if (r.dataset && (r.dataset.rowcount || r.dataset.totalRow)) return true;
+  if (cls.indexOf("empty-row") >= 0) return true;
+  if (cls.indexOf("rpt-total-row") >= 0) return true;
+  if (cls.indexOf("subtotal") >= 0) return true;
+  if (cls.indexOf("total-row") >= 0) return true;
+  if (cls.indexOf("group-row") >= 0) return true;
+  return false;
+}
+
+function __countDataRows(tbody) {
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+  return rows.filter(r => !__isFootRow(r) && !r.dataset.rowcount).length;
+}
+
+// Re-entrancy guard. Appending the count row is itself a DOM change, which the
+// observer below would report, which would call this again, without end. While
+// the row is being written, a call for that same body is ignored.
+let __rowCountBusy = false;
+
+function __updateRowCount(tbody) {
+  if (!tbody || __rowCountBusy) return;
+  const table = tbody.closest("table");
+  if (!table) return;
+  // Some bodies hold a nested table per row (details panels). Only count the
+  // rows of this body, which the code above already does.
+  let old = tbody.querySelector("tr[data-rowcount]");
+  const n = __countDataRows(tbody);
+  // Columns come from the header so the cell spans the real width; a fixed
+  // number would leave a gap in a table that is not the usual width.
+  let span = 1;
+  if (table.querySelector("thead tr")) {
+    span = table.querySelector("thead tr").querySelectorAll("th").length || 1;
+  }
+  // The Hindi dict is applied by walking text nodes and matching their whole
+  // text, so "5 rows" would never match a key. Looked up directly instead, and
+  // falls back to the English form if the dict has no entry.
+  const key = n === 1 ? "1 row" : n + " rows";
+  const dict = (typeof __I18N !== "undefined" && __I18N) || null;
+  const hit = dict && dict[key];
+  const text = (window.__LANG === "hi" && hit) ? hit : key;
+  __rowCountBusy = true;
+  try {
+    if (!old) {
+      const tr = document.createElement("tr");
+      tr.className = __ROWCOUNT_CLASS;
+      tr.dataset.rowcount = "1";
+      tbody.appendChild(tr);
+      old = tr;
+    }
+    old.innerHTML = `<td colspan="${span}" class="rowcount-cell">${esc(text)}</td>`;
+    // A table that has no rows at all is saying "nothing here"; a footer count of
+    // "0 rows" under it is noise, so it is hidden rather than removed.
+    old.style.display = n === 0 ? "none" : "";
+  } finally {
+    __rowCountBusy = false;
+  }
+}
+
+function __initRowCounts(root) {
+  const scope = root || document;
+  scope.querySelectorAll("tbody").forEach(tb => {
+    if (tb.dataset.rowcountBound === "1") return;
+    tb.dataset.rowcountBound = "1";
+    __updateRowCount(tb);
+  });
+}
+
+function __startRowCounter() {
+  const apply = () => __initRowCounts(document);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", apply);
+  } else {
+    apply();
+  }
+  // Render functions rewrite innerHTML wholesale, so a MutationObserver is what
+  // catches the change; there is no single "table drawn" event to listen to.
+  const obs = new MutationObserver((muts) => {
+    for (const m of muts) {
+      if (m.type === "childList" && m.target && m.target.tagName === "TBODY") {
+        __updateRowCount(m.target);
+      }
+    }
+  });
+  const start = () => {
+    try {
+      obs.observe(document.body, { childList: true, subtree: true });
+    } catch (e) { /* older browser: the counts just will not appear */ }
+  };
+  if (document.body) start();
+  else document.addEventListener("DOMContentLoaded", start);
+}
+
 /* ==================== DASHBOARD STAT DETAIL + EXPORT ==================== */
 let __statDetail = { title: "", subtitle: "", cols: [], rows: [], fileName: "" };
 let __statFilter = "";
@@ -11860,6 +11974,16 @@ const __I18N_ITEMS = {
   "Low Stock Alerts":"कम स्टॉक अलर्ट",
   "Minimum Stock Alert":"न्यूनतम स्टॉक अलर्ट",
   "Low Stock Items":"कम स्टॉक वस्तुएं",
+  "1 row":"1 पंक्ति",
+  "2 rows":"2 पंक्तियाँ",
+  "3 rows":"3 पंक्तियाँ",
+  "4 rows":"4 पंक्तियाँ",
+  "5 rows":"5 पंक्तियाँ",
+  "6 rows":"6 पंक्तियाँ",
+  "7 rows":"7 पंक्तियाँ",
+  "8 rows":"8 पंक्तियाँ",
+  "9 rows":"9 पंक्तियाँ",
+  "10 rows":"10 पंक्तियाँ",
   "Recent Activity":"हालिया गतिविधि",
   "Overview of inventory status":"इन्वेंटरी स्थिति का अवलोकन",
   "Total Items":"कुल वस्तुएं",
@@ -14874,6 +14998,10 @@ function renderDevPagesTick() {
 
 document.addEventListener("hashchange", () => { if (currentUser) __devApplyRoute(); });
 document.addEventListener("DOMContentLoaded", bindDevAdmin);
+// The row counters watch the tables for changes, so they must be running
+// before the first render rather than after it - init() draws the lists, and
+// anything drawn before the observer exists would not be counted.
+__startRowCounter();
 
 document.addEventListener("DOMContentLoaded", init);
 
