@@ -1751,9 +1751,11 @@ function __countDataRows(tbody) {
   return rows.filter(r => !__isFootRow(r) && !r.dataset.rowcount).length;
 }
 
-// Re-entrancy guard. Appending the count row is itself a DOM change, which the
-// observer below would report, which would call this again, without end. While
-// the row is being written, a call for that same body is ignored.
+// Re-entrancy flag. This does NOT stop the observer: its callback is a microtask,
+// so by the time it runs the flag has already been cleared again. It only
+// guards against a call arriving while the row is being written. The real
+// protection against the observer redrawing for ever is that the row is only
+// rewritten when the text has actually changed - see __updateRowCount.
 let __rowCountBusy = false;
 
 function __updateRowCount(tbody) {
@@ -1792,8 +1794,18 @@ function __updateRowCount(tbody) {
     // first column it sits with the names it is counting, where it belongs.
     // The remaining columns stay empty but are still spanned so the line lines
     // up with the width of the table.
-    old.innerHTML = `<td class="rowcount-cell">${esc(text)}</td>`
-      + (span > 1 ? `<td class="rowcount-pad" colspan="${span - 1}"></td>` : "");
+    // Written only when the text actually differs. Assigning innerHTML always
+    // reports a change to the observer even when the result is identical, and
+    // an observer that redraws in response to its own write will do so for
+    // ever - which is what hung the page. The previous value is kept on the
+    // element, as an attribute, so the check itself changes nothing the
+    // observer is watching (it only watches added and removed children).
+    if (old.dataset.rowcountText !== key || old.dataset.rowcountSpan !== String(span)) {
+      old.dataset.rowcountText = key;
+      old.dataset.rowcountSpan = String(span);
+      old.innerHTML = `<td class="rowcount-cell">${esc(text)}</td>`
+        + (span > 1 ? `<td class="rowcount-pad" colspan="${span - 1}"></td>` : "");
+    }
     // A table that has no rows at all is saying "nothing here"; a footer count of
     // "0 rows" under it is noise, so it is hidden rather than removed.
     old.style.display = n === 0 ? "none" : "";
@@ -1850,7 +1862,9 @@ function __updateCardListCount(box) {
       foot.dataset.cardcount = "1";
       box.appendChild(foot);
     }
-    foot.textContent = text;
+    // Same reason as the table version: writing the same text again would still
+    // be seen as a change, and this one is what had the observer spinning.
+    if (foot.textContent !== text) foot.textContent = text;
     foot.style.display = n === 0 ? "none" : "";
   } finally {
     __rowCountBusy = false;
@@ -10113,6 +10127,20 @@ $("#consCatAddBtn")?.addEventListener("click", addConsCategory);
 $("#ccitAddBtn")?.addEventListener("click", __ccitAdd);
 $("#ccitNewName")?.addEventListener("keydown", (e) => {
   if (e.key === "Enter") { e.preventDefault(); __ccitAdd(); }
+});
+// The Edit / Save / Cancel / Delete buttons in that dialog were drawn and the
+// functions behind them were all written, but nothing was listening for the
+// clicks, so the buttons did nothing at all. Adding an item worked because its
+// button had a listener of its own; renaming one did not, which is why this was
+// only noticed once someone tried to edit an item. Delegated from the body so it
+// keeps working when the rows are redrawn.
+$("#ccitBody")?.addEventListener("click", (e) => {
+  const t = e.target;
+  if (!t || !t.closest) return;
+  if (t.closest("[data-ccit-save]")) { __ccitSave(t.closest("[data-ccit-save]").dataset.ccitSave); return; }
+  if (t.closest("[data-ccit-cancel]")) { if (__consCitCatId) __renderConsCatItems(__consCitCatId); return; }
+  if (t.closest("[data-ccit-edit]")) { __ccitStartEdit(t.closest("[data-ccit-edit]").dataset.ccitEdit); return; }
+  if (t.closest("[data-ccit-del]")) { __ccitDelete(t.closest("[data-ccit-del]").dataset.ccitDel); return; }
 });
 $("#distTypeStock")?.addEventListener("change", () => {
   if (!$("#distTypeStock").checked) { $("#distTypeStock").checked = true; return; }

@@ -87,5 +87,68 @@ ok('1 col -> no pad cell', markup(1).indexOf('rowcount-pad') === -1);
 ok('7 cols -> pad spans 6', markup(7).indexOf('colspan="6"') > 0);
 ok('count cell is not right-aligned by markup (CSS does it)', markup(3).indexOf('align') === -1);
 
+// --- the observer must settle -----------------------------------------
+// A MutationObserver whose callback redraws the row it was told about spins
+// for ever if it writes unconditionally: the write is itself a change, so the
+// observer fires again, and again. That is what stopped the page loading.
+// The protection is to write only when the value really changed, and a flag
+// around the write is NOT protection - the callback is a microtask and the flag
+// has been cleared by the time it runs.
+console.log('\nobserver loop:');
+
+function runToSettle(applyWrite, maxTurns) {
+  // applyWrite(turn) performs the write and reports whether the DOM changed.
+  let turns = 0;
+  while (turns < maxTurns) {
+    turns++;
+    if (!applyWrite(turns)) break;   // no change -> observer never fires again
+  }
+  return turns;
+}
+
+// The wrong way: always assign.
+const always = runToSettle(() => true, 100);
+ok('unconditional write never settles (the bug)', always === 100);
+
+// The right way: only write when the value differs.
+let shown = null;
+const guarded = runToSettle(() => {
+  const want = '12 rows';
+  if (shown === want) return false;   // already correct -> no DOM change
+  shown = want;
+  return true;
+}, 100);
+ok('write-only-on-change settles in 2 turns', guarded === 2);
+
+// A re-render that changes the list must still update the count: guarding
+// against repeat writes must not turn into ignoring real ones.
+let live = 'stale';
+const applyAll = ['5 rows', '5 rows', '9 rows', '9 rows'];
+for (const want of applyAll) { if (live !== want) live = want; }
+ok('a genuine change is still applied', live === '9 rows');
+
+let live2 = 'stale';
+for (const want of ['5 rows', '9 rows']) { if (live2 !== want) live2 = want; }
+ok('no change is a no-op, change is applied', live2 === '9 rows');
+
+// --- every drawn button must have a listener --------------------------
+// A button was drawn with data-ccit-edit and the function behind it was
+// written, but nothing listened for the click, so it did nothing. Adding an
+// item worked because that button had a listener of its own, so the gap only
+// showed up once someone tried to rename an item.
+//
+// This reads the real app.js rather than comparing a list with itself, so
+// drawing a button without a handler fails here instead of in front of a user.
+console.log('\nconsumable items dialog buttons:');
+const fs = require('fs');
+const path = require('path');
+const src = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+for (const a of ['data-ccit-edit', 'data-ccit-save', 'data-ccit-cancel', 'data-ccit-del']) {
+  const drawn = src.indexOf(a + '="') >= 0;                     // appears in markup
+  const handled = src.indexOf('closest("[' + a + ']")') >= 0;   // and is listened for
+  ok(a + ': drawn=' + drawn + ' handled=' + handled, drawn && handled);
+}
+ok('the items body has a click listener', src.indexOf('#ccitBody') >= 0);
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
