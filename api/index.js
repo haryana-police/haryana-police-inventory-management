@@ -65,6 +65,16 @@ const DEMO_SEED_ACCOUNTS = [
   'ig', 'ig.fbd',
 ].map(username => ({ username, password: DEMO_PASSWORD }));
 
+// A deployment that was started before an account existed never picks it up:
+// db.json is written once and not overwritten, so the account is in the
+// repository and in the demo copy but not in the file the app reads, and the
+// demo list drops it silently. This adds whatever accounts from the demo copy
+// are missing - and only those. Placed after DEMO_PASSWORD because that is the
+// password the new accounts are hashed with; carried over from the demo copy
+// they would be built for demo@123 and a real installation, which answers to
+// hp@123, would show the card and then refuse the sign-in.
+try { pool.syncDemoAccounts(DEMO_PASSWORD); } catch (e) { console.warn('[demo-sync]', e && e.message); }
+
 // Mirrors ROLE_LABELS in app.js, kept server-side so the demo list is built from
 // the same vocabulary the app already uses - no role is invented.
 const ROLE_LABELS = {

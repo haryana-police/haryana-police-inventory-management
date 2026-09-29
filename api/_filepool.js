@@ -53,6 +53,60 @@ class FilePool {
     }
   }
 
+  // A deployment that was started before an account existed keeps running new
+  // code against the database it made on first launch, because that file is
+  // never overwritten. The account is in the repository and in db.demo.json but
+  // not in the file the app reads, and the demo list quietly leaves it out - a
+  // seed with no matching user is skipped, so the card simply does not appear.
+  //
+  // This brings those accounts across on start. It only ever ADDS: nothing is
+  // removed, nothing already there is edited, and no other key is written. An
+  // account is matched by username, the same way the demo list matches it.
+  //
+  // The password is hashed again from the one this installation actually uses
+  // rather than carried over from the demo copy. The bundled copy is built with
+  // demo@123 and a real installation answers to hp@123; signing in checks the
+  // password the account's own database was built with, so a hash carried over
+  // unchanged would produce an account that appears on the login page and then
+  // refuses to sign in.
+  syncDemoAccounts(password) {
+    const log = [];
+    try {
+      if (process.env.SKIP_DEMO_USER_SYNC === '1') { log.push('skipped (SKIP_DEMO_USER_SYNC=1)'); }
+      else if (!fs.existsSync(DEMO_FILE)) { log.push('no demo copy to compare against'); }
+      else {
+        const demo = JSON.parse(fs.readFileSync(DEMO_FILE, 'utf8'));
+        const dstate = (demo && demo.app_state) || {};
+        const wanted = Array.isArray(dstate['hp_inventory.users']) ? dstate['hp_inventory.users'] : [];
+        if (!this.db || !this.db.app_state) return false;
+        const list = Array.isArray(this.db.app_state['hp_inventory.users'])
+          ? this.db.app_state['hp_inventory.users'] : [];
+        const have = new Set(list.map(u => String((u && u.username) || '').trim().toLowerCase()));
+        const bcrypt = require('bcryptjs');
+        const added = [];
+        for (const u of wanted) {
+          if (!u || !u.username) continue;
+          if (have.has(String(u.username).trim().toLowerCase())) continue;
+          const copy = Object.assign({}, u);
+          // Re-hashed, not copied - see above.
+          copy.password = bcrypt.hashSync(password || 'hp@123', 12);
+          added.push(copy);
+        }
+        if (added.length) {
+          this.db.app_state['hp_inventory.users'] = list.concat(added);
+          this._persist(true);
+          log.push('added ' + added.length + ' demo account(s): ' + added.map(a => a.username).join(', '));
+        } else {
+          log.push('all demo accounts already present');
+        }
+      }
+    } catch (e) {
+      log.push('failed: ' + (e && e.message || e));
+    }
+    if (log.length) console.log('[filedb] demo accounts: ' + log.join('; ') + '.');
+    return true;
+  }
+
   _load() {
     this._seedFromDemo();
     try { this.db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch (e) { this.db = null; }
