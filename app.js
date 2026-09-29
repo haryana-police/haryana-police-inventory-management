@@ -1939,12 +1939,32 @@ function __bindCardList(box) {
   __updateCardListCount(box);
 }
 
+// Whole class tokens only, never a fragment of one. The list classes are named
+// so that a row's class contains the container's: the rows of the category list
+// are "cat-list-row" and "cat-list-actions", inside a "cat-list". Matching on a
+// substring found those two and treated every single row as a list of its own,
+// so each row grew a count of its own children and the list filled up with
+// "3 rows" and "2 rows" beside every category name.
+const __CARDLIST_CLASSES = [
+  "users-list", "districts-list", "location-list", "cat-list",
+  "dev-cards", "dev-loc-list", "notif-list", "quick-login-list", "demo-list"
+];
+
+function __hasCardListClass(el) {
+  const toks = String((el && el.className) || "").split(/\s+/);
+  for (const t of toks) {
+    if (__CARDLIST_CLASSES.indexOf(t) >= 0) return true;
+  }
+  return false;
+}
+
 function __looksLikeCardList(el) {
   if (!el || el.tagName === "TBODY" || el.tagName === "TABLE" || el.tagName === "TR") return false;
+  // A row of a list is never a list, whatever else it is called.
+  if (/(^|[\s-])(row|item|entry|card)($|[\s-])/i.test(String(el.className || ""))) return false;
   const id = el.id || "";
   if (__CARDLIST_HINT.test(id)) return true;
-  const cls = String(el.className || "");
-  return /(users-list|districts-list|location-list|cat-list|dev-cards|dev-loc-list|notif-list|quick-login-list|demo-list)/.test(cls);
+  return __hasCardListClass(el);
 }
 
 function __initRowCounts(root) {

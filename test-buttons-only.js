@@ -83,5 +83,35 @@ ok('cat-list-row is named in the app', src.indexOf('".cat-list-row"') >= 0);
 ok('both category lists are listed', src.indexOf('"#catList"') >= 0 && src.indexOf('"#consCatList"') >= 0);
 ok('named rows take priority over shape', src.indexOf('__knownRowSelector') >= 0);
 
+// The bug this file exists for: the list classes are named so that a row's
+// class CONTAINS the container's. "cat-list-row" and "cat-list-actions" sit
+// inside a "cat-list", and matching on a substring found all three. Every row
+// was then treated as a list of its own and grew a count of its own children,
+// so the category list filled up with "3 rows" and "2 rows" beside each name.
+console.log('whole class tokens only:');
+const CLASSES = ['users-list', 'districts-list', 'location-list', 'cat-list',
+  'dev-cards', 'dev-loc-list', 'notif-list', 'quick-login-list', 'demo-list'];
+const hasToken = (cls) => String(cls || '').split(/\s+/).some(t => CLASSES.indexOf(t) >= 0);
+const wouldMatch = (cls) => CLASSES.some(c => String(cls || '').indexOf(c) >= 0);   // the old way
+
+ok('cat-list IS a list', hasToken('cat-list'));
+ok('cat-list-row is NOT a list', !hasToken('cat-list-row'));
+ok('cat-list-actions is NOT a list', !hasToken('cat-list-actions'));
+ok('location-row is NOT a list', !hasToken('location-row'));
+ok('user-row is NOT a list', !hasToken('user-row'));
+ok('dev-loc-list IS a list', hasToken('dev-loc-list'));
+ok('a row with several classes still judged per token', !hasToken('cat-list-row selected'));
+ok('multi-class container still found', hasToken('cat-list scrolly'));
+
+console.log('\nthe old substring match really did hit these:');
+ok('substring matched cat-list-row (why counts appeared on rows)', wouldMatch('cat-list-row'));
+ok('substring matched cat-list-actions', wouldMatch('cat-list-actions'));
+ok('substring missed nothing else it should have hit', wouldMatch('user-row') === false);
+
+console.log('\nin the app:');
+ok('row classes are refused outright', src.indexOf('A row of a list is never a list') >= 0);
+ok('token list is present', src.indexOf('__CARDLIST_CLASSES') >= 0);
+ok('the substring regex is gone', src.indexOf('|cat-list|dev-cards') < 0);
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
