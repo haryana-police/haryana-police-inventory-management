@@ -609,6 +609,18 @@ function projectStateFor(user, state) {
       out[key] = dArr(value).filter((u) => inScope(u && u.districtId) || (selfId && u && u.id === selfId));
       continue;
     }
+    // The district list is a flat array, not the {districtId: [...]} shape the
+    // rule below expects, so it is filtered here rather than there. It had no
+    // rule at all and fell through to the default, so it was returned whole to
+    // whoever asked: an Inspector General, who is entitled to the districts in
+    // their own range, was shown every district in the state. The same list is
+    // what the Districts page reads, so it is also what told them their range
+    // had no district under it - they were reading a list that was not theirs
+    // to judge, and could not find their own districts in someone else's.
+    if (key === D_DISTRICTS_KEY) {
+      out[key] = dArr(value).filter((d) => inScope(d && d.id));
+      continue;
+    }
     if (key === D_PERSONS_KEY || key === D_ALLOTMENTS_KEY || key === D_ACCESS_REQUESTS_KEY) {
       out[key] = dArr(value).filter((r) => inScope(r && r.districtId));
       continue;
@@ -693,6 +705,18 @@ function restoreScopeFor(user, current, incoming) {
     if (key === D_USER_KEY) {
       const held = dArr(cur).filter((u) => !inScope(u && u.districtId) && !(selfId && u && u.id === selfId));
       if (held.length) out[key] = __stitchUnique(held, dArr(out[key]));
+      continue;
+    }
+    // On the way in, a district outside the caller's scope is not theirs to
+    // change and is put back as stored, which is what the rules below do with
+    // every other out-of-scope record. Dropping it instead would let a scoped
+    // user remove a district from the state simply by leaving it out of the
+    // document they post.
+    if (key === D_DISTRICTS_KEY) {
+      out[key] = __stitchUnique(
+        dArr(cur).filter((d) => !inScope(d && d.id)),
+        dArr(value).filter((d) => inScope(d && d.id))
+      );
       continue;
     }
     if (key === D_PERSONS_KEY || key === D_ALLOTMENTS_KEY || key === D_ACCESS_REQUESTS_KEY) {
