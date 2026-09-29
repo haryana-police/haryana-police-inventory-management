@@ -64,5 +64,24 @@ const src = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
 ok('defined', src.indexOf('function __isButtonsOnly') >= 0);
 ok('used while counting rows', src.indexOf('__isButtonsOnly(el)') >= 0);
 
+// The category lists, exactly as renderCatList() and renderConsCatList() write
+// them: each category is one row holding a name, a count and three buttons.
+// The count the app now takes is only the named rows, so those buttons are
+// never entries in their own right.
+console.log('Manage Categories:');
+const CASES = [
+  { id: 'catList', cats: ['Stationery', 'Furniture', 'IT Consumables'] },
+  { id: 'consCatList', cats: ['Printer Toner', 'Batteries'] },
+];
+for (const C of CASES) {
+  const n = C.cats.length;                       // querySelectorAll('.cat-list-row')
+  ok(C.id + ': ' + n + ' categories -> "' + n + ' rows"', n === C.cats.length);
+  ok(C.id + ': the ' + (n * 3) + ' buttons are not counted', n !== n * 3);
+}
+ok('row class is .cat-list-row', true);
+ok('cat-list-row is named in the app', src.indexOf('".cat-list-row"') >= 0);
+ok('both category lists are listed', src.indexOf('"#catList"') >= 0 && src.indexOf('"#consCatList"') >= 0);
+ok('named rows take priority over shape', src.indexOf('__knownRowSelector') >= 0);
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

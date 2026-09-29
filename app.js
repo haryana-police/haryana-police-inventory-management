@@ -1858,7 +1858,35 @@ function __isButtonsOnly(el) {
   return text.trim() === "";
 }
 
+// Lists whose rows are known, so they are counted by name rather than by shape.
+// Counting by shape means deciding what counts as an entry, and on these lists
+// that judgement was getting it wrong - a row's own buttons were being taken
+// for entries, and the count came out as the number of controls in the list.
+// Naming the row element removes the judgement entirely: the button strip is
+// never a row, so it cannot be counted as one.
+const __LIST_ROWS = [
+  { box: "#catList",        row: ".cat-list-row" },   // Manage Categories
+  { box: "#consCatList",    row: ".cat-list-row" },   // Manage Categories (consumables)
+  { box: "#locationList",   row: ".location-row" },
+  { box: "#devLocList",     row: ".location-row" },
+  { box: "#usersList",      row: ".user-row" }
+];
+
+function __knownRowSelector(box) {
+  if (!box || !box.id) return null;
+  for (const e of __LIST_ROWS) {
+    if (e.box === "#" + box.id) return e.row;
+  }
+  return null;
+}
+
 function __cardListRows(box) {
+  const known = __knownRowSelector(box);
+  if (known) {
+    // Only the named rows, and never the count line itself.
+    return Array.from(box.querySelectorAll(known))
+      .filter(el => !(el.dataset && el.dataset.cardcount));
+  }
   const kids = Array.from(box.children).filter(el => el.tagName !== "SCRIPT" && el.tagName !== "STYLE");
   const real = kids.filter((el) => {
     if (el.dataset && el.dataset.cardcount) return false;      // our own foot
