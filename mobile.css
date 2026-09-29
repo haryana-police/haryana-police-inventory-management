@@ -104,7 +104,7 @@ button, .btn, a.btn, .linklike { touch-action: manipulation; }
 .m-page-title { display: none; }
 
 /* --- Mobile drawer: sidebar slides in, default hidden --- */
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   /* Sidebar becomes an off-canvas drawer.
      NOTE: uses #sidebar (ID specificity) because styles.css sets
      `#appRoot .sidebar { transform: none !important }` inside its own
@@ -505,7 +505,7 @@ button, .btn, a.btn, .linklike { touch-action: manipulation; }
    The two are now given their own ranges instead of overlapping:
 
      769px - 1024px   side drawer + hamburger  (the block above)
-     0    - 768px     bottom bar, always visible, no hamburger
+     0    - 1024px    bottom bar, always visible, no hamburger
 
    Every declaration the drawer makes is undone here, and each carries
    !important precisely because the drawer it undoes used it too - the
@@ -516,7 +516,7 @@ button, .btn, a.btn, .linklike { touch-action: manipulation; }
    that icon's own page. Nothing about the navigation itself is changed here,
    only where the bar sits and how the items are laid out inside it.
    ================================================================== */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   #sidebar {
     position: fixed !important;
     top: auto !important;

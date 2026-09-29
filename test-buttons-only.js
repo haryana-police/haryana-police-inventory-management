@@ -134,8 +134,27 @@ ok('the wrap was a containing block by default', /position:\s*relative/.test(des
 console.log('\nthe fix has to be able to reach the browser:');
 const tag = (idx.match(/mobile\.css\?v=([\d.]+)/) || [])[1];
 ok('mobile.css carries a version', !!tag);
-ok('mobile.css is not left on a stale version', tag === '2026.09.229');
-ok('mobile.js bumped alongside it', /mobile\.js\?v=2026\.09\.229/.test(idx));
+ok('mobile.css is not left on a stale version', tag === '2026.09.230');
+ok('mobile.js bumped alongside it', /mobile\.js\?v=2026\.09\.230/.test(idx));
+
+// Navigation had two shapes fighting over the same widths. Below 768px the
+// sidebar was a bottom bar, always on screen. Between 769px and 1024px it was a
+// side drawer that starts off screen and only appears when the hamburger is
+// tapped - so Dashboard and Inventory, which live in the sidebar, were hidden
+// on every tablet and small laptop until you happened to open the drawer.
+//
+// The bar now covers everything below 1025px and the drawer range is gone, so
+// the navigation is always on screen.
+console.log('\nnavigation ranges:');
+ok('the bar block runs to 1024px', /@media \(max-width: 1024px\)[\s\S]{0,200}?top: auto !important/.test(css));
+ok('the drawer is confined to 768px', (() => {
+  const d = css.slice(0, css.indexOf('translateX(-105%)'));
+  return d.lastIndexOf('max-width: 768px') > d.lastIndexOf('max-width: 1024px');
+})());
+ok('drawer and bar no longer share a range', css.lastIndexOf('max-width: 1024px') > css.indexOf('translateX(-105%)'));
+ok('the toggle is hidden wherever the bar shows', /sidebar-toggle \{ display: none !important/.test(css));
+ok('the scrim is hidden wherever the bar shows', /\.m-scrim \{ display: none !important/.test(css));
+ok('a desktop range still exists above 1024', /@media \(min-width: 1025px\)/.test(css));
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
