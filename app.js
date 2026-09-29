@@ -1786,7 +1786,14 @@ function __updateRowCount(tbody) {
       tbody.appendChild(tr);
       old = tr;
     }
-    old.innerHTML = `<td colspan="${span}" class="rowcount-cell">${esc(text)}</td>`;
+    // The count sits in the first column, under the item name, rather than
+    // stretched across the table and pushed to the far right. A count read off
+    // the right-hand edge reads as a total for the columns to its left; in the
+    // first column it sits with the names it is counting, where it belongs.
+    // The remaining columns stay empty but are still spanned so the line lines
+    // up with the width of the table.
+    old.innerHTML = `<td class="rowcount-cell">${esc(text)}</td>`
+      + (span > 1 ? `<td class="rowcount-pad" colspan="${span - 1}"></td>` : "");
     // A table that has no rows at all is saying "nothing here"; a footer count of
     // "0 rows" under it is noise, so it is hidden rather than removed.
     old.style.display = n === 0 ? "none" : "";

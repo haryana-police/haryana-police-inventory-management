@@ -79,5 +79,13 @@ ok('only an empty message -> 0', cardListRows([d('dev-empty','No locations yet.'
 ok('blank node ignored', cardListRows([d('location-row','A'), d('spacer','')]).length === 1);
 ok('nothing -> 0', cardListRows([]).length === 0);
 
+console.log('\ncount row markup:');
+// The count cell is its own cell in column one; the rest is a filler cell.
+const markup = (span) => '<td class="rowcount-cell">N rows</td>' + (span > 1 ? '<td class="rowcount-pad" colspan="' + (span - 1) + '"></td>' : '');
+ok('3 cols -> count in col 1, pad spans 2', /rowcount-cell/.test(markup(3)) && markup(3).indexOf('colspan="2"') > 0);
+ok('1 col -> no pad cell', markup(1).indexOf('rowcount-pad') === -1);
+ok('7 cols -> pad spans 6', markup(7).indexOf('colspan="6"') > 0);
+ok('count cell is not right-aligned by markup (CSS does it)', markup(3).indexOf('align') === -1);
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

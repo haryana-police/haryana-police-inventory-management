@@ -4030,11 +4030,17 @@ body.modal-open #appRoot {
   color: var(--muted);
   background: rgba(0, 0, 0, .02);
   border-top: 1px solid var(--border);
-  text-align: right;
+  /* Left, so the count lines up under the first column - the item name it is
+     counting - instead of sitting at the far end of a full-width cell. */
+  text-align: left;
   font-style: italic;
+  white-space: nowrap;
   padding: 6px 10px;
 }
-.rowcount-row[style*="display: none"] td.rowcount-cell { display: none; }/* The count line for lists that are stacks of divs rather than tables (the
+/* The empty filler cell that carries the rest of the width: it has to match the
+   count cell's background and rule, or the line looks broken in two. */
+.rowcount-row td.rowcount-pad { background: rgba(0, 0, 0, .02); border-top: 1px solid var(--border); }
+.rowcount-row[style*="display: none"] td { display: none; }/* The count line for lists that are stacks of divs rather than tables (the
    admin pages for locations, districts, users and categories). Same quiet
    footnote as the table version, but full width and right aligned, with a
    little space above so it reads as sitting under the list. */
