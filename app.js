@@ -410,16 +410,11 @@ const __SORT_DEFS = {
       w => w.r.remarks || ""
     ]
   },
-  /* Dashboard: Low Stock Items (#lowStockBody) - Item, Category, Current, Min Required, Reorder, Condition, Status */
+  /* Dashboard: Low Stock Items (#lowStockBody) - Item, Category, Add Stock */
   dashLow: {
     cols: [
       i => i.name,
-      (i, c) => (c.cats.get(i.categoryId) || {}).name || "",
-      i => i.quantity,
-      i => i.minStock,
-      i => Math.max(0, (Number(i.minStock) || 0) - (Number(i.quantity) || 0)),
-      i => (i.conditionCounts || {}).good || 0,
-      i => (Number(i.quantity) || 0) <= 0 ? 0 : 1
+      (i, c) => (c.cats.get(i.categoryId) || {}).name || ""
     ]
   },
   /* Stat-detail modal (#statDetailBody): runtime columns, rows are arrays */
@@ -1702,21 +1697,19 @@ const condTotals = { good: 0, poor: 0, damaged: 0 };
 
 const lowItems = __sortRows("dashLow", items.filter(i => i.quantity <= i.minStock));
   const lowBody = $("#lowStockBody");
+  // Item, Category and the one action worth having here. The quantity figures
+  // that used to sit in this table - current, minimum, reorder - each already
+  // have a home: the item's own page, and the stat cards above, which can be
+  // opened to see the full list with all of them. A row on the dashboard is
+  // for spotting what is short and then dealing with it, so that is all it
+  // carries, and the button opens Add Stock already set to that item.
   if (lowItems.length) {
     lowBody.innerHTML = lowItems.map(i => {
-const cat = cats.find(c => c.id === i.categoryId);
-      const cc = i.conditionCounts || { good: i.quantity, poor: 0, damaged: 0 };
-      const cls = i.quantity === 0 ? "status-out" : "status-low";
-      const label = i.quantity === 0 ? "Out of Stock" : "Low Stock";
-      const reorder = Math.max(0, i.minStock - (Number(i.quantity) || 0));
-      return `<tr><td class="item-name">${__ipLink(i)}</td><td><span class="cat-badge">${esc(cat ? cat.name : "")}</span></td><td class="qty-strong">${i.quantity} ${esc(i.unit)}</td><td>${i.minStock}</td><td class="qty-strong">${reorder}</td><td>${buildCondBar(cc)}</td><td><span class="status-badge ${cls}">${label}</span></td></tr>`;
+      const cat = cats.find(c => c.id === i.categoryId);
+      return `<tr><td class="item-name">${__ipLink(i)}</td><td><span class="cat-badge">${esc(cat ? cat.name : "")}</span></td><td class="cell-actions"><button type="button" class="btn btn-sm btn-outline" data-action="dash-add-stock" data-item-id="${esc(i.id)}">Add Stock</button></td></tr>`;
     }).join("");
-    const lowTotal = lowItems.reduce((a, i) => a + (Number(i.quantity) || 0), 0);
-    const lowMin = lowItems.reduce((a, i) => a + (Number(i.minStock) || 0), 0);
-    const lowReorder = lowItems.reduce((a, i) => a + Math.max(0, i.minStock - (Number(i.quantity) || 0)), 0);
-    lowBody.innerHTML += `<tr class="rpt-total-row"><td>Total</td><td></td><td class="qty-strong">${lowTotal}</td><td>${lowMin}</td><td class="qty-strong">${lowReorder}</td><td colspan="2"></td></tr>`;
   } else {
-    lowBody.innerHTML = `<tr class="empty-row"><td colspan="7">All items well stocked.</td></tr>`;
+    lowBody.innerHTML = `<tr class="empty-row"><td colspan="3">All items well stocked.</td></tr>`;
   }
 
   renderCharts();
@@ -2678,7 +2671,11 @@ const STOCK_PHOTO_LIMIT = 4 * 1024 * 1024;
 let __asSeq = 0;
 let __asPhotos = {}; // rowKey -> [{ id, name, mime, size, dataUrl }]
 
-function openAddStockModal() {
+// `preset` is optional: an item to start the single row on. The Low Stock table
+// passes the row's own item, so "Add Stock" beside a short item opens with that
+// item already chosen and the user only has to type how many arrived - instead
+// of re-picking the category and name on a form that is about stock generally.
+function openAddStockModal(preset) {
   // devadmin may open to VIEW; saving is blocked inside saveAddStock.
   if (isDevAdmin()) { /* view-only open allowed */ }
   else
@@ -2686,6 +2683,22 @@ function openAddStockModal() {
   __asPhotos = {}; __asSeq = 0;
   $("#asRows").innerHTML = "";
   addAsRow();
+  if (preset && preset.id) {
+    const row = $("#asRows").querySelector(".as-item-row");
+    const catSel = row && row.querySelector(".as-row-cat");
+    const itemSel = row && row.querySelector(".as-row-item");
+    // The item dropdown is built from the chosen category and lists names, not
+    // ids, so the name is what has to be matched. An item whose category is not
+    // selectable here simply leaves the row blank - the same as opening by hand.
+    if (catSel && preset.categoryId) {
+      catSel.value = preset.categoryId;
+      __asPopulateRowItems(row);
+      if (itemSel && !itemSel.disabled && preset.name) {
+        const hit = Array.from(itemSel.options).find(o => o.value === preset.name);
+        if (hit) itemSel.value = preset.name;
+      }
+    }
+  }
   $("#asDate").value = todayStr();
   $("#asTime").value = nowTimeStr();
   $("#asRemarks").value = "";
@@ -9389,6 +9402,16 @@ async function init() {
   });
 document.addEventListener("click", e => {
     const act = e.target.closest("[data-action]");
+    if (act && act.dataset.action === "dash-add-stock") {
+      // Opens Add Stock already set to this row's item. The item is looked up
+      // by id from the store rather than carried on the button, so the button
+      // cannot be edited in the page to mean something else.
+      const btn = act;
+      const it = getItems().find(x => x && x.id === btn.dataset.itemId);
+      if (!it) { toast("That item is no longer in the list.", "error"); renderDashboard(); return; }
+      openAddStockModal(it);
+      return;
+    }
     if (act && act.dataset.action === "review-demand") {
       openDemandReview(act.dataset.id, act.dataset.item || "i0");
       document.querySelectorAll(".act-dd-menu:not(.hidden)").forEach(m => m.classList.add("hidden"));
