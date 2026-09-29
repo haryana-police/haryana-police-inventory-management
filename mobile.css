@@ -656,6 +656,16 @@ button, .btn, a.btn, .linklike { touch-action: manipulation; }
   /* The shell now reaches the edges of the screen, so the rounded, shadowed
      card look would leave a sliver of gradient showing on one side only. */
   .login-shell { border-radius: 0; box-shadow: none; }
+
+  /* The inner blocks of both panels are centred with margin:auto inside a flex
+     row. That is what centres a short panel, but when the panel is taller than
+     its box it pushes the content out at the top and the bottom equally. It
+     used to be harmless because each panel scrolled; with the overflow opened
+     up here the content spilled out instead and ran into the panel below, so
+     the Sign In button sat on top of a demo card. Pinning the block to the top
+     and letting the panel take its natural height puts each back in order. */
+  .login-left-inner,
+  .login-right-inner { margin: 0 auto; }
   .login-title { font-size: 1.15rem; }
   .login-subtitle { font-size: .82rem; }
   .quick-login-list { max-height: none; }

@@ -134,8 +134,8 @@ ok('the wrap was a containing block by default', /position:\s*relative/.test(des
 console.log('\nthe fix has to be able to reach the browser:');
 const tag = (idx.match(/mobile\.css\?v=([\d.]+)/) || [])[1];
 ok('mobile.css carries a version', !!tag);
-ok('mobile.css is not left on a stale version', tag === '2026.09.231');
-ok('mobile.js bumped alongside it', /mobile\.js\?v=2026\.09\.231/.test(idx));
+ok('mobile.css is not left on a stale version', tag === '2026.09.232');
+ok('mobile.js bumped alongside it', /mobile\.js\?v=2026\.09\.232/.test(idx));
 
 // Navigation had two shapes fighting over the same widths. Below 768px the
 // sidebar was a bottom bar, always on screen. Between 769px and 1024px it was a
@@ -169,10 +169,18 @@ ok('tall content is not centred and cut', /\.login-screen\s*\{[^}]*align-items:\
 ok('the panels no longer scroll inside themselves', /\.login-left,\s*\r?\n\s*\.login-right\s*\{[^}]*overflow:\s*visible/.test(css));
 ok('the inner scroll caps are lifted', /\.quick-login-list\s*\{ max-height: none; \}/.test(css) && /\.demo-list\s*\{ max-height: none; \}/.test(css));
 
-console.log('\nthe layout it replaces really is two columns:');
-ok('the shell is a two column grid on the desktop', /grid-template-columns:\s*minmax\(0,\s*1fr\)\s*minmax/.test(desk));
-ok('the screen clips its overflow', /\.login-screen\s*\{[^}]*overflow:\s*hidden/.test(desk));
-ok('mobile.css is current', /mobile\.css\?v=2026\.09\.231/.test(idx));
+// The overlap this page had on a phone was caused by the fix above. Both
+// panels centre their inner block with margin:auto inside a flex row, which is
+// what centres a short panel - but when the panel is taller than its box it
+// pushes the content out equally at the top and the bottom. Each panel used to
+// scroll, so it never showed; opening the overflow here let the content spill
+// and run into the panel below, so the Sign In button sat on top of a demo card.
+console.log('\nlogin panels are not centred into each other:');
+ok('the inner block is pinned instead of centred', /\.login-left-inner,\s*\r?\n\s*\.login-right-inner\s*\{[^}]*margin:\s*0 auto/.test(css));
+ok('the desktop rule really does centre with margin:auto', /\.login-left-inner\s*\{[^}]*margin:\s*auto/.test(desk));
+ok('the panels are opened up, which is what made it spill', /\.login-left,\s*\r?\n\s*\.login-right\s*\{[^}]*overflow:\s*visible/.test(css));
+ok('no demo card is absolutely positioned', !/\.demo-card\s*\{[^}]*position:\s*absolute/.test(desk));
+ok('mobile.css is current', /mobile\.css\?v=2026\.09\.232/.test(idx));
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
