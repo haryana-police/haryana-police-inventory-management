@@ -134,8 +134,8 @@ ok('the wrap was a containing block by default', /position:\s*relative/.test(des
 console.log('\nthe fix has to be able to reach the browser:');
 const tag = (idx.match(/mobile\.css\?v=([\d.]+)/) || [])[1];
 ok('mobile.css carries a version', !!tag);
-ok('mobile.css is not left on a stale version', tag === '2026.09.230');
-ok('mobile.js bumped alongside it', /mobile\.js\?v=2026\.09\.230/.test(idx));
+ok('mobile.css is not left on a stale version', tag === '2026.09.231');
+ok('mobile.js bumped alongside it', /mobile\.js\?v=2026\.09\.231/.test(idx));
 
 // Navigation had two shapes fighting over the same widths. Below 768px the
 // sidebar was a bottom bar, always on screen. Between 769px and 1024px it was a
@@ -155,6 +155,24 @@ ok('drawer and bar no longer share a range', css.lastIndexOf('max-width: 1024px'
 ok('the toggle is hidden wherever the bar shows', /sidebar-toggle \{ display: none !important/.test(css));
 ok('the scrim is hidden wherever the bar shows', /\.m-scrim \{ display: none !important/.test(css));
 ok('a desktop range still exists above 1024', /@media \(min-width: 1025px\)/.test(css));
+
+// The login page had no mobile rules at all, so a phone was shown the desktop
+// layout: .login-shell is a two column grid and stayed two columns at 375px,
+// squeezing the sign-in form and the demo cards into half-width each, inside a
+// screen that is fixed, centred and clips its overflow.
+console.log('\nlogin on a phone:');
+ok('the login page is covered by a media query', /@media \(max-width: 900px\)[\s\S]*?\.login-screen/.test(css));
+ok('the two columns become one', /\.login-shell\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(css));
+ok('the shell grows to the content', /\.login-shell\s*\{[^}]*height:\s*auto/.test(css));
+ok('the page can scroll', /\.login-screen\s*\{[^}]*overflow-y:\s*auto/.test(css));
+ok('tall content is not centred and cut', /\.login-screen\s*\{[^}]*align-items:\s*flex-start/.test(css));
+ok('the panels no longer scroll inside themselves', /\.login-left,\s*\r?\n\s*\.login-right\s*\{[^}]*overflow:\s*visible/.test(css));
+ok('the inner scroll caps are lifted', /\.quick-login-list\s*\{ max-height: none; \}/.test(css) && /\.demo-list\s*\{ max-height: none; \}/.test(css));
+
+console.log('\nthe layout it replaces really is two columns:');
+ok('the shell is a two column grid on the desktop', /grid-template-columns:\s*minmax\(0,\s*1fr\)\s*minmax/.test(desk));
+ok('the screen clips its overflow', /\.login-screen\s*\{[^}]*overflow:\s*hidden/.test(desk));
+ok('mobile.css is current', /mobile\.css\?v=2026\.09\.231/.test(idx));
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

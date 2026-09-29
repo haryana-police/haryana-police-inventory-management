@@ -622,3 +622,42 @@ button, .btn, a.btn, .linklike { touch-action: manipulation; }
   }
 }
 
+
+/* ==================== LOGIN ON A PHONE ====================
+   The login page had no rules at all in this file, so a phone was shown the
+   desktop layout. .login-shell is a two column grid and stayed two columns at
+   375px, so the sign-in form and the demo cards were squeezed side by side into
+   half-width each, and the screen around them is fixed, centred and clips its
+   overflow - so whatever did not fit was cut off rather than reached.
+
+   The two panels are stacked into one column, the shell is allowed to grow to
+   whatever height the content needs, and the page scrolls as a whole. The panel
+   corners only suit a card sitting on the gradient, so they are squared off
+   once the shell fills the screen. */
+@media (max-width: 900px) {
+  .login-screen {
+    display: block;
+    align-items: flex-start;          /* tall content is not centred and cut */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .login-shell {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+  .login-left,
+  .login-right {
+    overflow: visible;
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  /* The shell now reaches the edges of the screen, so the rounded, shadowed
+     card look would leave a sliver of gradient showing on one side only. */
+  .login-shell { border-radius: 0; box-shadow: none; }
+  .login-title { font-size: 1.15rem; }
+  .login-subtitle { font-size: .82rem; }
+  .quick-login-list { max-height: none; }
+  .demo-list { max-height: none; }
+}
