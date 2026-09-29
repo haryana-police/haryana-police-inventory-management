@@ -421,8 +421,14 @@ body {
 .card-header h3 { font-size: 1.02rem; font-weight: 800; color: var(--primary); }
 .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
-/* ==================== TABLES ==================== */
-.table-wrap { overflow-x: auto; border-radius: var(--radius); width: 100%; max-width: 100%; }
+/* ==================== TABLES ====================
+   overflow-x: clip, not auto: `auto` would make this box a scroll container,
+   and a position:sticky <th> inside it then pins to THIS box's scrollport
+   instead of the page. The box never scrolls vertically, so the header was
+   pushed down by --sticky-top and landed on top of the first row. `clip`
+   contains the overflow without creating a scroll container, which is what
+   the sticky column headers further down this file need. */
+.table-wrap { overflow-x: clip; border-radius: var(--radius); width: 100%; max-width: 100%; }
 table { width: 100%; border-collapse: collapse; font-size: .85rem; }
 th {
   text-align: left; font-size: .7rem; text-transform: uppercase; letter-spacing: .6px;
@@ -1032,57 +1038,67 @@ td .nm-en:empty, td .nm-hi:empty { display: none; }
   .sidebar-user-info { max-width: 130px; }
 }
 
-/* ==================== TOUCH: NO STICKY HOVER EXPAND ==================== */
-@media (hover: none) and (min-width: 769px) {
-  .sidebar, .sidebar:hover { width: var(--sidebar-w); }
-  .sidebar:hover ~ .content-area { margin-left: var(--sidebar-collapsed-w); }
-  .sidebar:hover .sidebar-brand-text,
-  .sidebar:hover .sidebar-link span,
-  .sidebar:hover .sidebar-user-info { display: none; }
-  .sidebar:hover .sidebar-collapsed-logo { display: flex; }
-  .sidebar:hover .sidebar-brand { justify-content: center; padding: 16px 8px; }
-  .sidebar:hover .sidebar-link { justify-content: center; padding: 12px 0; }
-  .sidebar:hover .sidebar-user { justify-content: center; }
+/* ==================================================================
+   THE RAIL MUST NEVER COVER THE PAGE
+
+   The sidebar is position:fixed with a z-index of 200, and the content it
+   sits beside is kept clear of it only by a margin-left equal to the
+   sidebar's own width. Whenever those two numbers disagreed the rail was
+   painted on top of the working area - the nav buttons landing on the form
+   and its buttons. The width rules above now agree; this is the backstop for
+   the case where one of them is overridden by a later stylesheet.
+
+   It is scoped to the desktop rail on purpose. Below 1025px the sidebar is
+   an off-canvas drawer that has to sit ABOVE its own scrim (z-index 90 vs
+   80), so its layer is left alone there, and the content is not lifted into
+   a stacking context that would trap the dropdown menus that hang off the
+   top bar.
+   ================================================================== */
+@media (min-width: 1025px) {
+  .content-area { position: relative; z-index: 1; }
+}
+
+/* ==================== TOUCH: NO STICKY HOVER EXPAND ====================
+   There is no hover on a touch screen, so the rail cannot widen on hover.
+   This block used to open the sidebar to --sidebar-w (240px) while still
+   reserving only --sidebar-collapsed-w (64px) of space beside it. The
+   sidebar is position:fixed with a z-index of its own, so those extra
+   176px were drawn straight over the working area: the nav buttons sat on
+   top of the form and its buttons. The width and the offset now agree, and
+   the rail simply stays a 64px icon strip. The old 769px floor is also
+   raised to 1025px, the app's real desktop breakpoint - below it the
+   sidebar is an off-canvas drawer, not a rail. */
+@media (hover: none) and (min-width: 1025px) {
+  /* Touch has no hover, so the rail must NOT widen - it stays a 64px icon
+     rail and the content keeps its 64px offset. Nothing here overrides a
+     width, so the collapsed state is simply the resting state. */
+  .sidebar:hover { width: var(--sidebar-collapsed-w); }
+  .content-area,
+  .sidebar:hover ~ .content-area,
+  #appRoot.sidebar-collapsed .sidebar ~ .content-area { margin-left: var(--sidebar-collapsed-w); }
+  #appRoot.sidebar-collapsed .sidebar { width: var(--sidebar-collapsed-w); }
+  #appRoot.sidebar-collapsed .sidebar-brand-text,
+  #appRoot.sidebar-collapsed .sidebar-link span,
+  #appRoot.sidebar-collapsed .sidebar-user-info { display: none; }
+  #appRoot.sidebar-collapsed .sidebar-collapsed-logo { display: flex; }
+  #appRoot.sidebar-collapsed .sidebar-brand { justify-content: center; padding: 16px 8px; }
+  #appRoot.sidebar-collapsed .sidebar-link { justify-content: center; padding: 12px 0; }
+  #appRoot.sidebar-collapsed .sidebar-user { justify-content: center; }
   .sidebar-link:hover { transform: none; }
 }
 
-/* ==================== MOBILE BOTTOM NAV ==================== */
-@media (max-width: 768px) {
-  #sidebar, #appRoot.sidebar-collapsed #sidebar, #appRoot.sidebar-open #sidebar {
-    position: fixed; top: auto; bottom: 0; left: 0; right: 0;
-    width: 100%; height: auto; min-height: 0; max-height: none;
-    transform: none !important;
-    flex-direction: column;
-    border-top: 1px solid rgba(255,255,255,.12);
-    box-shadow: 0 -4px 24px rgba(15,23,42,.25);
-  }
-  #sidebar::after { display: none; }
-  #sidebar .sidebar-brand, #sidebar .sidebar-collapsed-logo, #sidebar .sidebar-footer { display: none; }
-  #sidebar .sidebar-nav {
-    flex: none; flex-direction: row; flex-wrap: nowrap;
-    justify-content: flex-start; align-items: stretch;
-    overflow-x: auto; gap: 2px; padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px));
-    scrollbar-width: none;
-  }
-  #sidebar .sidebar-nav::-webkit-scrollbar { display: none; }
-  #sidebar .sidebar-link {
-    flex-direction: column; justify-content: center; flex: 0 0 auto;
-    gap: 3px; padding: 6px 12px; font-size: .6rem;
-    border-radius: 10px; min-width: 52px; text-align: center; transform: none;
-  }
-  #sidebar .sidebar-link svg { width: 19px; height: 19px; opacity: .85; }
-  #sidebar .sidebar-link.active::before {
-    left: 50%; top: 0; transform: translateX(-50%);
-    width: 26px; height: 3px; border-radius: 0 0 4px 4px;
-  }
-  #sidebar .sidebar-link:hover { transform: none; color: #fff; }
-  #sidebar .sidebar-link span { display: block !important; }
-  #topbar .sidebar-toggle { display: none; }
-  .main-content { padding-bottom: 78px; }
-}
+/* ==================== MOBILE BOTTOM NAV ====================
+   The bottom bar itself now lives at the end of mobile.css, in the same
+   @media (max-width: 768px) range, because that file loads after this one
+   and the drawer it declares at max-width: 1024px used to win over
+   everything below. It was declared here without !important, so it never
+   actually rendered - a phone got a hamburger and a side drawer instead of
+   a row of icons. The bar is kept in one place now, next to the drawer it
+   has to out-rank, rather than split across two files where the load order
+   decides the winner. */
 
 /* ==================== FIT-TO-SCREEN / NO WORD BREAK ==================== */
-.table-wrap { overflow-x: auto; }
+.table-wrap { overflow-x: clip; }
 th, td { overflow-wrap: normal; word-break: normal; white-space: normal; }
 .th-cells-nw, td.cell-nowrap { white-space: nowrap !important; }
 .actions-cell, #inspBody td { overflow-wrap: normal; word-break: normal; }
@@ -1843,7 +1859,9 @@ th[data-sort-col]:focus-visible { outline: 2px solid var(--primary); outline-off
 .dev-toolbar input[type=search],.dev-toolbar input[type=text]{flex:1;min-width:320px;padding:12px 16px;font-size:1rem;height:auto}
 .dev-type-sel{min-width:230px;padding:12px 16px;font-size:1rem;height:auto}
 .dev-section-h{display:flex;align-items:center;gap:10px;font-size:.95rem;font-weight:700;margin:18px 0 10px;letter-spacing:.3px}
-.dev-table-wrap{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow-x:auto}
+/* clip, not auto: see the .table-wrap note near the top of this file - `auto`
+   here would break the sticky column headers on the developer tables. */
+.dev-table-wrap{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow-x:clip}
 .dev-table{width:100%;border-collapse:collapse;font-size:.86rem;min-width:640px}
 .dev-table th{ text-align:left;padding:11px 14px;color:var(--muted);font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--border);white-space:nowrap}
 .dev-table td{padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
@@ -1926,7 +1944,13 @@ select option:checked { background: #eef2f7; }
 
 /* LOCATION LIST FIT (v2026.09.137) — table hugs page width, no horizontal scroll */
 #adminLocList.dev-cards { display: block; width: 100%; grid-template-columns: none; }
-#adminLocList .dev-table-wrap { overflow-x: hidden; max-width: 100%; width: 100%; }
+/* `clip`, not `hidden`: hidden on one axis with `visible` on the other makes
+   the browser compute the other axis as `auto`, which turns this box into a
+   scroll container. A position:sticky <th> inside it then pins to THIS box
+   instead of the page, and the header is pushed down by --sticky-top so it
+   lands on top of the first row. `clip` contains the overflow without
+   creating a scroll container. */
+#adminLocList .dev-table-wrap { overflow-x: clip; max-width: 100%; width: 100%; }
 #adminLocList table.dev-table { width: 100%; max-width: 100%; table-layout: fixed; }
 #adminLocList table.dev-table th, #adminLocList table.dev-table td { overflow: hidden; text-overflow: ellipsis; }
 #adminLocList th:nth-child(1), #adminLocList td:nth-child(1) { width: 46%; word-break: break-word; }
@@ -2996,9 +3020,16 @@ td .cat-badge { white-space: nowrap; }
   background: var(--btn-face-hi);
   color: #fff;
 }
+/* ==================================================================
    TOUCH DEVICES
    A finger needs about 44px to hit reliably and a phone has no hover to fall
    back on, so controls get their size from the pointer, not from the screen.
+
+   The opening comment marker on this banner was missing, so every line from
+   the word TOUCH down to the closing marker was parsed as a selector prelude.
+   Error recovery then threw the whole block away, and with it every touch
+   target size in the app - .btn, .btn-sm, .pager-btn - on exactly the
+   devices that need them most.
    ================================================================== */
 @media (hover: none) and (pointer: coarse) {
   /* 32px is fine for a mouse and too small for a thumb */
@@ -3631,6 +3662,40 @@ body,
   }
 }
 
+/* ---- but a DIALOG must not pin its column headers ----
+   The rule above offsets a sticky header by --sticky-top, which is the height
+   of the top bar, because on a page the header has to stop under it. Inside
+   a dialog there is no top bar: the dialog is its own scroll box. The header
+   was still offset by that same 64px, so it pinned 64px below the top of the
+   dialog and the rows scrolled through the empty band above it - the header
+   looked stuck in one place while everything else moved.
+
+   So in a dialog the header is not sticky at all and scrolls away with the
+   list, which is what a short category list wants anyway. `.modal` in the
+   selector carries more weight than the bare `table` above, so this wins on
+   specificity as well as by being later.
+   ================================================================== */
+.modal table > thead > tr > th,
+.modal .table-wrap > table > thead > tr > th,
+.modal .dev-table-wrap > table > thead > tr > th {
+  position: static;
+  top: auto;
+  z-index: auto;
+}
+
+/* The transaction tables are the exception. .ip-table-wrap is a scroll box in
+   its own right (overflow-x: auto) with a header pinned at top: 0, which is
+   correct there because there is no top bar to clear - it measures from the
+   box, not from the page. They are re-asserted after the rule above so being
+   inside a dialog does not quietly unpin them. */
+.ip-table-wrap thead th,
+.ip-modal .ip-table-wrap thead th,
+.modal .ip-table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
 /* ---- one focus ring for the whole app ----
    Tabbing through a form used to move between controls with almost no visible
    cue. Every interactive thing now gets the same ring, offset so it never sits
@@ -3861,3 +3926,97 @@ summary {
   color: #0f172a;
   border-color: #94a3b8;
 }
+
+/* ==================================================================
+   A DIALOG MUST NOT SCROLL THE PAGE BEHIND IT
+
+   Two separate faults let the background move while a dialog was open:
+
+   1. Scroll chaining. A wheel or flick that reached the end of the dialog
+      kept going, because neither the dialog nor the backdrop around it said
+      to stop. overscroll-behavior:contain is that instruction, and it is
+      what stops the page behind from taking the leftover movement.
+   2. No lock on the document itself. Nothing told the page to stop being
+      scrollable, so a scrollbar drag, a keyboard PageDown, or a scroll
+      that began on the backdrop all moved it. body.modal-open is set by the
+      observer in app.js and pins the page where it stands.
+
+   The scroll position is deliberately NOT reset on close: the page is only
+   ever overflow:hidden while the dialog is up, so it never loses its place
+   and there is nothing to restore.
+   ================================================================== */
+.modal-backdrop {
+  /* the backdrop is the dialog's own scrollport: a dialog taller than the
+     window scrolls here instead of pushing the page behind it */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.modal {
+  overscroll-behavior: contain;
+}
+body.modal-open,
+body.modal-open #appRoot {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+/* ==================================================================
+   DIALOG SIZE — ONE PLACE TO TUNE
+
+   Every dialog width in this app used to be written out where the dialog
+   was first styled, in about a dozen places, several of them by id. Changing
+   the size meant finding all of them, and missing one left a single dialog
+   at the old size, which is exactly the sort of thing that is only noticed
+   when someone opens that one dialog.
+
+   So the widths are all restated here, once, at the end of the file where it
+   wins on source order, with the same selectors the originals used. Each is
+   now WIDER than the value it replaced. The originals are left in place rather
+   than deleted: they are the fallback if this block is ever removed, and they
+   document what the dialog was originally designed to be.
+
+   Width only. The height is left at 90vh, which is what it was before this
+   block existed - a dialog is not made taller, so a long form scrolls in
+   exactly the way it always did.
+
+   The width: calc(100vw - Npx) pairs go with the max-width on the wide
+   dialogs and are kept in step, so a dialog still fits a narrow screen
+   rather than stopping at its new maximum with a gap beside it. The widest
+   dialog here is 1080px, which leaves room for the backdrop's own padding on
+   a 1366px laptop - and below that the calc() takes over and it narrows
+   further rather than overflowing.
+
+   On a phone the dialog is a bottom sheet instead - see the max-width: 640px
+   and 768px blocks earlier in this file - and those are left alone. That is a
+   deliberate shape for a small screen, not a narrow desktop dialog.
+   ================================================================== */
+.modal {
+  max-width: 520px;
+  max-height: 90vh;
+}
+.modal-lg { max-width: 660px; }
+.modal-xl { max-width: 1020px; }
+
+#demandDetailsModal .modal,
+#distDetailModal .modal,
+#maintDetailModal .modal { max-width: 990px; }
+
+#demandFulfillModal .modal,
+#demandReviewModal .modal { max-width: 1020px; width: calc(100vw - 40px); }
+
+#consTxnModal .modal { max-width: 800px; width: calc(100vw - 40px); }
+
+#demandModal.modal-lg { max-width: 1080px; width: calc(100vw - 32px); }
+
+#demandActionModal .modal { max-width: 1080px; width: calc(100vw - 32px); }
+
+#viewItemModal .modal { max-width: 780px; }
+
+/* The profile and camera dialogs are not .modal - they are their own boxes -
+   so they are sized here too, otherwise they would keep the old width while
+   every other dialog changed. */
+.ip-modal .ip-modal-box { max-width: 720px; }
+#ipTxModal .ip-modal-box,
+#ppTxModal .ip-modal-box,
+#ppEditModal .ip-modal-box { max-width: 900px; }
+.cam-modal { max-width: 800px; }

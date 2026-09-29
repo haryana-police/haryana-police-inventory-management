@@ -1,11 +1,32 @@
 .vercel
 .env*
 node_modules/
-# local-data/ is tracked on purpose: the live database (db.json) is version
-# controlled so that a change of data shows up as a modified file, which is the
-# reminder to take a backup.
+# The live database is NOT in the repository.
+#
+# local-data/db.json holds the real records: officer names, 10-digit mobile
+# numbers, uploaded scan documents, item photographs, audit trails and live
+# session tokens. Those must not be published, so the file is ignored and
+# untracked. It is still version-controlled in the sense that matters day to
+# day: the rotating copies under local-data/backups/ are the real safety net,
+# and a change to the data still shows up as a change on this machine.
+#
+# What IS committed is local-data/db.demo.json - the same document with every
+# person, number, token, photograph and audit entry replaced or removed. On the
+# first run, when db.json does not exist, the app stands itself up from that
+# copy, so a fresh clone opens on a working demo rather than an empty screen.
+local-data/db.json
+# An old pre-import copy of the database that used to be tracked. It carried 8
+# accounts, a live session token and an un-hashed-era password hash, none of
+# which belongs in a shared repository. The file stays on this machine.
+local-data/db.before-import.json
+
 # Local safety copies and the old Neon production dumps are never committed.
 local-data/db.backup-*.json
+# Whole-database copies taken before a password change. These are the size of
+# the live database (hundreds of MB) and they hold the OLD password hashes, so
+# they must never reach git - the backups/ pattern below does not match them
+# because they sit directly in local-data/.
+local-data/db-BEFORE-*.json
 local-data/backups/
 local-data/prod-*.json
 local-data/prod-backups/
@@ -15,3 +36,10 @@ hp-inventory-image.tar
 ims-server.log
 vercel-deploy*.log
 *.tmp
+
+# Server stdout/stderr written by the local runner. Machine-local noise.
+server-out.log
+server-err.log
+
+# One-off audit reports generated while checking a district or circle.
+*-audit.html

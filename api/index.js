@@ -1,4 +1,4 @@
-// Local API - Haryana Police Inventory
+﻿// Local API - Haryana Police Inventory
 // Document-store style: the whole app state is stored as one JSON blob
 // in a single file (local-data/db.json). This matches how the frontend uses
 // localStorage (loadData / saveData with a central JSON cache).
@@ -13,12 +13,12 @@
 //    server-side (api/_rbac.js) against the session user and the record's
 //    stored ownership (locationId / district). Developer Admin is read-only
 //    for inventory; everyone else may only modify their OWN unit's records.
-//    Unauthorised writes are rejected with 401/403 — the UI can be bypassed,
+//    Unauthorised writes are rejected with 401/403 â€” the UI can be bypassed,
 //    this gate cannot.
 const { Pool } = require('./_filepool');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { ITEM_STORE_KEY, diffItemWrites, authorizeItemWrites, authorizeUserCollectionWrite, diffConsumableWrites, authorizeConsumableWrites, diffStructureWrites, authorizeStructureWrites } = require('./_rbac');
+const { projectStateFor, restoreScopeFor, ITEM_STORE_KEY, diffItemWrites, authorizeItemWrites, authorizeUserCollectionWrite, diffConsumableWrites, authorizeConsumableWrites, diffStructureWrites, authorizeStructureWrites } = require('./_rbac');
 const pool = new Pool();
 
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
@@ -181,7 +181,7 @@ function publicUser(u) {
 }
 
 // Self-healing: every district always has its fixed staff accounts and
-// default staff locations (Computer/IT Staff + MTO Staff). Idempotent —
+// default staff locations (Computer/IT Staff + MTO Staff). Idempotent â€”
 // returns true when anything was created or linked.
 function provisionDistrictStaff(state) {
   const dists = Array.isArray(state['hp_inventory.districts']) ? state['hp_inventory.districts'] : [];
@@ -277,7 +277,7 @@ async function authFromRequest(req) {
 // dedupe-keyed and written to `rt_events`; a pg LISTEN/NOTIFY channel
 // wakes connected long-polls so delivery is push-based and near-instant.
 const RT_CHANNEL = 'hp_rt';
-const RT_MAX_HOLD_MS = 8000;
+const RT_MAX_HOLD_MS = 2000;
 
 function sleep(ms) { return new Promise(r => setTimeout(r, Math.max(0, ms))); }
 
@@ -577,6 +577,10 @@ async function route(req, res) {
 
   // Self-heal legacy plaintext passwords before handling any request.
   await sweepPlaintextPasswords();
+  // And collapse any duplicate user rows before one can be written back.
+  // Order matters: hashing runs first so the rows that are about to be
+  // compared already carry their final stored form.
+  await sweepDuplicateUsers();
 
   // ---------- IMS AGENT ----------
   if (p0 === 'agent' && req.method === 'POST') {
@@ -771,9 +775,17 @@ function validateAllocState(state) {
     // Self-heal: make sure every district has its fixed staff accounts and
     // default staff locations (Computer/IT Staff + MTO Staff). Idempotent.
     try { if (provisionDistrictStaff(state)) await setState(state); } catch (e) { console.warn('[staff-provision]', e && e.message); }
-    // never leak password hashes or session tokens to the browser
+    // A read used to be answered with the whole document to anyone holding a
+    // session, so an Inspector General's browser was carrying the districts it
+    // has no business seeing. The caller is resolved first so the answer can be
+    // narrowed to the districts they are entitled to; an unknown caller is
+    // refused rather than trusted, and a Developer Admin - who is entitled to
+    // every district - still receives the whole document.
+    const { user: stateUser } = await authFromRequest(req);
+    if (!stateUser) return res.status(401).json({ error: 'Sign in required', code: 'AUTH_REQUIRED' });
+    const scoped = projectStateFor(stateUser, state);
     const publicState = {};
-    for (const [k, v] of Object.entries(state)) {
+    for (const [k, v] of Object.entries(scoped)) {
       if (k === TOKEN_KEY) continue;
       if (k.indexOf(SCAN_FILES_PREFIX) === 0) continue; // scan files stay out of full state
       if (k === 'hp_inventory.users' && Array.isArray(v)) {
@@ -792,8 +804,16 @@ function validateAllocState(state) {
   // sanitise any passwords present before persisting.
   if (p0 === 'state' && req.method === 'POST') {
     if (!body.state) return res.status(400).json({ error: 'state required' });
-    const incoming = body.state;
     const current = await getState();
+    // The client posts the whole document back, and a client that was only
+    // shown its own districts is therefore posting a document that is missing
+    // everyone else's. Put those parts back before anything is diffed, so that
+    // being unable to see a district also means being unable to erase it. A
+    // Developer Admin is shown everything, so nothing is restored and the
+    // document is written exactly as it was sent.
+    const { user: writeUser } = await authFromRequest(req);
+    let incoming = restoreScopeFor(writeUser, current, body.state);
+    body.state = incoming;
     const currentUsers = Array.isArray(current['hp_inventory.users']) ? current['hp_inventory.users'] : [];
     const incomingUsers = Array.isArray(incoming['hp_inventory.users']) ? incoming['hp_inventory.users'] : [];
     // Only account mutations require a session. If the users collection is
@@ -825,7 +845,7 @@ function validateAllocState(state) {
     }
     // RBAC GATE (inventory): the client sends its whole state blob, so the
     // server diffs the stored items against the incoming ones and authorises
-    // every add/edit/delete against the SESSION user — never the payload.
+    // every add/edit/delete against the SESSION user â€” never the payload.
     // Identity, role and unit all come from the token; ownership comes from
     // the previously stored record. 403 on any violation.
     const { user: rbacUser } = await authFromRequest(req);
@@ -865,7 +885,7 @@ function validateAllocState(state) {
     }
     // Category-store shape guard (2026.09.213): once "categories" /
     // "cons_categories" have migrated to per-district maps, a stale client
-    // (old cached bundle) must never overwrite them with a flat array — that
+    // (old cached bundle) must never overwrite them with a flat array â€” that
     // would re-trigger the client-side legacy migration and leak one
     // district's categories into every other district.
     for (const ck of ['hp_inventory.categories', 'hp_inventory.cons_categories']) {
@@ -900,7 +920,18 @@ function validateAllocState(state) {
     // Return the sanitised users so the client never keeps plaintext in memory.
     const resp = { ok: true };
     if (Array.isArray(incoming['hp_inventory.users'])) {
-      resp.users = incoming['hp_inventory.users'].map(publicUser).filter(Boolean);
+      // Projected back down to what this caller is entitled to see, NOT the
+      // whole list that was just stored. This used to answer with
+      // `incoming`, which is the document AFTER restoreScopeFor put every
+      // out-of-scope user back. The client copies that answer straight into
+      // its own cache and sends it again on the next save - at which point
+      // restoreScopeFor holds those same users AND receives them, so they
+      // were counted twice. Every save doubled the collection, which is how
+      // 40 real accounts became 1,695,786 rows and a 493MB database. The
+      // client must only ever hold the slice it is allowed to hold.
+      const scopedBack = projectStateFor(writeUser, incoming);
+      const visible = Array.isArray(scopedBack['hp_inventory.users']) ? scopedBack['hp_inventory.users'] : [];
+      resp.users = visible.map(publicUser).filter(Boolean);
     }
     return res.json(resp);
   }
@@ -937,7 +968,7 @@ function validateAllocState(state) {
         const prevAll = (stateNow[ITEM_STORE_KEY] && typeof stateNow[ITEM_STORE_KEY] === 'object') ? stateNow[ITEM_STORE_KEY] : {};
         nextAll = body.value;
         if (Array.isArray(body.value)) {
-          // Legacy array form: the array replaces ONE district's items —
+          // Legacy array form: the array replaces ONE district's items â€”
           // merge it over the stored map so other districts are untouched
           // (otherwise they would look deleted and be wrongly denied).
           const distId = body.districtId || user.districtId || 'dist_1';
@@ -1106,6 +1137,68 @@ async function hashAllPasswords(users) {
     out.push(copy);
   }
   return out;
+}
+
+// Self-healing: collapse duplicate rows out of the users collection.
+//
+// A users array that holds the same account many times over is never a real
+// state - the app looks accounts up by id and by username, so the extra rows
+// are pure weight. They got in through the scope stitch in _rbac.js, and
+// because that stitch ran on every save the file doubled each time until it
+// reached hundreds of megabytes. The two fixes above stop new ones arriving;
+// this removes the ones already there, so an installation that is already
+// bloated does not have to be reset by hand.
+//
+// The LAST row for an id wins, which is the one the most recent saves wrote.
+// Only an exact id collision is collapsed - two genuinely different accounts
+// that happen to share a username are left alone, since that is a different
+// problem and silently merging them could lock someone out. Returns the count
+// removed so the caller can log it.
+function dedupeUsersById(users) {
+  const list = Array.isArray(users) ? users : [];
+  const byId = new Map();
+  let withoutId = 0;
+  for (const u of list) {
+    if (!u || typeof u !== 'object') continue;
+    const id = u.id;
+    if (id === undefined || id === null || id === '') { withoutId++; continue; }
+    byId.set(id, u);
+  }
+  const out = Array.from(byId.values());
+  const removed = list.length - out.length - withoutId;
+  return { users: out, removed, withoutId };
+}
+
+// Runs at most once per minute, and only when there is something to do - the
+// size check is a cheap count, so an already-clean database costs one integer
+// comparison per minute rather than a rewrite.
+let lastDupSweep = 0;
+async function sweepDuplicateUsers() {
+  const now = Date.now();
+  if (now - lastDupSweep < 60_000) return;
+  lastDupSweep = now;
+  try {
+    const state = await getState();
+    const users = state['hp_inventory.users'];
+    if (!Array.isArray(users)) return;
+    const seen = new Set();
+    let dupes = 0;
+    for (const u of users) {
+      if (!u || typeof u !== 'object' || u.id === undefined || u.id === null || u.id === '') continue;
+      if (seen.has(u.id)) dupes++;
+      else seen.add(u.id);
+    }
+    if (!dupes) return;
+    const before = users.length;
+    const { users: clean, removed, withoutId } = dedupeUsersById(users);
+    if (!removed) return;
+    state['hp_inventory.users'] = clean;
+    await setState(state);
+    console.log('[repair] users: collapsed ' + removed + ' duplicate row(s), ' + before + ' -> ' + clean.length
+      + (withoutId ? ' (' + withoutId + ' row(s) had no id and were left alone)' : ''));
+  } catch (e) {
+    lastDupSweep = 0; // allow a retry on the next request
+  }
 }
 
 // Self-healing: guarantees no plaintext password can survive in the DB.

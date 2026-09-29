@@ -1385,6 +1385,39 @@ function toast(msg, type) {
 }
 function openModal(id) { $(id).classList.remove("hidden"); }
 function closeModals() { $$(".modal-backdrop").forEach(m => m.classList.add("hidden")); }
+
+/* Keep the page behind a dialog from scrolling.
+   A dialog is shown in well over a hundred places, and plenty of them toggle
+   the `hidden` class directly instead of going through openModal/closeModals,
+   so patching those two functions would still have missed a path or two. The
+   lock is therefore derived from what is actually on screen: the observer
+   fires on every class change anywhere under <body>, and the state is just
+   "is any backdrop visible right now". That is also why the check is a scan
+   and not a counter - one dialog closing must not unlock the page while
+   another is still open, and only the scan can know that.
+
+   The page is only ever made overflow:hidden. It is never re-laid-out, never
+   reset and never given position:fixed, so it cannot lose its scroll position
+   while the dialog is up, and there is nothing to restore on close. */
+function __syncModalScrollLock() {
+  try {
+    const anyOpen = $$(".modal-backdrop").some(function (m) {
+      return m && !m.classList.contains("hidden");
+    });
+    document.body.classList.toggle("modal-open", anyOpen);
+  } catch (e) { /* never let the lock break a dialog */ }
+}
+if (typeof MutationObserver === "function" && document.body) {
+  try {
+    new MutationObserver(__syncModalScrollLock).observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class"],
+      childList: true,
+    });
+  } catch (e) { /* fall through to the direct calls below */ }
+}
+__syncModalScrollLock();
 /* Bulletproof modal dismissal (2026.09.90): delegated at document level so close/cancel/
    cross buttons work even if some other init code fails. */
 document.addEventListener("click", function (e) {
@@ -2844,14 +2877,26 @@ function renderCatList() {
   const box = $("#catList");
   const cats = getCategories();
   const items = getAllDistrictItems();
-  box.innerHTML = cats.map((c, idx) => {
-    const count = items.filter(i => i.categoryId === c.id).length;
-    return `<div class="cat-list-row" data-idx="${idx}"><span class="cat-list-name">${esc(c.name)}</span><span class="cat-list-count">${count} items</span><div class="cat-list-actions">${actDD([
-      { label: "Items", attrs: `data-cat-items="${idx}"` },
-{ label: "Edit", attrs: `data-cat-edit="${idx}"` },
-      { label: "Delete", cls: "act-dd-del", attrs: `data-cat-del="${idx}"`, title: count > 0 ? "Remove items first" : "" }
-    ].map(it => (count > 0 && it.attrs.includes("data-cat-del")) ? { ...it, attrs: `data-cat-del="${idx}" disabled` } : it))}</div></div>`;
-  }).join("");
+  // The three buttons sit in the row itself, beside the name, rather than
+  // behind one "Actions" menu. actDD() collapses anything longer than one
+  // button into a dropdown, so reaching Edit or Delete on a category meant
+  // two clicks through a menu that also had to open the right way up near the
+  // bottom of the list. The data-* attributes are unchanged, so the delegated
+  // click handler and startEditCat() - which swaps this very container for
+  // Save/Cancel - keep working exactly as before.
+  const row = (c, idx, count, prefix) => {
+    const canDelete = count === 0;
+    return `<div class="cat-list-row" data-idx="${idx}">` +
+      `<span class="cat-list-name">${esc(c.name)}</span>` +
+      `<span class="cat-list-count">${count} items</span>` +
+      `<div class="cat-list-actions">` +
+      `<button type="button" class="btn btn-sm btn-outline" data-${prefix}-items="${idx}">Items</button>` +
+      `<button type="button" class="btn btn-sm btn-outline" data-${prefix}-edit="${idx}">Edit</button>` +
+      `<button type="button" class="btn btn-sm btn-outline act-dd-del" data-${prefix}-del="${idx}"` +
+      (canDelete ? "" : ` disabled title="Remove items first"`) + `>Delete</button>` +
+      `</div></div>`;
+  };
+  box.innerHTML = cats.map((c, idx) => row(c, idx, items.filter(i => i.categoryId === c.id).length, "cat")).join("");
 }
 
 function startEditCat(idx) {
@@ -9730,6 +9775,13 @@ document.addEventListener("click", e => {
   $("#manageCatsBtn").addEventListener("click", openCatModal);
 $("#consManageCatsBtn")?.addEventListener("click", openConsCatModal);
 $("#consCatAddBtn")?.addEventListener("click", addConsCategory);
+// The consumable category items dialog can add an item too, exactly as the
+// stock one can. Both are name-only quick adds: the quantity lives in the
+// consumable ledger rather than on the item, so a new row starts at zero.
+$("#ccitAddBtn")?.addEventListener("click", __ccitAdd);
+$("#ccitNewName")?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); __ccitAdd(); }
+});
 $("#distTypeStock")?.addEventListener("change", () => {
   if (!$("#distTypeStock").checked) { $("#distTypeStock").checked = true; return; }
   $("#distTypeCons").checked = false;
@@ -9987,7 +10039,19 @@ $$("#manageMenu .manage-menu-item").forEach(b => b.addEventListener("click", () 
     $("#ajTotalGroup").classList.toggle("hidden", !isCorrection);
   });
 
-  $("#sidebarToggle")?.addEventListener("click", () => { $("#appRoot").classList.toggle("sidebar-collapsed"); })
+  // Two different jobs hang off this one button, and they are told apart by
+  // width alone. Between 769px and 1024px the sidebar is a side drawer and
+  // mobile.js opens and closes it; below 769px the sidebar is a bottom bar
+  // that is always on screen, and above 1024px it is a rail that widens on
+  // hover and this pins it open. Both listeners sit on this same button and
+  // stopPropagation() does not stop a second listener on the same element, so
+  // the two would otherwise both fire and the next press would look broken.
+  // This is the same query mobile.js isNarrow() uses, so they cannot disagree.
+  $("#sidebarToggle")?.addEventListener("click", () => {
+    if (window.matchMedia("(min-width: 769px) and (max-width: 1024px)").matches) return;
+    if (window.matchMedia("(max-width: 768px)").matches) return;
+    $("#appRoot").classList.toggle("sidebar-collapsed");
+  })
   // every table in the app gets its column names copied onto its cells once, then
   // and again whenever any of them is rebuilt
   try { watchTables(); } catch (e) { /* older browser without MutationObserver */ };
@@ -12070,7 +12134,11 @@ function openConsCatItems(idx) {
   if (!c) return;
   __consCitCatId = c.id;
   $("#ccitTitle").textContent = c.name;
-  $("#ccitSubtitle").textContent = "Items in this consumable category - edit the name or delete an item";
+  $("#ccitSubtitle").textContent = "Items in this consumable category - add, rename or delete an item";
+  // Cleared on open so a half-typed name from a previous category is never
+  // carried over and added to the wrong one.
+  const inp0 = $("#ccitNewName");
+  if (inp0) inp0.value = "";
   __renderConsCatItems(c.id);
   openModal("#consCitModal");
 }
@@ -12079,16 +12147,49 @@ function __renderConsCatItems(cid) {
   if (!body) return;
   __consCitCatId = cid;
   const items = getConsItems().filter(i => i.categoryId === cid);
+  const editable = __consCanManage();
+  // The add row is hidden rather than disabled for a view-only account, so a
+  // read-only user is not invited to try; __ccitAdd re-checks either way.
+  const addRow = $("#ccitAddRow");
+  if (addRow) addRow.style.display = editable ? "" : "none";
   body.innerHTML = items.length
     ? items.map(i => {
         const q = __consQty(i.id);
-        const editable = __consCanManage();
         const acts = editable
           ? `<button class="btn btn-sm btn-outline" data-ccit-edit="${i.id}">Edit</button> <button class="btn btn-sm btn-outline act-dd-del" data-ccit-del="${i.id}">Delete</button>`
           : `<span class="muted">View only</span>`;
         return `<tr data-ccit-row="${i.id}"><td class="item-name"><span class="cit-name">${nameCell(i.name)}</span></td><td>${q.total}</td><td>${q.available}</td><td class="actions-cell">${acts}</td></tr>`;
       }).join("")
     : `<tr class="empty-row"><td colspan="4">No items in this category yet.</td></tr>`;
+}
+function __ccitAdd() {
+  const cid = __consCitCatId;
+  if (!cid) return toast("Open a category first.", "error");
+  if (!__consCanManage()) return toast("You are not allowed to modify consumables.", "error");
+  const name = (($("#ccitNewName") || {}).value || "").trim();
+  if (!name) return toast("Enter an item name.", "error");
+  const items = getConsItems();
+  // Scoped to the category being viewed, which is what the list below shows.
+  if (items.some(i => i.categoryId === cid && (i.name || "").toLowerCase() === name.toLowerCase())) {
+    return toast("An item with this name already exists in this category.", "error");
+  }
+  items.push({
+    id: uid(),
+    name: name,
+    categoryId: cid,
+    unit: "Pcs",
+    locationId: (currentUser && currentUser.locationId) || "",
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+  saveConsItems(items);
+  __audit("Consumable Item Added", name + " (name-only quick add, qty 0)", { entity: "Consumable Item" });
+  toast("Item added.", "success");
+  const inp = $("#ccitNewName");
+  if (inp) { inp.value = ""; inp.focus(); }
+  __renderConsCatItems(cid);
+  renderConsCatList();
+  render();
 }
 function __ccitStartEdit(id) {
   const item = getConsItems().find(i => i.id === id);
@@ -12131,13 +12232,20 @@ function __ccitDelete(id) {
 function startEditConsCat(idx) {
   const c = getConsCats()[idx];
   if (!c) return;
-  const row = $("#consCatList .cat-list-row")[idx];
+  // $$(...), not $(...): $ is querySelector and hands back ONE element, so
+  // indexing that single element by idx is always undefined and the row was
+  // never found - which is why pressing Edit did nothing at all.
+  const rows = $$("#consCatList .cat-list-row");
+  const row = rows[idx];
   if (!row) return;
   const nameSpan = row.querySelector(".cat-list-name");
   const actionsDiv = row.querySelector(".cat-list-actions");
+  if (!nameSpan || !actionsDiv) return;
   row.classList.add("editing");
   nameSpan.innerHTML = '<input class="cat-edit-input" id="consCatEditName" value="' + esc(c.name) + '">';
   actionsDiv.innerHTML = '<button class="btn btn-sm btn-primary" data-ccat-save="' + idx + '">Save</button><button class="btn btn-sm btn-outline" data-ccat-cancel="' + idx + '">Cancel</button>';
+  const inp = $("#consCatEditName");
+  if (inp) { inp.focus(); inp.select(); }
 }
 function saveEditConsCat(idx) {
   const cats = getConsCats();

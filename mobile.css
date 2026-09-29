@@ -1,0 +1,603 @@
+﻿/* ============================================================
+   mobile.css â€” Mobile-first responsive & premium UI layer
+   Additive only: no business logic, no DOM removal.
+   Loaded AFTER styles.css so it wins without !important wars.
+   Breakpoints: 1440 / 1024 / 768 / 640 / 480 / 430 / 390 / 360 / 320
+   ============================================================ */
+
+/* ---------- 1. GLOBAL GUARDS (prevent body h-scroll / zoom) ---------- */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { overflow-x: hidden; max-width: 100%; }
+img, svg, video, canvas { max-width: 100%; height: auto; }
+img, svg { flex-shrink: 0; }
+*:focus-visible { outline: 2px solid #2f6fed; outline-offset: 2px; border-radius: 6px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+
+/* Long unbroken text (ids, codes) must never widen the page */
+h1, h2, h3, h4, p, span, td, th, label, .item-name, .cat-badge, .dr-name {
+  overflow-wrap: anywhere; word-break: break-word;
+}
+
+/* ---------- 2. TOUCH TARGETS (44â€“48px min) ---------- */
+.btn, button:not(.sort-arrow), .tab, .nav-item, select, .chip, .pill {
+  min-height: 44px;
+}
+.btn-sm { min-height: 40px; padding: 8px 12px; }
+.icon-btn, .btn-icon, .modal-close { min-width: 44px; min-height: 44px; }
+button, .btn, a.btn, .linklike { touch-action: manipulation; }
+
+/* Prevent accidental double-tap zoom on rapid taps (keeps desktop intact) */
+.btn:active, button:active, .nav-item:active { transform: translateY(1px); }
+
+/* ============================================================
+   SIDEBAR: the app's own "icon rail" behaviour is kept as-is
+   (labels hidden, revealed on hover) exactly as shipped. We
+   deliberately do NOT override label visibility here.
+   ============================================================ */
+
+/* ---------- 3. APP SHELL: desktop preserved, drawer under 1024px ---------- */
+.content-area { min-width: 0; }
+.app { display: flex; min-width: 0; }
+
+/* Topbar must never be wider than the screen (it was 627px at 320px wide) */
+@media (max-width: 1024px) {
+  .topbar {
+    height: auto !important; min-height: var(--topbar-h);
+    padding: 8px 12px !important; gap: 10px !important;
+    flex-wrap: nowrap; min-width: 0;
+  }
+  .topbar-left { min-width: 0; flex: 0 1 auto; overflow: hidden; }
+  .topbar-left > * { min-width: 0; }
+  /* right side scrolls sideways instead of forcing page overflow */
+  .topbar-right {
+    min-width: 0; max-width: 100%;
+    flex: 1 1 auto; justify-content: flex-end;
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; gap: 10px;
+    padding-bottom: 2px;
+  }
+  .topbar-right::-webkit-scrollbar { display: none; }
+  .user-section { min-width: 0; flex-shrink: 0; gap: 8px; }
+  .district-select { min-width: 0 !important; max-width: 46vw; flex-shrink: 1; }
+}
+
+/* Very narrow: let the topbar wrap so profile / notifications / logout
+   stay visible without sideways scrolling */
+@media (max-width: 480px) {
+  .topbar { flex-wrap: wrap !important; row-gap: 8px; }
+  .topbar-left { flex: 1 1 100%; }
+  .topbar-right {
+    flex: 1 1 100%; width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto; overflow-y: hidden;
+  }
+  .user-section { flex-shrink: 0; }
+  .user-section > * { min-width: 0; }
+}
+
+/* The scrim that dims the page behind the open drawer */
+.m-scrim { display: none; }
+.m-page-title { display: none; }
+
+/* --- Mobile drawer: sidebar slides in, default hidden --- */
+@media (max-width: 1024px) {
+  /* Sidebar becomes an off-canvas drawer.
+     NOTE: uses #sidebar (ID specificity) because styles.css sets
+     `#appRoot .sidebar { transform: none !important }` inside its own
+     max-width:768px block, which would otherwise win on order alone. */
+  #sidebar {
+    position: fixed !important; top: 0; left: 0; bottom: 0; z-index: 90;
+    width: min(84vw, 320px) !important;
+    max-width: 320px !important;
+    flex: 0 0 auto !important;
+    transform: translateX(-105%) !important;
+    -webkit-transform: translateX(-105%) !important;
+    visibility: hidden !important;
+    transition: transform .25s ease, visibility .25s;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    max-height: 100dvh;
+  }
+  body.m-nav-open #sidebar {
+    transform: translateX(0) !important;
+    -webkit-transform: translateX(0) !important;
+    visibility: visible !important;
+    box-shadow: 6px 0 28px rgba(0,0,0,.35);
+  }
+  body.m-nav-open { overflow: hidden; }
+
+  /* Page name shown beside the hamburger (the app's own topbar) */
+  .m-page-title {
+    display: block !important;
+    flex: 1 1 auto; min-width: 0;
+    font-size: 1rem; font-weight: 700; letter-spacing: .2px;
+    color: #fff; line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #sidebarToggle {
+    width: 44px; height: 44px; flex: 0 0 44px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 10px; margin-right: 8px;
+  }
+  /* styles.css hides the toggle at <=768px because the sidebar becomes a
+     bottom navigation bar there, and a bar that is always on screen has
+     nothing to toggle. The rule at the end of this file reinstates that bar,
+     so the button stays hidden there. Between 769px and 1024px the sidebar
+     really is a drawer and the button is the only way to open it, so it has
+     to be visible - it used to be display:none across the whole range,
+     which left the drawer with no way to be opened. */
+  #topbar .sidebar-toggle { display: inline-flex !important; }
+
+  /* ---- Top bar crowding fix (was: "DISTRICT:" wrapped to 3 lines,
+     page title clipped to "Da...", Manage button cut to "rage") ---- */
+  .topbar-left { gap: 10px !important; flex: 1 1 auto; min-width: 0; }
+  .district-selector { min-width: 0; gap: 6px !important; flex: 0 1 auto; }
+  /* "District:" must stay on one line */
+  .district-label {
+    display: inline-block !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    flex: 0 0 auto;
+    font-size: .66rem;
+  }
+  .district-select {
+    min-width: 0 !important;
+    flex: 0 1 auto;
+    max-width: 20vw;
+    text-overflow: ellipsis;
+  }
+  /* Page title takes the free space, truncates gracefully */
+  .m-page-title {
+    max-width: 100%;
+    flex: 1 1 110px;
+    min-width: 84px;
+  }
+  /* Right group: never overflow, shrink instead of clipping */
+  .topbar-right { min-width: 0; gap: 8px !important; flex: 0 1 auto; }
+  .topbar-right > * { flex-shrink: 1; min-width: 0; }
+  /* Keep the button labels from being cut in half */
+  .topbar-right .btn,
+  .topbar-right button { white-space: nowrap; max-width: 100%; }
+
+  .m-scrim {
+    display: block; position: fixed; inset: 0; z-index: 80;
+    background: rgba(8,18,32,.5); opacity: 0; pointer-events: none;
+    transition: opacity .25s ease;
+  }
+  body.m-nav-open .m-scrim { opacity: 1; pointer-events: auto; }
+
+  /* Nav items: comfortable tap rows only. The app's own layout
+     (icon rail + hover-reveal labels) and its row direction are
+     left completely untouched. */
+  #sidebar .sidebar-link {
+    min-height: 46px;
+  }
+  #sidebar .sidebar-link .demand-dot {
+    position: absolute !important;
+    top: 50%; right: 8px; transform: translateY(-50%);
+  }
+  /* The drawer above is off-canvas (translated away) for the WHOLE 0-1024px
+     range, but styles.css only drops the content's left offset at <=768px.
+     Between 769px and 1024px the page therefore kept the 64px (or 240px,
+     when the rail was pinned open) sidebar offset while nothing was drawn in
+     that space - a dead gutter down the left of every screen. */
+  .content-area { width: 100%; max-width: 100%; margin-left: 0 !important; padding: 12px !important; }
+}
+
+/* ---------- 4. DASHBOARD: 1-col then 2-col stat grid ---------- */
+@media (max-width: 900px) {
+  .stat-grid, .dashboard-stats, .stats-grid, .kpi-grid, .stat-cards {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+  .stat-card, .stat, .kpi-card { min-width: 0; padding: 14px !important; }
+  .stat-card .stat-value, .stat .value, .kpi-value {
+    font-size: clamp(1.35rem, 6vw, 1.9rem) !important; line-height: 1.1;
+    overflow-wrap: anywhere;
+  }
+  .stat-card .stat-label, .kpi-label { font-size: .82rem; line-height: 1.25; }
+  .chart-body, canvas { max-width: 100%; height: auto; }
+}
+@media (max-width: 480px) {
+  .stat-grid, .dashboard-stats, .stats-grid, .kpi-grid, .stat-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 360px) {
+  .stat-grid, .dashboard-stats, .stats-grid, .kpi-grid, .stat-cards {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ---------- 5. TABLES: controlled h-scroll, readable, no page overflow ----------
+   Scoped to narrow screens on purpose. This rule used to be global, and
+   `overflow-x: auto !important` on .table-wrap made the box a scroll container
+   at EVERY screen size. A position:sticky <th> inside a scroll container pins
+   to that box's scrollport instead of the page, so the header was shoved down
+   by --sticky-top and landed on top of the first row. On a wide screen the
+   table must NOT be a scroll container, so the desktop rules in styles.css
+   are left in charge there. */
+@media (max-width: 1024px) {
+.table-wrap, .table-scroll, .table-container {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  border-radius: 12px;
+}
+.table-wrap table, table { min-width: 640px; }
+  /* Do not let a narrow column crush its own text; let it wrap instead */
+  .table-wrap table td, .table-wrap table th { word-break: normal; overflow-wrap: break-word; }
+  .table-wrap table td .item-name, .table-wrap table td .linklike { white-space: normal; }
+} /* end @media (max-width: 1024px) — tables scroll sideways only when narrow */
+@media (max-width: 768px) {
+  /* Keep first 1â€“2 columns pinned & readable while the rest scrolls */
+.table-wrap table thead th { position: sticky; top: var(--sticky-top, 0px); z-index: 2; }
+  .table-wrap table thead th { position: sticky; top: 0; z-index: 2; }
+  .item-name { max-width: 220px; }
+}
+
+/* Card-style rows for narrow screens (data-th mirrors header text) */
+@media (max-width: 1024px) {
+  .table-wrap:has(table.stacked) table, table.stacked { min-width: 0; }
+  table.stacked, table.stacked tbody, table.stacked tr, table.stacked td { display: block; width: 100%; }
+  table.stacked thead { display: none; }
+  table.stacked tr {
+    margin: 10px; border: 1px solid rgba(15,42,74,.12); border-radius: 14px;
+    background: #fff; box-shadow: 0 2px 10px rgba(15,42,74,.06); padding: 6px 4px;
+  }
+  table.stacked td {
+    display: flex; justify-content: space-between; gap: 12px;
+    border: 0; padding: 8px 12px; text-align: right;
+  }
+  table.stacked td::before {
+    content: attr(data-th); font-weight: 700; color: #4a5568; text-align: left;
+    flex: 0 0 auto; max-width: 45%;
+  }
+  table.stacked td[data-th=""]::before, table.stacked td:not([data-th])::before { content: none; }
+}
+
+/* ---------- 6. FORMS: single column, full width, big controls ---------- */
+@media (max-width: 640px) {
+  .form-grid, .form-row, .field-row, .modal .form-grid {
+    display: grid !important; grid-template-columns: 1fr !important; gap: 12px !important;
+  }
+  .modal input, .modal select, .modal textarea,
+  input[type="text"], input[type="number"], input[type="email"],
+  input[type="password"], input[type="date"], input[type="datetime-local"],
+  input[type="time"], input[type="tel"], input[type="file"], select, textarea {
+    width: 100% !important; max-width: 100% !important; min-width: 0 !important;
+    min-height: 46px !important;
+    font-size: 16px !important;      /* 16px avoids iOS zoom-on-focus */
+    line-height: 1.3 !important;
+  }
+  textarea { min-height: 96px; }
+  label, .field-label, .label { display: block; margin-bottom: 6px; font-size: .88rem; font-weight: 600; }
+  .required, [data-required]::after { color: #d64545; }
+  .field-wrap { min-width: 0; }
+  input[type="date"], input[type="datetime-local"], input[type="time"] { min-width: 0 !important; }
+  /* Buttons never overflow */
+  .modal .btn, .form-actions .btn, .btn-block { width: 100%; }
+  .form-actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .att-btn, .att-btn-upload, .att-btn-cam { min-height: 44px; }
+}
+
+/* ---------- 7. MODALS: near-full-screen, scrollable, safe actions ---------- */
+@media (max-width: 640px) {
+  .modal-backdrop { padding: 8px !important; align-items: flex-end; }
+  .modal, .modal-lg, .modal-xl, #demandModal.modal-lg, #demandActionModal .modal, #consTxnModal .modal {
+    max-width: 100% !important; width: 100% !important;
+    max-height: 92dvh; height: auto;
+    border-radius: 16px 16px 8px 8px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .modal > .modal-body, .modal-body, .modal-content, .modal > div { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .modal-head, .modal-header { position: sticky; top: 0; z-index: 3; background: var(--card, #fff); }
+  .modal-close { position: sticky; top: 8px; }
+  .modal-foot, .modal-footer, .modal-actions {
+    position: sticky; bottom: 0; z-index: 3;
+    display: flex; gap: 10px; padding: 12px 14px;
+    background: var(--card, #fff); border-top: 1px solid rgba(15,42,74,.1);
+  }
+  .modal-foot .btn, .modal-footer .btn, .modal-actions .btn { flex: 1 1 0; margin: 0; }
+  /* Dropdowns inside modals must not exceed viewport */
+  .act-dd-menu, .stat-export-menu, .dropdown-menu {
+    max-width: calc(100vw - 24px); right: 0 !important; left: auto !important;
+  }
+}
+
+/* ---------- 8. NOTIFICATIONS PANEL & TOP BAR ---------- */
+@media (max-width: 640px) {
+  .notif-panel, #notifPanel {
+    position: fixed !important; inset: auto 0 0 0 !important;
+    width: 100% !important; max-width: 100% !important;
+    max-height: 80dvh; overflow-y: auto; border-radius: 16px 16px 0 0; z-index: 95;
+  }
+  .nav-manage-wrap, #manageNavMenu, .dropdown-menu { max-width: calc(100vw - 16px); }
+}
+
+/* ---------- 9. UTILITIES ---------- */
+@media (max-width: 768px) {
+  .hide-mobile { display: none !important; }
+  .desktop-only { display: none !important; }
+  .m-full { width: 100% !important; }
+  .m-mt { margin-top: 12px; }
+}
+@media (min-width: 1025px) {
+  .show-mobile, .m-only { display: none !important; }
+  /* Guarantee desktop sidebar is never left translated off-screen */
+  .sidebar { transform: none !important; }
+}
+
+
+
+
+
+
+/* ============================================================
+   TOP BAR — two rows on narrow screens (final override)
+   Row 1: hamburger + page name + district selector
+   Row 2: theme / language / live / notifications / manage / logout
+   Fixes: "DISTRICT:" wrapping to 3 lines, page title clipped to
+   "Da...", and the Logout button squeezed to ~25px.
+   ============================================================ */
+@media (max-width: 1024px) {
+  .topbar {
+    flex-wrap: wrap !important;
+    height: auto !important;
+    min-height: var(--topbar-h);
+    padding: 8px 12px !important;
+    row-gap: 6px; column-gap: 8px;
+  }
+  /* Row 1 */
+  .topbar-left {
+    order: 1; flex: 1 1 100% !important; min-width: 0;
+    gap: 8px !important;
+  }
+  #sidebarToggle { margin-right: 2px !important; }
+  .m-page-title {
+    flex: 1 1 auto !important;
+    min-width: 90px !important;
+    max-width: none !important;
+    font-size: .98rem;
+  }
+  .district-label {
+    display: inline-block !important;
+    white-space: nowrap !important;
+    font-size: .64rem;
+  }
+  .district-select { max-width: 34vw !important; flex: 0 1 auto; }
+
+  /* Row 2 */
+  .topbar-right {
+    order: 2; flex: 1 1 100% !important;
+    justify-content: flex-end;
+    gap: 8px !important;
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .topbar-right::-webkit-scrollbar { display: none; }
+  /* Buttons keep their full text instead of being crushed */
+  .topbar-right .btn,
+  .topbar-right button { flex: 0 0 auto !important; white-space: nowrap; }
+  .user-id-block { flex: 0 1 auto; min-width: 0; max-width: 42vw; }
+  .user-id-name, .user-id-role { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+  .district-badge { flex: 0 0 auto; }
+}
+
+
+
+
+/* ============================================================
+   Sticky header offset safety net
+   The JS measures --sticky-top, but if it runs before the two-row
+   topbar settles, tables can sit under the bar. This CSS fallback
+   guarantees the offset is never smaller than the real bar.
+   ============================================================ */
+@media (max-width: 1024px) {
+  :root { --sticky-min: 110px; }
+  .table-wrap table thead th {
+    top: max(var(--sticky-top, 0px), var(--sticky-min));
+  }
+}
+
+/* Desktop / "Desktop site" mode: the topbar is ONE row (58px). A sticky header
+   pushed further than the real bar height would sit on top of the first row,
+   so clamp the offset to the bar's true height there too. */
+@media (min-width: 1025px) {
+  table > thead > tr > th,
+  .table-wrap > table > thead > tr > th,
+  .dev-table-wrap > table > thead > tr > th {
+    top: var(--sticky-top, 0px);
+  }
+  /* Guarantee the header always sits ABOVE row 1, never over it:
+     give it its own layer and keep an opaque background. */
+  table > thead > tr > th {
+    z-index: 3;
+    background: var(--card, #fff);
+  }
+}
+
+/* ============================================================
+   TABLE CARDS — no spill above/below, compact, scroll-safe
+   Guarantees each card contains its own cells and never lets a
+   cell paint outside the card boundary.
+   ============================================================ */
+@media (max-width: 1024px) {
+  table.stacked tbody tr {
+    display: block !important;
+    position: relative;
+    overflow: hidden !important;      /* clip any cell that would spill out */
+    contain: paint;                  /* hard guarantee: nothing paints outside */
+    margin: 12px 8px !important;
+    border: 1px solid rgba(15,42,74,.14);
+    border-radius: 14px;
+    background: #fff;
+    padding: 6px 4px;
+  }
+  table.stacked tbody td {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100% !important;
+    min-width: 0;
+    padding: 7px 10px !important;
+    position: relative;
+    border: 0;
+    border-bottom: 1px solid rgba(15,42,74,.06);
+    background: transparent;
+    text-align: right;
+    overflow: hidden;
+  }
+  table.stacked tbody td:last-child { border-bottom: 0; }
+  /* label (data-th) on the left, value on the right — never overlapping */
+  table.stacked tbody td::before {
+    content: attr(data-th) !important;
+    flex: 0 0 auto;
+    max-width: 46%;
+    font-weight: 700;
+    font-size: .8rem;
+    color: #4a5568;
+    text-align: left;
+    line-height: 1.3;
+  }
+  table.stacked tbody td > * { min-width: 0; }
+}
+
+/* ==================================================================
+   PHONE: THE NAV BELONGS AT THE BOTTOM
+
+   The two halves of the responsive layout were fighting each other. The
+   drawer above (max-width: 1024px) sets position/top/left/bottom and a
+   translateX(-105%) with !important, and this file loads after styles.css.
+   styles.css also declares a bottom navigation bar, but at max-width: 768px
+   WITHOUT !important - so the drawer won everywhere and the bar never
+   rendered once. On a phone you got a hamburger opening a side drawer,
+   which is not what a row of nine destinations is for.
+
+   The two are now given their own ranges instead of overlapping:
+
+     769px - 1024px   side drawer + hamburger  (the block above)
+     0    - 768px     bottom bar, always visible, no hamburger
+
+   Every declaration the drawer makes is undone here, and each carries
+   !important precisely because the drawer it undoes used it too - the
+   specificity is identical, so source order settles it and this is later.
+
+   The items are the app's own .sidebar-link buttons. Their click handler in
+   app.js already calls switchTab with the button's data-tab, so a tap goes to
+   that icon's own page. Nothing about the navigation itself is changed here,
+   only where the bar sits and how the items are laid out inside it.
+   ================================================================== */
+@media (max-width: 768px) {
+  #sidebar {
+    position: fixed !important;
+    top: auto !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    /* undo the drawer: no sliding off screen, and always seen */
+    transform: none !important;
+    -webkit-transform: none !important;
+    visibility: visible !important;
+    overflow: visible !important;
+    flex: 0 0 auto !important;
+    flex-direction: column !important;
+    /* above the scrim and the page, below a dialog (z-index 10001) */
+    z-index: 95 !important;
+    border-top: 1px solid rgba(255,255,255,.12);
+    box-shadow: 0 -4px 24px rgba(15,23,42,.25);
+  }
+  #sidebar::after { display: none; }
+
+  /* the brand block and the user card are left-side furniture */
+  #sidebar .sidebar-brand,
+  #sidebar .sidebar-collapsed-logo,
+  #sidebar .sidebar-footer { display: none !important; }
+
+  /* one row of icons, scrollable sideways when they do not all fit */
+  #sidebar .sidebar-nav {
+    flex: none !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
+    gap: 2px;
+    padding: 5px 6px calc(5px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  #sidebar .sidebar-nav::-webkit-scrollbar { display: none; }
+
+  /* icon above its own label, 46px tall so a thumb can hit it */
+  #sidebar .sidebar-link {
+    flex: 0 0 auto !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 3px;
+    min-width: 54px;
+    min-height: 46px;
+    padding: 6px 8px;
+    text-align: center;
+    transform: none !important;
+    color: rgba(255,255,255,.6);
+  }
+  #sidebar .sidebar-link:hover { transform: none; color: #fff; }
+  #sidebar .sidebar-link svg { width: 19px; height: 19px; opacity: .9; flex-shrink: 0; }
+  #sidebar .sidebar-link span {
+    /* the collapsed rail hides this label; in the bar it is the point */
+    display: block !important;
+    font-size: .58rem;
+    line-height: 1.15;
+    font-weight: 600;
+    max-width: 66px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #sidebar .sidebar-link.active { background: rgba(255,255,255,.1); color: #fff; }
+  #sidebar .sidebar-link.active svg { opacity: 1; color: var(--gold); }
+  /* the left-edge marker of a side rail becomes a top-edge marker here */
+  #sidebar .sidebar-link.active::before {
+    left: 50% !important;
+    top: 0 !important;
+    transform: translateX(-50%) !important;
+    width: 26px;
+    height: 3px;
+    border-radius: 0 0 4px 4px;
+  }
+  #sidebar .sidebar-link .demand-dot {
+    position: absolute !important;
+    top: 4px !important;
+    right: 6px !important;
+    transform: none !important;
+  }
+
+  /* a bar that is always on screen has nothing to toggle, and the scrim
+     that dims the page for a drawer is not wanted either */
+  #topbar .sidebar-toggle { display: none !important; }
+  .m-scrim { display: none !important; }
+
+  /* room at the foot of the page so the last row is never trapped
+     behind the bar */
+  .content-area {
+    padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+

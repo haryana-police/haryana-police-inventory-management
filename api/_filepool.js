@@ -17,6 +17,8 @@ const path = require('path');
 
 const DATA_DIR = path.join(__dirname, '..', 'local-data');
 const DATA_FILE = path.join(DATA_DIR, 'db.json');
+// The shareable, real-data-free copy that ships with the project.
+const DEMO_FILE = path.join(DATA_DIR, 'db.demo.json');
 const FILE_DB_NOTIFY_CBS = new Set();
 
 function safeParse(v, d) {
@@ -30,7 +32,29 @@ class FilePool {
     this._load();
   }
   _empty() { return { app_state: null, rt_seq: 0, rt_events: [], rt_dedupe: {} }; }
+
+  // First run on a fresh clone: db.json does not exist, because it holds the
+  // real data and is deliberately not kept in the repository. The demo copy
+  // is, so it is used to stand the app up - otherwise a new user starts with
+  // an empty database and sees nothing. Only ever a first run: an existing
+  // db.json, however small, is the user's own and is never overwritten.
+  _seedFromDemo() {
+    try {
+      if (fs.existsSync(DATA_FILE)) return false;
+      if (!fs.existsSync(DEMO_FILE)) return false;
+      const demo = JSON.parse(fs.readFileSync(DEMO_FILE, 'utf8'));
+      if (!demo || typeof demo !== 'object') return false;
+      fs.writeFileSync(DATA_FILE, JSON.stringify(demo));
+      console.log('[filedb] no db.json found - started from the bundled demo data.');
+      console.log('[filedb] every account in it uses the password demo@123.');
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   _load() {
+    this._seedFromDemo();
     try { this.db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch (e) { this.db = null; }
     if (!this.db || typeof this.db !== 'object') this.db = this._empty();
     if (typeof this.db.app_state !== 'object' || this.db.app_state === null) this.db.app_state = {};

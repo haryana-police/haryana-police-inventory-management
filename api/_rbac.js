@@ -475,7 +475,7 @@ function sanitizeMaintenanceRecord(record) {
   return r;
 }
 
-module.exports = { diffStructureWrites, authorizeStructureWrites, diffConsumableWrites, authorizeConsumableWrites, ITEM_STORE_KEY, DISTRIBUTION_KEY_PREFIX, CONTENT_FIELDS, stableStringify, itemFingerprint, diffItemWrites, distributionExemptKeys, authorizeItemWrites, authorizeUserCollectionWrite, authorizeMaintenanceWrites, finishMaintenanceRecord, sanitizeMaintenanceRecord };
+module.exports = { projectStateFor, restoreScopeFor, diffStructureWrites, authorizeStructureWrites, diffConsumableWrites, authorizeConsumableWrites, ITEM_STORE_KEY, DISTRIBUTION_KEY_PREFIX, CONTENT_FIELDS, stableStringify, itemFingerprint, diffItemWrites, distributionExemptKeys, authorizeItemWrites, authorizeUserCollectionWrite, authorizeMaintenanceWrites, finishMaintenanceRecord, sanitizeMaintenanceRecord };
 
 
 // ============================================================
@@ -495,6 +495,201 @@ module.exports = { diffStructureWrites, authorizeStructureWrites, diffConsumable
 const CONS_ITEMS_KEY = 'hp_inventory.consumable_items';
 const CONS_TXNS_KEY = 'hp_inventory.consumable_txns';
 const CONS_TYPES = { ADD: 1, DISTRIBUTION_REQUEST: 1, DISTRIBUTION_APPROVED: 1, DISTRIBUTION_REJECTED: 1, LOSS: 1 };
+
+// ---------------------------------------------------------------------------
+// READ SCOPE
+//
+// Every write in this file is authorised against the session, but a read was
+// not: the whole document went out to whoever asked. An Inspector General's
+// browser was being handed the districts it has no business seeing, and the
+// only thing hiding them was the interface.
+//
+// projectStateFor returns what a user is allowed to be shown. restoreScopeFor
+// is its other half, and the two have to be used together. The browser is a
+// document store: it takes this state, edits it, and posts the lot back. If it
+// were shown less and wrote back only what it was shown, every district it was
+// not shown would be deleted. So a scoped write keeps the parts it was never
+// offered and merges the rest.
+//
+// Structure is deliberately left whole. Without a district a user can see, the
+// app cannot build a report of a district in scope - stock that was distributed
+// from here arrives there - and naming a district is not the same as naming a
+// record inside it. The rows that carry stock, staff and money are the ones
+// withheld.
+// ---------------------------------------------------------------------------
+
+const D_USER_KEY = 'hp_inventory.users';
+const D_DISTRICTS_KEY = 'hp_inventory.districts';
+const D_LOCATIONS_KEY = 'hp_inventory.locations';
+const D_ITEMS_KEY = 'hp_inventory.items';
+const D_CATEGORIES_KEY = 'hp_inventory.categories';
+const D_CONS_CATEGORIES_KEY = 'hp_inventory.cons_categories';
+const D_PERSONS_KEY = 'hp_inventory.persons';
+const D_ALLOTMENTS_KEY = 'hp_inventory.allotments';
+const D_ACCESS_REQUESTS_KEY = 'hp_inventory.accessRequests';
+const D_ITEM_PHOTOS_KEY = 'hp_inventory.itemPhotos';
+const D_PERSON_PHOTOS_KEY = 'hp_inventory.personPhotos';
+const D_PER_DISTRICT = [D_ITEMS_KEY, D_CATEGORIES_KEY, D_CONS_CATEGORIES_KEY, D_LOCATIONS_KEY];
+const D_SUFFIXED = '_dist_';
+
+function dArr(v) { return Array.isArray(v) ? v : []; }
+function dObj(v) { return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; }
+
+// Which districts a user may be shown. null means every district, and is the
+// Developer Admin's case; an empty list means the user is attached to no
+// district and so sees no district's records.
+function dScope(user) {
+  // No user at all is not the same as a user attached to no district. An
+  // unauthenticated write is the legacy document-store path and is deliberately
+  // left unnarrowed. Treating it as an empty scope would make every part of the
+  // document count as out of scope, restore all of it, and quietly throw the
+  // write away - a write that appears to succeed and changes nothing.
+  if (!user) return null;
+  const list = userDistricts(user);
+  return list === null ? null : dArr(list);
+}
+
+// A photo record names its owner with an item or person id, and that id is
+// built from the district it belongs to, so the owner is found by matching the
+// id rather than by trusting a field the record does not carry.
+function dPhotoOwnerIn(key, record) {
+  if (record && typeof record === 'object' && !Array.isArray(record)) {
+    if (record.districtId) return record.districtId;
+    if (record.itemId) return record.itemId;
+    if (record.personId) return record.personId;
+  }
+  if (key) {
+    const s = String(key);
+    const i = s.indexOf(D_SUFFIXED);
+    if (i > 0) return s.slice(0, i);
+    const m = s.match(/^gg_([a-z0-9]+)/i);
+    if (m) return 'dist_' + m[1];
+  }
+  return null;
+}
+
+// The read. Returns a copy; nothing the caller holds is touched.
+function projectStateFor(user, state) {
+  const scope = dScope(user);
+  if (scope === null || !state || typeof state !== 'object') return state;
+  const selfId = (user && user.id) || null;
+  const allowed = dArr(scope);
+  const inScope = (id) => allowed.indexOf(id) >= 0;
+  const out = {};
+  for (const key of Object.keys(state)) {
+    const value = state[key];
+    if (key === D_USER_KEY) {
+      out[key] = dArr(value).filter((u) => inScope(u && u.districtId) || (selfId && u && u.id === selfId));
+      continue;
+    }
+    if (key === D_PERSONS_KEY || key === D_ALLOTMENTS_KEY || key === D_ACCESS_REQUESTS_KEY) {
+      out[key] = dArr(value).filter((r) => inScope(r && r.districtId));
+      continue;
+    }
+    if (D_PER_DISTRICT.indexOf(key) >= 0) {
+      const src = dObj(value);
+      const bucket = {};
+      for (const d of allowed) if (Object.prototype.hasOwnProperty.call(src, d)) bucket[d] = src[d];
+      out[key] = bucket;
+      continue;
+    }
+    if (key.indexOf(D_SUFFIXED) >= 0) {
+      const idx = key.indexOf(D_SUFFIXED);
+      if (inScope(key.slice(0, idx))) out[key] = value;
+      continue;
+    }
+    if (key === D_ITEM_PHOTOS_KEY || key === D_PERSON_PHOTOS_KEY) {
+      const src = dObj(value);
+      const bucket = {};
+      for (const k of Object.keys(src)) if (inScope(dPhotoOwnerIn(k, src[k]))) bucket[k] = src[k];
+      out[key] = bucket;
+      continue;
+    }
+    out[key] = value;
+  }
+  return out;
+}
+
+// The write. Everything the reader was not shown is put back exactly as it was,
+// so a scoped client can change what it can see and nothing else. A client that
+// was shown everything - the Developer Admin - takes the document as sent.
+
+// Records are stitched back together as `held` (what the caller never saw)
+// followed by what the caller sent. Those two sets are meant to be disjoint:
+// held is everything out of scope, the caller's own list is everything in it.
+// They stopped being disjoint because the save response used to hand the
+// caller the whole restored document instead of its own slice, so the caller
+// held out-of-scope records too and sent them back - and each one was then
+// held AND received, doubling on every single save.
+//
+// The response is fixed at the other end, but the stitch is where a duplicate
+// becomes permanent, so it is made idempotent here as well: keyed by id, the
+// caller's own version wins (it is the one they just edited), and held fills
+// only the ids that are genuinely missing. A record with no id is kept - it
+// cannot be told apart from another - rather than silently dropped.
+function __stitchUnique(held, sent) {
+  const out = [];
+  const index = new Map();
+  const push = (r) => {
+    if (!r || typeof r !== 'object') return;
+    const id = r.id;
+    if (id === undefined || id === null || id === '') { out.push(r); return; }
+    const at = index.get(id);
+    if (at === undefined) { index.set(id, out.length); out.push(r); return; }
+    out[at] = r; // the caller's own version of this record is the newer one
+  };
+  for (const r of held) push(r);
+  for (const r of sent) push(r);
+  return out;
+}
+
+function restoreScopeFor(user, current, incoming) {
+  const scope = dScope(user);
+  if (scope === null || !current || typeof current !== 'object' || !incoming || typeof incoming !== 'object') return incoming;
+  const selfId = (user && user.id) || null;
+  const allowed = dArr(scope);
+  const inScope = (id) => allowed.indexOf(id) >= 0;
+  const out = Object.assign({}, incoming);
+  for (const key of Object.keys(current)) {
+    const cur = current[key];
+    if (key === D_USER_KEY) {
+      const held = dArr(cur).filter((u) => !inScope(u && u.districtId) && !(selfId && u && u.id === selfId));
+      if (held.length) out[key] = __stitchUnique(held, dArr(out[key]));
+      continue;
+    }
+    if (key === D_PERSONS_KEY || key === D_ALLOTMENTS_KEY || key === D_ACCESS_REQUESTS_KEY) {
+      const held = dArr(cur).filter((r) => !inScope(r && r.districtId));
+      if (held.length) out[key] = __stitchUnique(held, dArr(out[key]));
+      continue;
+    }
+    if (D_PER_DISTRICT.indexOf(key) >= 0) {
+      const src = dObj(cur);
+      const bucket = Object.assign({}, dObj(out[key]));
+      for (const d of Object.keys(src)) {
+        if (inScope(d)) continue;
+        bucket[d] = src[d];
+      }
+      out[key] = bucket;
+      continue;
+    }
+    if (key.indexOf(D_SUFFIXED) >= 0) {
+      const idx = key.indexOf(D_SUFFIXED);
+      if (!inScope(key.slice(0, idx))) out[key] = cur;
+      continue;
+    }
+    if (key === D_ITEM_PHOTOS_KEY || key === D_PERSON_PHOTOS_KEY) {
+      const src = dObj(cur);
+      const bucket = Object.assign({}, dObj(out[key]));
+      for (const k of Object.keys(src)) {
+        if (inScope(dPhotoOwnerIn(k, src[k]))) continue;
+        bucket[k] = src[k];
+      }
+      out[key] = bucket;
+      continue;
+    }
+  }
+  return out;
+}
 
 function __consMap(state, key) {
   const v = state && state[key];
