@@ -4754,6 +4754,73 @@ const MAINT_PHOTO_MAX = 4;
 const MAINT_PHOTO_LIMIT = 4 * 1024 * 1024;
 let __maintPhotos = []; // {id, name, mime, size, dataUrl}
 
+/* The full, unrestricted list of maintenance types, kept in code as well as in
+   the markup. __maintApplyTypeOptions() re-renders the dropdown from this when
+   the list has to be narrowed, so the options never have to be parsed back out
+   of the DOM and the two copies cannot drift apart. */
+const __MAINT_TYPE_OPTIONS_HTML = '<option value="">Select type...</option>'
+  + '<option value="plumber">Plumber</option>'
+  + '<option value="electrician">Electrician</option>'
+  + '<option value="carpenter">Carpenter</option>'
+  + '<option value="mason">Mason / Civil Work</option>'
+  + '<option value="computer_it">Computer / IT</option>'
+  + '<option value="vehicle">Vehicle</option>'
+  + '<option value="other">Other</option>';
+
+
+/* Which maintenance types this account may raise.
+   A request is routed by type: Computer/IT goes to the district's IT staff
+   account and Vehicle to its MTO staff account. Every other type falls back to
+   the District Admin - so for a District Admin it would be a request sent to
+   themselves, sitting in their own queue with nobody able to act on it. They
+   are therefore limited to the two types that actually reach somebody.
+   Everyone else - units, IT staff, MTO staff - raises from their own unit and
+   keeps the full list. The server enforces the same rule; this only keeps the
+   form from offering a choice that is going to be refused. */
+const __MAINT_ADMIN_TYPES = ["computer_it", "vehicle"];
+function __maintAllowedTypes() {
+  return currentUser && currentUser.role === "admin" ? __MAINT_ADMIN_TYPES : null;
+}
+function __maintTypeAllowed(type) {
+  const allowed = __maintAllowedTypes();
+  return !allowed || !type || allowed.indexOf(type) >= 0;
+}
+function __maintTypeRefusal(type) {
+  const shown = type === "other" && ($("#maintTypeOther") || {}).value
+    ? '"' + String($("#maintTypeOther").value).trim() + '"'
+    : (type ? '"' + type + '"' : "that type");
+  return "A District Admin can only raise a Computer/IT or a Vehicle maintenance request, "
+    + "because any other type is routed back to the District Admin themselves. "
+    + "Please raise " + shown + " from the requesting unit instead, or change the type.";
+}
+// Narrows the type dropdown to exactly what this account may pick. For a
+// District Admin the other types are not shown at all rather than shown and
+// greyed out: a list of choices that cannot be chosen is a worse answer than a
+// short list. The dropdown is restored to the full list for everyone else, so
+// signing in as a different role in the same tab does not leave it short.
+function __maintApplyTypeOptions() {
+  const sel = $("#maintType");
+  if (!sel) return;
+  const allowed = __maintAllowedTypes();
+  if (!allowed) {
+    if (sel.dataset.narrowed === "1") {
+      sel.innerHTML = __MAINT_TYPE_OPTIONS_HTML;
+      delete sel.dataset.narrowed;
+    }
+    return;
+  }
+  // The labels are read out of the full list rather than typed again here, so
+  // renaming a type in one place renames it in both.
+  const label = (v) => {
+    const m = __MAINT_TYPE_OPTIONS_HTML.match(new RegExp('<option value="' + v + '">([^<]*)</option>'));
+    return m ? m[1] : v;
+  };
+  sel.dataset.narrowed = "1";
+  sel.innerHTML = '<option value="">Select type...</option>'
+    + allowed.map(v => '<option value="' + v + '">' + label(v) + '</option>').join("");
+  sel.value = "";
+}
+
 function openMaintenanceModal() {
   if (!currentUser) return toast("Please login first.", "error");
   if (!__maintCanCreate()) return toast("Only requesting units can raise maintenance requests.", "error");
@@ -4764,6 +4831,7 @@ function openMaintenanceModal() {
   if (!loc) return toast("Your unit location could not be found. Contact the Developer Admin.", "error");
   const rt = $("#maintRequestTo"), rb = $("#maintRequestingBy");
   const type = $("#maintType");
+  __maintApplyTypeOptions();
   if (type) type.value = "";
   __maintUpdateRequestTo();
   if (rb) rb.value = (currentUser.name || currentUser.username) + (loc ? " \u2014 " + loc.name : "");
@@ -4994,6 +5062,10 @@ async function saveMaintenanceRequest(e) {
   const loc = getLocations().find(l => l.id === locId);
   if (!loc) return toast("Your unit location could not be found.", "error");
   if (!typeVal) return toast("Please select a maintenance type.", "error");
+  // Checked here as well as in the dropdown, because the dropdown only stops a
+  // type being picked - it cannot stop a form that was already open when the
+  // account changed, or a value put there by anything else.
+  if (!__maintTypeAllowed(typeVal)) return toast(__maintTypeRefusal(typeVal), "error");
   if (typeVal === "other" && !customType) return toast('Please specify the maintenance type under "Other".', "error");
   if (!desc) return toast("Please describe the maintenance required.", "error");
   if (desc.length < 10) return toast("Description should be at least 10 characters long.", "error");

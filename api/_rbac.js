@@ -331,6 +331,7 @@ function authorizeUserCollectionWrite(user, currentUsers, incomingUsers) {
 
 // Maintenance requests (per-district array records stored under
 // hp_inventory.maintenance_<districtId>). These are NOT inventory records and
+const MAINT_KEY_PREFIX = 'hp_inventory.maintenance_';
 // move through an independent workflow, so they get their own write guard:
 //   create          (status pending)        — a requesting-unit user
 //                                           (role station/mhc/post/tsi) or
@@ -370,6 +371,32 @@ function authorizeMaintenanceWrites(user, writes) {
     return fail(403, 'RBAC_MAINT_DELETE_FORBIDDEN',
       'Maintenance requests cannot be deleted; mark the request complete or processed instead.',
       { id: victim && victim.id });
+  }
+
+  // The routing model decides who a request can usefully go to: Computer/IT
+  // goes to the IT staff account and Vehicle to the MTO staff account, both
+  // created automatically for every district. Every other type falls back to
+  // the District Admin - which, when the District Admin is the one raising it,
+  // means sending the request to themselves.
+  //
+  // So a District Admin may only raise the two types that actually reach
+  // somebody. Anything else is refused here rather than being accepted and then
+  // sitting in their own queue with nobody able to act on it. The check is on
+  // the server because that is the gate the UI cannot get past: the form is
+  // only a convenience, and a stale or hand-built request must meet the same
+  // rule.
+  const ADMIN_ROUTED_TYPES = ['computer_it', 'vehicle'];
+  for (const w of writes.adds) {
+    const r = w.item || {};
+    if (user.role === 'admin' && r.maintenanceType && ADMIN_ROUTED_TYPES.indexOf(r.maintenanceType) < 0) {
+      const label = r.maintenanceType === 'other' && r.customType
+        ? '"' + r.customType + '"'
+        : '"' + r.maintenanceType + '"';
+      return fail(403, 'RBAC_MAINT_TYPE_FORBIDDEN',
+        'A District Admin can only raise a Computer/IT or a Vehicle maintenance request, because every other type is routed back to the District Admin themselves. '
+        + 'Please raise ' + label + ' from the requesting unit instead, or change the type to Computer/IT or Vehicle.',
+        { maintenanceType: r.maintenanceType, allowed: ADMIN_ROUTED_TYPES, id: r.id });
+    }
   }
 
   for (const w of writes.adds) {
@@ -475,7 +502,7 @@ function sanitizeMaintenanceRecord(record) {
   return r;
 }
 
-module.exports = { projectStateFor, restoreScopeFor, diffStructureWrites, authorizeStructureWrites, diffConsumableWrites, authorizeConsumableWrites, ITEM_STORE_KEY, DISTRIBUTION_KEY_PREFIX, CONTENT_FIELDS, stableStringify, itemFingerprint, diffItemWrites, distributionExemptKeys, authorizeItemWrites, authorizeUserCollectionWrite, authorizeMaintenanceWrites, finishMaintenanceRecord, sanitizeMaintenanceRecord };
+module.exports = { projectStateFor, restoreScopeFor, diffStructureWrites, authorizeStructureWrites, diffConsumableWrites, authorizeConsumableWrites, diffMaintenanceWrites, finalizeMaintenanceState, MAINT_KEY_PREFIX, ITEM_STORE_KEY, DISTRIBUTION_KEY_PREFIX, CONTENT_FIELDS, stableStringify, itemFingerprint, diffItemWrites, distributionExemptKeys, authorizeItemWrites, authorizeUserCollectionWrite, authorizeMaintenanceWrites, finishMaintenanceRecord, sanitizeMaintenanceRecord };
 
 
 // ============================================================
@@ -593,6 +620,17 @@ function projectStateFor(user, state) {
       out[key] = bucket;
       continue;
     }
+    // Same suffix trap as on the write side, and it matters just as much here:
+    // "hp_inventory.maintenance_dist_1" also ends in "_dist_", so the district
+    // was read as the whole prefix "hp_inventory.maintenance", which is in no
+    // one's scope. The key was then dropped and the caller was never shown a
+    // single maintenance request - the page had nothing to list, which is why a
+    // request the app accepted could not be seen afterwards. The district is
+    // taken off the end of the key instead.
+    if (key.indexOf(MAINT_KEY_PREFIX) === 0) {
+      if (inScope(key.slice(MAINT_KEY_PREFIX.length))) out[key] = value;
+      continue;
+    }
     if (key.indexOf(D_SUFFIXED) >= 0) {
       const idx = key.indexOf(D_SUFFIXED);
       if (inScope(key.slice(0, idx))) out[key] = value;
@@ -672,6 +710,22 @@ function restoreScopeFor(user, current, incoming) {
       out[key] = bucket;
       continue;
     }
+    // Maintenance keys are per district too, but their name ends in
+    // "_dist_<id>", so the suffix rule below used to catch them first and treat
+    // the whole prefix - "hp_inventory.maintenance" - as if it were a district
+    // id. It never is, so the key always looked out of scope and the stored
+    // value was put back over whatever the client had sent. A maintenance
+    // request raised in the app was therefore discarded here, silently, before
+    // any rule could look at it - which is also why the maintenance gate never
+    // fired. The district is taken off the end of the key here and the same
+    // in-scope test applied to it, so a request for a district you belong to
+    // goes through and one for anywhere else does not.
+    if (key.indexOf(MAINT_KEY_PREFIX) === 0) {
+      const maintDistId = key.slice(MAINT_KEY_PREFIX.length);
+      if (inScope(maintDistId)) continue;   // the caller's own district: theirs to change
+      out[key] = cur;                      // someone else's: put back what was stored
+      continue;
+    }
     if (key.indexOf(D_SUFFIXED) >= 0) {
       const idx = key.indexOf(D_SUFFIXED);
       if (!inScope(key.slice(0, idx))) out[key] = cur;
@@ -687,6 +741,68 @@ function restoreScopeFor(user, current, incoming) {
       out[key] = bucket;
       continue;
     }
+  }
+  return out;
+}
+
+// Classifies every maintenance change between two state blobs.
+//
+// Maintenance lives in one key PER DISTRICT - hp_inventory.maintenance_<id> -
+// rather than in a single map, so each of those keys is scanned separately and
+// the district it belongs to is read off the key itself. That is also what
+// makes the check below meaningful: a request is only ever compared against the
+// records of the district whose key it arrived in.
+//
+// The shape matches what authorizeMaintenanceWrites() expects: adds, edits and
+// deletes, each carrying the record under `item` and, for an edit, what it
+// looked like before under `prev`. The districtId is on the record itself and
+// is deliberately NOT taken from the key, because that is the field the rules
+// check - a record filed under one district's key but claiming another is
+// exactly the case that has to be caught rather than assumed correct.
+function diffMaintenanceWrites(prevState, nextState) {
+  const writes = { adds: [], edits: [], deletes: [], hasWrites: false };
+  const prev = (prevState && typeof prevState === 'object') ? prevState : {};
+  const next = (nextState && typeof nextState === 'object') ? nextState : {};
+  const keys = new Set();
+  for (const k of Object.keys(prev)) if (k.indexOf(MAINT_KEY_PREFIX) === 0) keys.add(k);
+  for (const k of Object.keys(next)) if (k.indexOf(MAINT_KEY_PREFIX) === 0) keys.add(k);
+  for (const key of keys) {
+    const districtId = key.slice(MAINT_KEY_PREFIX.length);
+    const prevList = dArr(prev[key]);
+    const nextList = dArr(next[key]);
+    const prevById = new Map(prevList.map(r => [r && r.id, r]));
+    const nextById = new Map(nextList.map(r => [r && r.id, r]));
+    for (const [id, rec] of nextById) {
+      if (!id || !rec) continue;
+      const before = prevById.get(id);
+      if (!before) writes.adds.push({ districtId, item: rec, kind: 'maintenance' });
+      else if (stableStringify(before) !== stableStringify(rec)) {
+        writes.edits.push({ districtId, item: rec, prev: before, kind: 'maintenance' });
+      }
+    }
+    for (const [id, rec] of prevById) {
+      if (!rec) continue;
+      if (!nextById.has(id)) writes.deletes.push({ districtId, item: rec, kind: 'maintenance' });
+    }
+  }
+  writes.hasWrites = (writes.adds.length + writes.edits.length + writes.deletes.length) > 0;
+  return writes;
+}
+
+// Normalises a whole state so every maintenance record in it is in the shape the
+// client expects and no client-supplied history survives. Called after the
+// writes have been authorised and before the state is stored, so what is saved
+// is the server's version of the record rather than the one that arrived.
+function finalizeMaintenanceState(user, prevState, nextState) {
+  const out = Object.assign({}, nextState);
+  for (const key of Object.keys(out)) {
+    if (key.indexOf(MAINT_KEY_PREFIX) !== 0) continue;
+    const prevList = dArr((prevState || {})[key]);
+    const prevById = new Map(prevList.map(r => [r && r.id, r]));
+    out[key] = dArr(out[key]).map((rec) => {
+      const clean = sanitizeMaintenanceRecord(rec);
+      return clean ? finishMaintenanceRecord(user, prevById.get(rec.id), clean) : clean;
+    });
   }
   return out;
 }

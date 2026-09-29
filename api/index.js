@@ -18,7 +18,7 @@
 const { Pool } = require('./_filepool');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { projectStateFor, restoreScopeFor, ITEM_STORE_KEY, diffItemWrites, authorizeItemWrites, authorizeUserCollectionWrite, diffConsumableWrites, authorizeConsumableWrites, diffStructureWrites, authorizeStructureWrites } = require('./_rbac');
+const { projectStateFor, restoreScopeFor, ITEM_STORE_KEY, diffItemWrites, authorizeItemWrites, authorizeUserCollectionWrite, diffConsumableWrites, authorizeConsumableWrites, diffStructureWrites, authorizeStructureWrites, diffMaintenanceWrites, authorizeMaintenanceWrites, finalizeMaintenanceState, MAINT_KEY_PREFIX } = require('./_rbac');
 const pool = new Pool();
 
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
@@ -904,6 +904,30 @@ function validateAllocState(state) {
       console.warn('[rbac] structure write denied:', rbacUser ? rbacUser.username + ' (' + rbacUser.role + ')' : 'anonymous', JSON.stringify({ code: structVerdict.code, error: structVerdict.error }));
       return res.status(structVerdict.status || 403).json({ error: structVerdict.error, code: structVerdict.code || 'RBAC_STRUCT_FORBIDDEN' });
     }
+    // RBAC GATE (maintenance).
+    // This gate was written but never called, which meant every rule in it -
+    // no deleting a request, no raising one for another unit, no forging a
+    // history, no jumping a status, and the District Admin type limit - was
+    // enforced by the form alone. The form is a convenience: a request posted
+    // straight at this endpoint went through, because nothing here looked at
+    // it. It is placed with the other gates, before anything is written, and it
+    // sees the SAME user object they do, so a role the form does not offer
+    // cannot be used to slip past.
+    const maintVerdict = authorizeMaintenanceWrites(
+      rbacUser ? { id: rbacUser.id, username: rbacUser.username, role: rbacUser.role, locationId: rbacUser.locationId, districtId: rbacUser.districtId, districtIds: rbacUser.districtIds } : null,
+      diffMaintenanceWrites(current, incoming)
+    );
+    if (maintVerdict && maintVerdict.ok !== true) {
+      console.warn('[rbac] maintenance write denied:', rbacUser ? rbacUser.username + ' (' + rbacUser.role + ')' : 'anonymous', JSON.stringify({ code: maintVerdict.code, error: maintVerdict.error }));
+      return res.status(maintVerdict.status || 403).json({ error: maintVerdict.error, code: maintVerdict.code || 'RBAC_MAINT_FORBIDDEN', detail: maintVerdict.detail || null });
+    }
+    // The history and the actor fields on a maintenance record are the server's
+    // to write, not the client's. Rebuilt here from what was just authorised, so
+    // a request cannot arrive with a history that says somebody else did it.
+    const incomingFinal = finalizeMaintenanceState(
+      rbacUser ? { username: rbacUser.username, name: rbacUser.name } : null,
+      current, incoming
+    );
     // Category-store shape guard (2026.09.213): once "categories" /
     // "cons_categories" have migrated to per-district maps, a stale client
     // (old cached bundle) must never overwrite them with a flat array â€” that
@@ -930,6 +954,18 @@ function validateAllocState(state) {
     }
     const verr = validateAllocState(incoming);
     if (verr) return res.status(400).json({ error: verr });
+    // Only the maintenance keys are taken from the finalised document, never
+    // the whole of it. finalising captures the state as it arrived, which is
+    // BEFORE the password merge below runs, so copying the whole document back
+    // over `incoming` replaced the freshly merged user list with the raw one
+    // the client sent - and with it, every password the server had just put
+    // back. Ten accounts were left unable to sign in.
+    for (const k of Object.keys(incoming)) {
+      if (k.indexOf(MAINT_KEY_PREFIX) === 0) delete incoming[k];
+    }
+    for (const k of Object.keys(incomingFinal)) {
+      if (k.indexOf(MAINT_KEY_PREFIX) === 0) incoming[k] = incomingFinal[k];
+    }
     await setState(incoming);
     // Publish realtime events by diffing what changed between the
     // previously stored state and the incoming state (server = source of
@@ -962,8 +998,9 @@ function validateAllocState(state) {
     if (!body.key || !body.value) return res.status(400).json({ error: 'key and value required' });
     const isUsersWrite = body.key === 'hp_inventory.users' || body.key === TOKEN_KEY;
     const isItemsWrite = body.key === ITEM_STORE_KEY;
+    const isMaintenanceWrite = body.key.indexOf(MAINT_KEY_PREFIX) === 0;
     let nextAll = null; // normalised items map for item key-writes (legacy arrays are merged)
-    if (isUsersWrite || isItemsWrite) {
+    if (isUsersWrite || isItemsWrite || isMaintenanceWrite) {
       const { user } = await authFromRequest(req);
       if (!user) return res.status(401).json({ error: 'Not authenticated' });
       if (isUsersWrite && body.key === 'hp_inventory.users' && Array.isArray(body.value)) {
@@ -1010,6 +1047,20 @@ function validateAllocState(state) {
           });
         }
       }
+      if (isMaintenanceWrite) {
+        // The same gate the whole-state save uses, applied to this one key.
+        // Diffed against what is actually stored rather than against what the
+        // client says it started from, so the comparison cannot be talked round.
+        const stateNow = await getState();
+        const mVerdict = authorizeMaintenanceWrites(
+          { id: user.id, username: user.username, role: user.role, locationId: user.locationId, districtId: user.districtId, districtIds: user.districtIds },
+          diffMaintenanceWrites(stateNow, { [body.key]: body.value })
+        );
+        if (mVerdict && mVerdict.ok !== true) {
+          console.warn('[rbac] maintenance key-write denied:', `${user.username} (${user.role})`, JSON.stringify({ code: mVerdict.code }));
+          return res.status(mVerdict.status || 403).json({ error: mVerdict.error, code: mVerdict.code || 'RBAC_MAINT_FORBIDDEN', detail: mVerdict.detail || null });
+        }
+      }
     }
     const state = await getState();
     if (body.key === 'hp_inventory.users' && Array.isArray(body.value)) {
@@ -1021,6 +1072,15 @@ function validateAllocState(state) {
       // Persist the NORMALISED items map (legacy array writes are merged under
       // the caller's district) so the store keeps its {districtId: [...]} shape.
       state[body.key] = nextAll;
+    } else if (isMaintenanceWrite) {
+      // Same rules as a whole-state save, reached by a different door. Left out,
+      // a caller could raise or complete a maintenance request through this
+      // endpoint with the form's restrictions never consulted. The stored value
+      // is the finalised one, so the history on the record is the server's.
+      state[body.key] = (finalizeMaintenanceState(
+        user ? { username: user.username, name: user.name } : null,
+        state, { [body.key]: body.value }
+      ))[body.key];
     } else {
       state[body.key] = body.value;
     }
@@ -1123,11 +1183,20 @@ function usersEqual(a, b) {
 
 // Returns a users array whose plaintext passwords have been hashed; any
 // existing bcrypt hashes (e.g. from prior saves) are preserved by id.
+//
+// A record that arrives with no password AND has no stored counterpart is
+// dropped rather than saved. It could never be signed into - the login path
+// compares against a hash, and there is none - so storing it only produces an
+// account that exists, shows in every list, and locks its owner out. Ten such
+// rows appeared once because the record could not be matched to a stored one
+// by id; keeping them out is the point.
 async function mergeUsers(incoming, existing) {
   const existingById = {};
-  for (const u of existing || []) existingById[u.id] = u;
+  for (const u of existing || []) if (u && u.id) existingById[u.id] = u;
   const out = [];
+  let dropped = 0;
   for (const u of incoming || []) {
+    if (!u || typeof u !== 'object') { dropped++; continue; }
     const copy = { ...u };
     const prev = existingById[u.id];
     if (copy.password) {
@@ -1142,9 +1211,16 @@ async function mergeUsers(incoming, existing) {
       copy.password = prev.password.startsWith('$2')
         ? prev.password
         : await bcrypt.hash(prev.password, BCRYPT_ROUNDS);
+    } else {
+      // No password came in and none is stored for this id. There is nothing
+      // this account could be signed into with, so it is not kept.
+      console.warn('[users] dropped record with no password and no stored hash: id=' + (u.id || '?') + ' username=' + (u.username || '?'));
+      dropped++;
+      continue;
     }
     out.push(copy);
   }
+  if (dropped) console.warn('[users] ' + dropped + ' user record(s) dropped for having no usable password');
   return out;
 }
 
