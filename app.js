@@ -317,11 +317,10 @@ const __SORT_DEFS = {
   inv: {
     cols: [
       i => i.name,
-      (i, c) => (c.cats.get(i.categoryId) || {}).name || "",
       (i, c) => { if (c.cond) { const cc = i.conditionCounts || { good: i.quantity, poor: 0, damaged: 0 }; return cc[c.cond] || 0; } const h = i.history || []; const last = h[h.length - 1]; return last ? (Number(last.qty) || 0) : null; },
       (i, c) => (c.locs.get(i.locationId) || {}).name || "",
       i => (i.conditionCounts || {}).good || 0,
-
+      (i, c) => { const cc = i.conditionCounts || { good: i.quantity, poor: 0, damaged: 0 }; const q = c.cond ? (cc[c.cond] || 0) : i.quantity; return q <= 0 ? 0 : q <= (Number(i.minStock) || 0) ? 1 : 2; },
       i => __lastChangeAt(i) || null,
       null /* Actions */
     ]
@@ -1551,8 +1550,7 @@ function render() {
   if (allocView && !allocView.classList.contains("hidden")) renderAllotments();
   const invView = $("#view-inventory");
   if (invView && !invView.classList.contains("hidden") && __invTab === "stock") {
-    const catSel = $("#allocStockCat");
-    if (catSel) catSel.innerHTML = `<option value="">All Categories</option>` + getCategories().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+    __repopulateMultiCat($("#allocStockCat"));
     renderAllocStock();
   }
   renderReports();
@@ -2435,7 +2433,9 @@ function bindItemSearch() {
 }
 
 function syncComboboxes() {
-  [["#categoryCbInput", "#categoryFilter"], ["#locationCbInput", "#locationFilter"], ["#conditionCbInput", "#conditionFilter"]].forEach(pair => {
+  // The category control is a multi-select (see bindMultiCombobox); it keeps its own
+  // label and reads the ticked boxes, so it is left out of this single-value sync.
+  [["#locationCbInput", "#locationFilter"], ["#conditionCbInput", "#conditionFilter"]].forEach(pair => {
     const input = $(pair[0]), selEl = $(pair[1]);
     if (!input || !selEl) return;
     const o = selEl.selectedOptions && selEl.selectedOptions[0];
@@ -2447,14 +2447,14 @@ function syncComboboxes() {
 function __invFiltered() {
   const items = getItems();
   const q = ($("#searchInput") || {}).value || "";
-  const catFilter = ($("#categoryFilter") || {}).value || "";
+  const catFilter = (typeof __msMatches === "function") ? __msMatches($("#categoryFilter")) : (($("#categoryFilter") || {}).value || "");
   const locFilter = ($("#locationFilter") || {}).value || "";
   const condFilter = ($("#conditionFilter") || {}).value || "";
   const dateFrom = ($("#itemDateFrom") || {}).value;
   const dateTo = ($("#itemDateTo") || {}).value;
 
-  return items.filter(i => {
-    if (catFilter && i.categoryId !== catFilter) return false;
+  const rows = items.filter(i => {
+    if (typeof catFilter === "function" ? !catFilter(i) : (catFilter && i.categoryId !== catFilter)) return false;
     if (locFilter && i.locationId !== locFilter) return false;
     if (condFilter) {
       const cc = i.conditionCounts || {};
@@ -2470,7 +2470,11 @@ function __invFiltered() {
       if (!d || d >= new Date(dateTo + "T00:00:00").getTime() + 86400000) return false;
     }
     return true;
-  }).sort((a, b) => (__lastChangeAt(b) - __lastChangeAt(a)) || a.name.localeCompare(b.name));
+  });
+  rows.sort((a, b) => (__lastChangeAt(b) - __lastChangeAt(a)) || a.name.localeCompare(b.name));
+  // Ticked categories form one block each, in the order they were ticked.
+  if (typeof __msGrouped === "function") return __msGrouped(rows, $("#categoryFilter"), i => i.categoryId);
+  return rows;
 }
 /* Recency helper: latest stock-change timestamp (history last entry), else updatedAt. Used to show the newest-changed item first in Stock History. */
 function __lastChangeAt(item) {
@@ -2519,7 +2523,7 @@ function renderInventory() {
   const cats = getCategories();
   const locs = getLocations();
   const condFilter = ($("#conditionFilter") || {}).value || "";
-  const catFilter = ($("#categoryFilter") || {}).value || "";
+  const catFilter = (typeof __msMatches === "function") ? __msMatches($("#categoryFilter")) : (($("#categoryFilter") || {}).value || "");
   const filtered = __invFiltered();
 
   const tbody = $("#inventoryBody");
@@ -2534,6 +2538,8 @@ if (filtered.length) {
 const cc = i.conditionCounts || { good: i.quantity, poor: 0, damaged: 0 };
       const displayQty = condFilter ? (cc[condFilter] || 0) : i.quantity;
       totalQty += displayQty;
+      const cls = displayQty === 0 ? "status-out" : displayQty <= i.minStock ? "status-low" : "status-ok";
+      const label = displayQty === 0 ? "Out of Stock" : displayQty <= i.minStock ? "Low Stock" : "In Stock";
   const __chg = (() => { if (condFilter) return null; const h = i.history || []; const last = h[h.length - 1]; if (!last) return null; const q = Number(last.qty) || 0; const when = (last.date || "") + (last.time ? " " + last.time : ""); const parts = when.split(" "); return { q: q, when: when, nice: (parts[0] ? fmtDate(parts[0]) : "") + (parts[1] ? " " + parts[1] : ""), rem: last.remarks || "", photos: last.photos || null }; })();
 const __chgCell = condFilter ? `<td class="qty-strong">${displayQty}</td>` : (__chg ? `<td class="qty-strong" style="color:var(--${__chg.q > 0 ? "green" : "red"})" title="${esc("Last update " + __chg.when + ": " + __chg.rem)}">${__chg.q > 0 ? "+" + __chg.q : __chg.q}${photoChipsHtml({ photos: __chg.photos })}</td>` : `<td class="qty-strong"><span class="muted">&mdash;</span></td>`);
       /* Actions column: record-level RBAC. Every row gets View; Edit/Delete
@@ -2561,7 +2567,7 @@ const __chgCell = condFilter ? `<td class="qty-strong">${displayQty}</td>` : (__
           { label: "View", attrs: `data-action="view" data-id="${i.id}"` },
         ]);
       }
-      return `<tr data-item-id="${i.id}"><td class="item-name">${__ipLink(i)}</td><td><span class="cat-badge">${esc(cat ? cat.name : "")}</span></td>${__chgCell}<td>${esc(loc ? loc.name : "")}</td><td>${buildCondBar(cc)}</td><td>${__chg ? esc(__chg.nice) : (i.updatedAt ? fmtDate(i.updatedAt) : "<span style='color:var(--muted)'>\u2014</span>")}</td><td class="actions-cell">${btns}</td></tr>`;
+      return `<tr data-item-id="${i.id}"><td class="item-name">${__ipLink(i)}</td>${__chgCell}<td>${esc(loc ? loc.name : "")}</td><td>${buildCondBar(cc)}</td><td><span class="status-badge ${cls}">${label}</span></td><td>${__chg ? esc(__chg.nice) : (i.updatedAt ? fmtDate(i.updatedAt) : "<span style='color:var(--muted)'>\u2014</span>")}</td><td class="actions-cell">${btns}</td></tr>`;
     }).join("");
 
     if (condFilter) {
@@ -2594,7 +2600,11 @@ const __chgCell = condFilter ? `<td class="qty-strong">${displayQty}</td>` : (__
   }
   renderPager("inv", filtered.length, renderInventory);
 const __invTbl = document.querySelector("#inventoryBody") ? document.querySelector("#inventoryBody").closest("table") : null;
-const __invQth = __invTbl ? __invTbl.querySelector('th[data-sort-col="2"]') : null;
+/* The Stock Change column is renamed to "Quantity" while a condition filter is on.
+   It is found by name, not by data-sort-col: those numbers move whenever a column
+   is added or removed, and pinning one here once made this rewrite the Location
+   header instead. */
+const __invQth = __invTbl ? [...__invTbl.querySelectorAll("thead th[data-sort-col]")].find(th => /^(stock change|quantity)$/i.test(th.textContent.trim())) : null;
 if (__invQth) { const __arr = __invQth.querySelector(".sort-arrow"); const __gl = __arr ? __arr.textContent : ""; __invQth.innerHTML = (condFilter ? "Quantity" : "Stock Change") + ' <span class="sort-arrow">' + __gl + '</span>'; }
   rebuildDropdowns();
   syncComboboxes();
@@ -2732,10 +2742,17 @@ function rebuildDropdowns() {
   const populate = (sel, list, prev) => {
     if (!sel) return;
     sel.innerHTML = list;
-    if (prev) sel.value = prev;
+    // A multiple select cannot be given a value: assigning one only works when
+    // exactly one option is selected, so the chosen ids are re-ticked by hand.
+    if (sel.multiple) {
+      const keep = Array.isArray(prev) ? prev : (prev ? [prev] : []);
+      Array.prototype.forEach.call(sel.options, o => { o.selected = !!o.value && keep.indexOf(o.value) >= 0; });
+    } else if (prev) {
+      sel.value = prev;
+    }
   };
 
-  const catPrev = ($("#categoryFilter") || {}).value;
+  const catPrev = (typeof __msSelected === "function") ? __msSelected($("#categoryFilter")).map(o => o.value) : [($("#categoryFilter") || {}).value].filter(Boolean);
   populate($("#categoryFilter"), `<option value="">All Categories</option>` + cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join(""), catPrev);
 
   if (isDevAdmin()) {
@@ -7474,11 +7491,17 @@ let __allocTab = "allotted"; // stock tab moved to Inventory
 let __invTab = "stock"; // Inventory sub-tab: "stock" = Item Stock, "history" = Stock History
 let __invStockLoc = "all"; // Item Stock location scope for admins: "all" = all locations (default), or a specific location id
 
+// Rebuilding the category list must not throw away the boxes the user ticked,
+// so the chosen ids are read back and re-selected afterwards.
+function __repopulateMultiCat(sel) {
+  if (!sel) return;
+  const keep = (typeof __msSelected === "function" ? __msSelected(sel) : []).map(o => o.value);
+  sel.innerHTML = `<option value="">All Categories</option>` + getCategories().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  Array.prototype.forEach.call(sel.options, o => { if (o.value && keep.indexOf(o.value) >= 0) o.selected = true; });
+  if (window.__msCatIS && window.__msCatIS.refresh) window.__msCatIS.refresh();
+}
 function renderAllotments() {
-  const catSel = $("#allocStockCat");
-  if (catSel) {
-    catSel.innerHTML = `<option value="">All Categories</option>` + getCategories().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
-  }
+  __repopulateMultiCat($("#allocStockCat"));
   renderAllocStockFilters();
   if (__allocTab === "stock") renderAllocStock();
   else if (__allocTab === "allotted") renderAllottedList();
@@ -7542,6 +7565,8 @@ function __allocStockSorted(rows) {
     if (typeof av === "number") return (av - bv) * dir;
     return String(av).localeCompare(String(bv)) * dir;
   });
+  // Ticked categories form one block each, in the order they were ticked.
+  if (typeof __msGrouped === "function") return __msGrouped(rows, $("#allocStockCat"), i => i.categoryId);
   return rows;
 }
 
@@ -7550,14 +7575,14 @@ function __allocStockFiltered() {
   const locations = getLocations();
   const q = (($("#allocStockSearch") || {}).value || "").toLowerCase();
   const terms = q.split(/\s+/).filter(Boolean);
-  const catF = (($("#allocStockCat") || {}).value || "");
+  const catF = (typeof __msMatches === "function") ? __msMatches($("#allocStockCat")) : (($("#allocStockCat") || {}).value || "");
   let pool = getItems();
   if (isAdmin() && currentUser) {
     if (__invStockLoc === "own") pool = pool.filter(i => i.locationId === currentUser.locationId);
     else if (__invStockLoc !== "all") pool = pool.filter(i => i.locationId === __invStockLoc);
   }
   return pool.filter(i => {
-    if (catF && i.categoryId !== catF) return false;
+    if (typeof catF === "function" ? !catF(i) : (catF && i.categoryId !== catF)) return false;
     if (terms.length) {
       const cat = cats.find(c => c.id === i.categoryId);
       const loc = i.locationId ? locations.find(l => l.id === i.locationId) : null;
@@ -7570,8 +7595,8 @@ function __allocStockFiltered() {
   });
 }
 
-const __STOCK_HEAD_STD = '<tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort="category">Category <span class="sort-arrow"></span></th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th>Actions</th></tr>';
-const __STOCK_HEAD_ALL = '<tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort="category">Category <span class="sort-arrow"></span></th><th>Unit</th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th>Actions</th></tr>';
+const __STOCK_HEAD_STD = '<tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th class="sortable" data-sort="status">Status <span class="sort-arrow"></span></th><th>Actions</th></tr>';
+const __STOCK_HEAD_ALL = '<tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th>Unit</th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th class="sortable" data-sort="status">Status <span class="sort-arrow"></span></th><th>Actions</th></tr>';
 function renderStockLocToggle() {
   const seg = $("#allocStockLocToggle");
   if (!seg) return;
@@ -7602,7 +7627,7 @@ function renderAllocStock() {
   if (head) head.innerHTML = allMode ? __STOCK_HEAD_ALL : __STOCK_HEAD_STD;
   const rows = __allocStockSorted(__allocStockFiltered());
   updateStockSortHeader();
-  if (!rows.length) { body.innerHTML = `<tr class="empty-row"><td colspan="${allMode ? 11 : 10}">No items found.</td></tr>`; renderPager("allocStock", 0, renderAllocStock); return; }
+  if (!rows.length) { body.innerHTML = `<tr class="empty-row"><td colspan="${allMode ? 12 : 11}">No items found.</td></tr>`; renderPager("allocStock", 0, renderAllocStock); return; }
   let ttotal = 0, tavailable = 0, tallot = 0, tloss = 0, tdamaged = 0, tscrap = 0;
   rows.forEach(i => {
     ttotal += i.quantity || 0;
@@ -7616,6 +7641,7 @@ function renderAllocStock() {
   const baseNo = __pgPage("allocStock", rows.length) * PAGE_SIZE;
   body.innerHTML = __pgRows("allocStock", rows).map((i, idx) => {
     const cat = cats.find(c => c.id === i.categoryId);
+    const st = allocStatusOfItem(i);
     const loc = i.locationId ? locations.find(l => l.id === i.locationId) : null;
     const unitCell = allMode ? "<td>" + esc(loc ? loc.name : "") + "</td>" : "";
     const acts = actDD([
@@ -7624,9 +7650,9 @@ function renderAllocStock() {
         { label: "Update", attrs: `data-alloc-action="edit" data-id="${i.id}"` }
       ] : [])
     ]);
-    return `<tr><td>${baseNo + idx + 1}</td><td class="item-name">${__ipLink(i)}</td><td><span class="cat-badge">${esc(cat ? cat.name : "")}</span></td>${unitCell}<td class="qty-strong">${i.quantity || 0}</td><td class="qty-strong" style="color:var(--green)">${availableQty(i)}</td><td class="qty-strong" style="color:var(--primary)">${i.allotted || 0}</td><td class="qty-strong" style="color:var(--red)">${i.lostReturned || 0}</td><td class="qty-strong" style="color:var(--amber)">${(i.conditionCounts || {}).poor || 0}</td><td class="qty-strong" style="color:var(--red)">${(i.conditionCounts || {}).damaged || 0}</td><td class="actions-cell">${acts}</td></tr>`;
+    return `<tr><td>${baseNo + idx + 1}</td><td class="item-name">${__ipLink(i)}</td>${unitCell}<td class="qty-strong">${i.quantity || 0}</td><td class="qty-strong" style="color:var(--green)">${availableQty(i)}</td><td class="qty-strong" style="color:var(--primary)">${i.allotted || 0}</td><td class="qty-strong" style="color:var(--red)">${i.lostReturned || 0}</td><td class="qty-strong" style="color:var(--amber)">${(i.conditionCounts || {}).poor || 0}</td><td class="qty-strong" style="color:var(--red)">${(i.conditionCounts || {}).damaged || 0}</td><td><span class="status-badge ${st.cls}">${st.label}</span></td><td class="actions-cell">${acts}</td></tr>`;
   }).join("") +
-    `<tr class="rpt-total-row"><td>Total</td><td></td><td></td>${allMode ? "<td></td>" : ""}<td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavailable}</td><td class="qty-strong">${tallot}</td><td class="qty-strong">${tloss}</td><td class="qty-strong">${tdamaged}</td><td class="qty-strong">${tscrap}</td><td></td></tr>`;
+    `<tr class="rpt-total-row"><td></td><td class="rpt-total-label">Total</td>${allMode ? "<td></td>" : ""}<td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavailable}</td><td class="qty-strong">${tallot}</td><td class="qty-strong">${tloss}</td><td class="qty-strong">${tdamaged}</td><td class="qty-strong">${tscrap}</td><td colspan="2"></td></tr>`;
   renderPager("allocStock", rows.length, renderAllocStock);
 }
 
@@ -9808,13 +9834,14 @@ $("#inventoryBody").addEventListener("click", e => {
   $("#categoryFilter")?.addEventListener("change", renderInventory);
   $("#locationFilter")?.addEventListener("change", renderInventory);
   $("#conditionFilter")?.addEventListener("change", renderInventory);
-  bindCombobox("categoryCbInput", "categoryCbMenu", "categoryFilter");
+  window.__msCatSH = bindMultiCombobox("categoryCbInput", "categoryCbMenu", "categoryFilter", renderInventory);
   bindCombobox("locationCbInput", "locationCbMenu", "locationFilter");
   bindCombobox("conditionCbInput", "conditionCbMenu", "conditionFilter");
   $("#itemDateFrom")?.addEventListener("change", renderInventory);
   $("#itemDateTo")?.addEventListener("change", renderInventory);
   $("#clearInvFilter")?.addEventListener("click", () => {
-    ["searchInput", "categoryFilter", "locationFilter", "conditionFilter", "itemDateFrom", "itemDateTo"].forEach(id => { const e = $(`#${id}`); if (e) e.value = ""; });
+    ["searchInput", "categoryFilter", "locationFilter", "conditionFilter", "itemDateFrom", "itemDateTo"].forEach(id => { const e = $(`#${id}`); if (!e) return; if (e.multiple) { Array.prototype.forEach.call(e.options, o => { o.selected = false; }); } else { e.value = ""; } });
+    [window.__msCatSH, window.__msCatIS].forEach(h => { if (h && h.refresh) h.refresh(); });
     renderInventory();
   });
   $("#invExportBtn").addEventListener("click", e => { e.stopPropagation(); $("#invExportMenu").classList.toggle("hidden"); });
@@ -10395,7 +10422,7 @@ $$("#manageMenu .manage-menu-item").forEach(b => b.addEventListener("click", () 
   bindAllotMobileValidation();
 
   $("#allocStockSearch")?.addEventListener("input", renderAllocStock);
-  $("#allocStockCat")?.addEventListener("change", renderAllocStock);
+  window.__msCatIS = bindMultiCombobox("allocStockCatInput", "allocStockCatMenu", "allocStockCat", renderAllocStock);
   document.querySelectorAll("[data-stock-filter]").forEach(b => b.addEventListener("click", () => setStockType(b.dataset.stockFilter)));
   $("#allocStockType")?.addEventListener("change", e => setStockType(e.target.value));
   $("#allocStockTable")?.addEventListener("click", e => {

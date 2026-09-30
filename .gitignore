@@ -43,3 +43,16 @@ server-err.log
 
 # One-off audit reports generated while checking a district or circle.
 *-audit.html
+
+# Local verification helpers. These drive a headless browser against the dev
+# server to check column layout, word-breaks and Enter-key behaviour, plus a
+# few one-off DOM measuring scripts. They are machine-local tooling, not part
+# of the app, so they stay out of the shared repository.
+apply-tables.js
+check-history.js
+check-inv-tables.js
+cleanup-sessions.js
+measure-heads.js
+shot-history.js
+shots.js
+verify-save.js

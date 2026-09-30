@@ -8,7 +8,7 @@
 <!-- Both stylesheets are versioned: without the query the browser keeps
      serving the old file from its own cache, so a CSS fix appears to do
      nothing until a hard refresh. Bump these when either file changes. -->
-<link rel="stylesheet" href="styles.css?v=2026.09.235">
+<link rel="stylesheet" href="styles.css?v=2026.09.247">
   <script>
     (function () {
       try { if (localStorage.getItem("hpi_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
@@ -392,7 +392,11 @@
         <div class="toolbar">
           <span class="loc-seg hidden" id="allocStockLocToggle" style="display:inline-flex;gap:4px;align-items:center"><select id="locAllSel" class="btn btn-sm btn-outline" style="min-width:160px;padding:6px 10px"><option value="all">All Locations</option></select></span>
 <input type="text" id="allocStockSearch" placeholder="Search by item, category, unit or location...">
-          <select id="allocStockCat"><option value="">All Categories</option></select>
+          <span class="cb cb-multiselect" data-ms>
+            <input type="text" class="cb-input" id="allocStockCatInput" placeholder="Any Category" autocomplete="off" readonly>
+            <span class="cb-menu hidden" id="allocStockCatMenu"></span>
+            <select id="allocStockCat" class="cb-hidden-sel" multiple><option value="">All Categories</option></select>
+          </span>
           <select id="allocStockType">
             <option value="all">All Stock</option>
             <option value="allotted">Only Issued</option>
@@ -412,7 +416,7 @@
           <div class="table-wrap">
             <table id="allocStockTable" data-sortable="false">
               <thead>
-                <tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort="category">Category <span class="sort-arrow"></span></th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th>Actions</th></tr>
+                <tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th class="sortable" data-sort="status">Status <span class="sort-arrow"></span></th><th>Actions</th></tr>
               </thead>
 <tbody id="allocStockBody"></tbody>
             </table>
@@ -428,10 +432,10 @@
           <input type="text" id="searchInput" class="cb-input" placeholder="Search items..." autocomplete="off">
           <span class="cb-menu hidden" id="searchCbMenu"></span>
         </span>
-        <span class="cb">
-          <input type="text" class="cb-input" id="categoryCbInput" placeholder="All Categories" autocomplete="off">
+        <span class="cb cb-multiselect" data-ms>
+          <input type="text" class="cb-input" id="categoryCbInput" placeholder="Any Category" autocomplete="off" readonly>
           <span class="cb-menu hidden" id="categoryCbMenu"></span>
-          <select id="categoryFilter" class="cb-hidden-sel"><option value="">All Categories</option></select>
+          <select id="categoryFilter" class="cb-hidden-sel" multiple><option value="">All Categories</option></select>
         </span>
         <span class="cb">
           <input type="text" class="cb-input" id="locationCbInput" placeholder="All Locations" autocomplete="off">
@@ -468,7 +472,7 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th class="sortable" data-sort-col="0" tabindex="0" aria-sort="none">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="1" tabindex="0" aria-sort="none">Category <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="2" tabindex="0" aria-sort="none">Stock Change <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="3" tabindex="0" aria-sort="none">Location <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="4" tabindex="0" aria-sort="none" title="Sort by Good quantity">Condition <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="5" tabindex="0" aria-sort="none">Last Updated <span class="sort-arrow"></span></th><th>Actions</th></tr>
+              <tr><th class="sortable" data-sort-col="0" tabindex="0" aria-sort="none">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="1" tabindex="0" aria-sort="none">Stock Change <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="2" tabindex="0" aria-sort="none">Location <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="3" tabindex="0" aria-sort="none" title="Sort by Good quantity">Condition <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="4" tabindex="0" aria-sort="none" title="Sort by status (Out of Stock first)">Status <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="5" tabindex="0" aria-sort="none">Last Updated <span class="sort-arrow"></span></th><th>Actions</th></tr>
             </thead>
 <tbody id="inventoryBody"></tbody>
           </table>
@@ -2983,7 +2987,9 @@
 <div class="toast hidden" id="toast"></div>
 
 <script src="api-client.js?v=2026.09.211"></script>
-  <script src="app.js?v=2026.09.229"></script>
+  <script src="enter-to-submit.js?v=2026.09.247"></script>
+  <script src="cat-multiselect.js?v=2026.09.247"></script>
+  <script src="app.js?v=2026.09.247"></script>
 <script src="ims-agent.js?v=2026.09.211" defer></script>
 <script src="item-profile.js?v=2026.09.211"></script>
 <script src="person-profile.js?v=2026.09.211"></script>

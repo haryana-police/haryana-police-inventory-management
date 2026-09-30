@@ -451,7 +451,7 @@ td .nm-en:empty, td .nm-hi:empty { display: none; }
   display: inline-block; font-size: .72rem; font-weight: 600; padding: 4px 11px;
   border-radius: 999px; background: rgba(30,58,95,.08); color: var(--primary); white-space: normal;
 }
-.status-badge { display: inline-block; font-size: .72rem; font-weight: 600; padding: 4px 11px; border-radius: 999px; white-space: normal; }
+.status-badge { display: inline-block; font-size: .72rem; font-weight: 600; padding: 4px 11px; border-radius: 999px; white-space: nowrap; }
 .status-ok { background: var(--green-light); color: var(--green); }
 .status-low { background: var(--amber-light); color: var(--amber); }
 .status-info { background: rgba(37,99,235,.10); color: #2563eb; }
@@ -1189,7 +1189,7 @@ th, td { overflow-wrap: normal; word-break: normal; white-space: normal; }
 .cat-badge, .status-badge, .cond-badge {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 5px 10px; border-radius: 999px;
-  font-size: .72rem; font-weight: 600; line-height: 1.4; white-space: normal;
+  font-size: .72rem; font-weight: 600; line-height: 1.4; white-space: nowrap;
 }
 .status-badge::before, .cond-badge::before {
   content: ""; width: 6px; height: 6px; border-radius: 50%;
@@ -2382,6 +2382,60 @@ td .cat-badge { white-space: nowrap; }
 #allocStockTable tfoot td:last-child { width: 1%; }
 #allocStockTable thead th:nth-child(2),
 #allocStockTable tbody td.item-name { min-width: 130px; }
+
+/* ---- Multi-select checkbox combobox (Any Category) --------------------------
+   A category filter that takes more than one value. The visible control is a
+   text input used as the label; the real <select> is hidden and keeps the
+   chosen ids as its selected options, so everything downstream that reads
+   el.value / el.options keeps working unchanged.
+
+   The panel is forced to an opaque white: --btn-face-lo is a dark navy
+   gradient in the dark theme, and that was bleeding through this menu. */
+.cb-multiselect .cb-input { cursor: pointer; min-width: 200px; }
+.cb-multiselect .cb-menu,
+.cb-multiselect.cb-menu {
+  background: #fff;
+  background-image: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, .16);
+  padding: 0;
+  min-width: 240px;
+}
+.cb-ms-menu { padding: 6px; }
+.cb-ms-head {
+  display: flex; gap: 8px; align-items: center;
+  padding: 10px 12px; margin: 0;
+  border-bottom: 1px solid var(--border);
+  background: #f8fafc;
+  border-radius: 12px 12px 0 0;
+  position: sticky; top: 0; z-index: 1;
+}
+.cb-ms-cap {
+  font-size: .68rem; color: var(--muted); font-weight: 700;
+  letter-spacing: .06em; margin-right: 2px;
+}
+.cb-ms-all, .cb-ms-clear {
+  border: 1px solid var(--border); background: #fff; color: var(--primary);
+  font-size: .72rem; font-weight: 600; cursor: pointer; font-family: inherit;
+  padding: 5px 10px; border-radius: 7px; line-height: 1.2;
+}
+.cb-ms-all:hover, .cb-ms-clear:hover { background: rgba(30,58,95,.08); }
+.cb-ms-clear { margin-left: auto; }
+.cb-ms-opt {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; margin: 2px 6px;
+  border-radius: 8px; cursor: pointer; font-size: .83rem; color: var(--text);
+}
+.cb-ms-opt:hover { background: rgba(30,58,95,.06); }
+/* the scrollable gap between the sticky header and the first/last row */
+.cb-ms-list { padding: 6px 0; }
+.cb-ms-list:last-of-type { padding-bottom: 4px; }
+.cb-ms-opt input { accent-color: var(--primary); width: 15px; height: 15px; margin: 0; cursor: pointer; flex: none; }
+.cb-ms-opt span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cb-ms-empty { padding: 14px; text-align: center; color: var(--muted); font-size: .8rem; }
 
 /* ---------- 19. FIELD VALIDATION STATES ---------- */
 .input-error { border-color: var(--red) !important; box-shadow: 0 0 0 3px rgba(220, 38, 38, .15) !important; background: rgba(220, 38, 38, .03); }
@@ -3859,6 +3913,39 @@ summary {
 /* ---- the sign in button ---- */
 .login-submit,
 .login-left .login-submit {
+/* ---------- 22. TABLE WORD-BREAK (2026.09.241) --------------------------------
+   A blanket `overflow-wrap:anywhere` was set on table/th/td further up the file
+   to stop one long serial from widening the page. That value also lowers the
+   min-content width of every cell, so the browser keeps squeezing columns until
+   ordinary words have no room left and split mid-word ("Damag ed").
+
+   `break-word` keeps the safety net - a token too long for its cell still wraps
+   instead of overflowing - but it is ignored while sizing columns, so cells keep
+   their natural width and words only ever break at spaces. */
+table,
+td,
+th {
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
+}
+
+/* Header labels wrap between words ("Total Qty"), never inside one. */
+th { white-space: normal; overflow-wrap: break-word; }
+
+/* A cell is free to shrink below its widest word, otherwise a long unbroken
+   string forces the whole table wider than the screen. */
+td, th { min-width: 0; }
+
+/* Numeric and code columns read better unwrapped. */
+td .qty-strong,
+td.cell-nowrap { white-space: nowrap; }
+
+/* Long unbroken strings (codes, urls) still have to wrap somewhere. */
+td a[href], td code, td pre { overflow-wrap: break-word; }
+
+/* The bilingual item name stacks English over Hindi; each stays a whole word. */
+td .nm-en, td .nm-hi { overflow-wrap: break-word; word-break: normal; }
   background: #ffffff;
   color: #0f172a;
   border: 1px solid rgba(255, 255, 255, .9);
@@ -4165,3 +4252,11 @@ body.modal-open #appRoot {
 /* A cell never has its text against its own border either. */
 .modal table th,
 .modal table td { padding-left: 12px; padding-right: 12px; }
+/* ---------- 23. STATUS / CONDITION BADGES (2026.09.244) --------------------------
+   These are pill labels, not prose. `white-space:normal` on them let "Available"
+   and "In Stock" wrap mid-label once a column got tight, which read as a broken
+   two-line badge instead of one clean pill. */
+.status-badge, .cond-badge, .cat-badge {
+  white-space: nowrap;
+  max-width: 100%;
+}
