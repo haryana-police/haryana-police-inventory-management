@@ -7574,8 +7574,8 @@ function __allocStockFiltered() {
   });
 }
 
-const __STOCK_HEAD_STD = '<tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort="category">Category <span class="sort-arrow"></span></th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th class="sortable" data-sort="status">Status <span class="sort-arrow"></span></th><th>Actions</th></tr>';
-const __STOCK_HEAD_ALL = '<tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort="category">Category <span class="sort-arrow"></span></th><th>Unit</th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th class="sortable" data-sort="status">Status <span class="sort-arrow"></span></th><th>Actions</th></tr>';
+const __STOCK_HEAD_STD = '<tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort="category">Category <span class="sort-arrow"></span></th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th>Actions</th></tr>';
+const __STOCK_HEAD_ALL = '<tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort="category">Category <span class="sort-arrow"></span></th><th>Unit</th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th>Actions</th></tr>';
 function renderStockLocToggle() {
   const seg = $("#allocStockLocToggle");
   if (!seg) return;
@@ -7606,7 +7606,7 @@ function renderAllocStock() {
   if (head) head.innerHTML = allMode ? __STOCK_HEAD_ALL : __STOCK_HEAD_STD;
   const rows = __allocStockSorted(__allocStockFiltered());
   updateStockSortHeader();
-  if (!rows.length) { body.innerHTML = `<tr class="empty-row"><td colspan="${allMode ? 12 : 11}">No items found.</td></tr>`; renderPager("allocStock", 0, renderAllocStock); return; }
+  if (!rows.length) { body.innerHTML = `<tr class="empty-row"><td colspan="${allMode ? 11 : 10}">No items found.</td></tr>`; renderPager("allocStock", 0, renderAllocStock); return; }
   let ttotal = 0, tavailable = 0, tallot = 0, tloss = 0, tdamaged = 0, tscrap = 0;
   rows.forEach(i => {
     ttotal += i.quantity || 0;
@@ -7620,7 +7620,6 @@ function renderAllocStock() {
   const baseNo = __pgPage("allocStock", rows.length) * PAGE_SIZE;
   body.innerHTML = __pgRows("allocStock", rows).map((i, idx) => {
     const cat = cats.find(c => c.id === i.categoryId);
-    const st = allocStatusOfItem(i);
     const loc = i.locationId ? locations.find(l => l.id === i.locationId) : null;
     const unitCell = allMode ? "<td>" + esc(loc ? loc.name : "") + "</td>" : "";
     const acts = actDD([
@@ -7629,9 +7628,9 @@ function renderAllocStock() {
         { label: "Update", attrs: `data-alloc-action="edit" data-id="${i.id}"` }
       ] : [])
     ]);
-    return `<tr><td>${baseNo + idx + 1}</td><td class="item-name">${__ipLink(i)}</td><td><span class="cat-badge">${esc(cat ? cat.name : "")}</span></td>${unitCell}<td class="qty-strong">${i.quantity || 0}</td><td class="qty-strong" style="color:var(--green)">${availableQty(i)}</td><td class="qty-strong" style="color:var(--primary)">${i.allotted || 0}</td><td class="qty-strong" style="color:var(--red)">${i.lostReturned || 0}</td><td class="qty-strong" style="color:var(--amber)">${(i.conditionCounts || {}).poor || 0}</td><td class="qty-strong" style="color:var(--red)">${(i.conditionCounts || {}).damaged || 0}</td><td><span class="status-badge ${st.cls}">${st.label}</span></td><td class="actions-cell">${acts}</td></tr>`;
+    return `<tr><td>${baseNo + idx + 1}</td><td class="item-name">${__ipLink(i)}</td><td><span class="cat-badge">${esc(cat ? cat.name : "")}</span></td>${unitCell}<td class="qty-strong">${i.quantity || 0}</td><td class="qty-strong" style="color:var(--green)">${availableQty(i)}</td><td class="qty-strong" style="color:var(--primary)">${i.allotted || 0}</td><td class="qty-strong" style="color:var(--red)">${i.lostReturned || 0}</td><td class="qty-strong" style="color:var(--amber)">${(i.conditionCounts || {}).poor || 0}</td><td class="qty-strong" style="color:var(--red)">${(i.conditionCounts || {}).damaged || 0}</td><td class="actions-cell">${acts}</td></tr>`;
   }).join("") +
-    `<tr class="rpt-total-row"><td>Total</td><td></td><td></td>${allMode ? "<td></td>" : ""}<td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavailable}</td><td class="qty-strong">${tallot}</td><td class="qty-strong">${tloss}</td><td class="qty-strong">${tdamaged}</td><td class="qty-strong">${tscrap}</td><td colspan="2"></td></tr>`;
+    `<tr class="rpt-total-row"><td>Total</td><td></td><td></td>${allMode ? "<td></td>" : ""}<td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavailable}</td><td class="qty-strong">${tallot}</td><td class="qty-strong">${tloss}</td><td class="qty-strong">${tdamaged}</td><td class="qty-strong">${tscrap}</td><td></td></tr>`;
   renderPager("allocStock", rows.length, renderAllocStock);
 }
 
