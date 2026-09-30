@@ -521,7 +521,7 @@ module.exports = { projectStateFor, restoreScopeFor, diffStructureWrites, author
 // the client. Recipient identity comes from the session, not payload.
 const CONS_ITEMS_KEY = 'hp_inventory.consumable_items';
 const CONS_TXNS_KEY = 'hp_inventory.consumable_txns';
-const CONS_TYPES = { ADD: 1, DISTRIBUTION_REQUEST: 1, DISTRIBUTION_APPROVED: 1, DISTRIBUTION_REJECTED: 1, LOSS: 1 };
+const CONS_TYPES = { ADD: 1, DISTRIBUTION_REQUEST: 1, DISTRIBUTION_APPROVED: 1, DISTRIBUTION_REJECTED: 1, LOSS: 1, DELETED: 1 };
 
 // ---------------------------------------------------------------------------
 // READ SCOPE
@@ -890,8 +890,13 @@ function authorizeConsumableWrites(user, writes, opts) {
   const txnDeletes = writes.deletes.filter(e => e.kind === 'txn');
   if (txnEdits.length) return deny('RBAC_CONS_IMMUTABLE', 'Forbidden: consumable transaction history is immutable and cannot be edited.', { count: txnEdits.length });
   if (txnDeletes.length) return deny('RBAC_CONS_IMMUTABLE', 'Forbidden: consumable transaction history is immutable and cannot be deleted.', { count: txnDeletes.length });
+  const prevState = opts.prevState || {};
+  const prevTxns = (Array.isArray(__consMap(prevState, CONS_TXNS_KEY)[user.districtId]) ? __consMap(prevState, CONS_TXNS_KEY)[user.districtId] : []);
   // Items: deletion would orphan history — denied.
-  if (writes.deletes.some(e => e.kind === 'item')) return deny('RBAC_CONS_IMMUTABLE', 'Forbidden: consumable items with transaction history cannot be deleted.', null);
+  for (const e of writes.deletes.filter(e => e.kind === 'item')) {
+    const itemId = e.rec && e.rec.id;
+    if (prevTxns.some(t => t && t.itemId === itemId)) return deny('RBAC_CONS_IMMUTABLE', 'Forbidden: consumable items with transaction history cannot be deleted.', null);
+  }
   // Item edits: keep the category-item relationship intact (name/photo/remarks may change).
   for (const e of writes.edits.filter(e => e.kind === 'item')) {
     if (String(e.prev.categoryId || '') !== String(e.rec.categoryId || '')) {
@@ -912,9 +917,7 @@ function authorizeConsumableWrites(user, writes, opts) {
     }
   }
   // ---- Transaction ledger validation ----
-  const prevState = opts.prevState || {};
   const nextState = opts.nextState || {};
-  const prevTxns = (Array.isArray(__consMap(prevState, CONS_TXNS_KEY)[user.districtId]) ? __consMap(prevState, CONS_TXNS_KEY)[user.districtId] : []);
   const prevItems = __consArr(prevState, 'hp_inventory.consumable_items', user.districtId);
   const nextItems = __consArr(nextState, 'hp_inventory.consumable_items', user.districtId);
   const itemsById = new Map();
@@ -937,6 +940,14 @@ function authorizeConsumableWrites(user, writes, opts) {
     const fail = (msg) => deny('RBAC_CONS_LEDGER', `Forbidden: invalid consumable transaction (${msg}).`, { txnId: t.id, type: t.type });
     if (!t || !t.itemId) return fail("missing item");
     if (!CONS_TYPES[t.type]) return fail(`unknown type "${t.type}"`);
+    if (t.type === "DELETED") {
+      const item = itemsById.get(t.itemId);
+      if (!item) return fail("unknown consumable item");
+      const agg = (aggByItem[t.itemId] = aggByItem[t.itemId] || { total: 0, pending: 0, distributed: 0, lost: 0 });
+      const availForNew = agg.total - agg.distributed - agg.lost - agg.pending;
+      if (availForNew > 0 || agg.pending > 0) return deny("RBAC_CONS_QTY", `Forbidden: cannot delete item with remaining stock. Available: ${availForNew}.`, { itemId: t.itemId, available: availForNew });
+      continue;
+    }
     const q = __consQtyInt(t);
     if (!q) return fail("quantity must be a positive whole number");
     const item = itemsById.get(t.itemId);

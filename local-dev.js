@@ -127,11 +127,12 @@ function handleApi(req, res, pathname) {
   query.path = seg;
   req.query = query;
   const p = (req.method !== 'GET' && req.method !== 'HEAD') ? readBody(req).then(b => { req.body = b; req._body = true; }) : Promise.resolve({}).then(b => { req.body = b; req._body = true; });
-  return p.then(() => apiHandler(req, res));
+  for (const k of Object.keys(require.cache)) {
+    if (k.includes(path.join('api', ''))) delete require.cache[k];
+  }
+  const handler = require(path.join(PROJECT_DIR, 'api', 'index.js'));
+  return p.then(() => handler(req, res));
 }
-
-// ---------- load the API handler ----------
-const apiHandler = require(path.join(PROJECT_DIR, 'api', 'index.js'));
 
 // ---------- one-time vendor bootstrap (binary assets only) ----------
 // Text libraries ship in vendor/. The two BINARY assets below are fetched
