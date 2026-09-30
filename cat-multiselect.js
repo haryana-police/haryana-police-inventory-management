@@ -42,7 +42,16 @@
       .map(function (x) { return x.r; });
   };
 
-  window.bindMultiCombobox = function (inputId, menuId, selId, onChange) {
+  /* cfg lets one control stand in for another kind of list - the category
+     pickers say "Any Category", the status picker says "Any Status". The
+     defaults are the category wording, so the existing callers are unchanged. */
+  window.bindMultiCombobox = function (inputId, menuId, selId, onChange, cfg) {
+    cfg = cfg || {};
+    var ANY = cfg.anyLabel || 'Any Category';
+    var ALL = cfg.allLabel || 'All Categories';
+    var EMPTY = cfg.emptyLabel || 'No categories';
+    var BTN_ALL = cfg.selectAllLabel || 'Select All';
+    var BTN_NONE = cfg.clearLabel || 'Clear';
     var input = document.getElementById(inputId);
     var menu = document.getElementById(menuId);
     var sel = document.getElementById(selId);
@@ -51,24 +60,24 @@
     function label() {
       var chosen = selectedOf(sel);
       if (!chosen.length) {
-        input.value = 'Any Category';
+        input.value = ANY;
         input.classList.remove('cb-has-value');
         return;
       }
       input.classList.add('cb-has-value');
       if (chosen.length === 1) { input.value = chosen[0].text; return; }
       if (chosen.length === 2) { input.value = chosen[0].text + ', ' + chosen[1].text; return; }
-      input.value = 'All Categories (' + chosen.length + ')';
+      input.value = ALL + ' (' + chosen.length + ')';
     }
 
     function fire() { if (typeof onChange === 'function') onChange(); }
 
     function render() {
       var opts = Array.prototype.slice.call(sel.options).filter(function (o) { return o.value; });
-      if (!opts.length) { menu.innerHTML = '<div class="cb-ms-empty">No categories</div>'; return; }
+      if (!opts.length) { menu.innerHTML = '<div class="cb-ms-empty">' + esc(EMPTY) + '</div>'; return; }
       var head = '<div class="cb-ms-head">'
-        + '<button type="button" class="cb-ms-all">Select All</button>'
-        + '<button type="button" class="cb-ms-clear">Clear</button>'
+        + '<button type="button" class="cb-ms-all">' + esc(BTN_ALL) + '</button>'
+        + '<button type="button" class="cb-ms-clear">' + esc(BTN_NONE) + '</button>'
         + '</div>';
       var rows = '<div class="cb-ms-list">' + opts.map(function (o) {
         return '<label class="cb-ms-opt"><input type="checkbox" value="' + esc(o.value) + '"'

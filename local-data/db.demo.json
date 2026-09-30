@@ -4030,11 +4030,32 @@
       "dist_mul2ptia8a7zr": []
     },
     "hp_inventory.cons_categories": {
-      "dist_1": [],
+      "dist_1": [
+        {
+          "id": "cdemo_d0_clean",
+          "name": "Cleaning & Housekeeping"
+        },
+        {
+          "id": "cdemo_d0_canteen",
+          "name": "Canteen & Groceries"
+        },
+        {
+          "id": "cdemo_d0_office",
+          "name": "Office & Stationery"
+        }
+      ],
       "dist_2": [
         {
-          "id": "mumahddy9m3k4",
-          "name": "kapil"
+          "id": "cdemo_d1_clean",
+          "name": "Cleaning & Housekeeping"
+        },
+        {
+          "id": "cdemo_d1_canteen",
+          "name": "Canteen & Groceries"
+        },
+        {
+          "id": "cdemo_d1_office",
+          "name": "Office & Stationery"
         }
       ],
       "dist_mugr9nwgs812q": [
@@ -4043,7 +4064,20 @@
           "name": "kjansxjak"
         }
       ],
-      "dist_mul2ptia8a7zr": []
+      "dist_mul2ptia8a7zr": [
+        {
+          "id": "cdemo_d2_clean",
+          "name": "Cleaning & Housekeeping"
+        },
+        {
+          "id": "cdemo_d2_canteen",
+          "name": "Canteen & Groceries"
+        },
+        {
+          "id": "cdemo_d2_office",
+          "name": "Office & Stationery"
+        }
+      ]
     },
     "hp_inventory.inspections_dist_1": [],
     "hp_inventory.inspections_dist_2": [],
@@ -4375,10 +4409,671 @@
       }
     ],
     "hp_inventory.consumable_items": {
-      "dist_1": []
+      "dist_1": [
+        {
+          "id": "cdemo_d0_i001",
+          "name": "Ghee (1 kg Pouch)",
+          "categoryId": "cdemo_d0_canteen",
+          "unit": "Pouch",
+          "locationId": "ggn_hq",
+          "createdAt": 1788431400000,
+          "updatedAt": 1788431400000
+        },
+        {
+          "id": "cdemo_d0_i002",
+          "name": "Soap - Life Buoy (100 g)",
+          "categoryId": "cdemo_d0_clean",
+          "unit": "Bar",
+          "locationId": "ggn_hq",
+          "createdAt": 1788431401000,
+          "updatedAt": 1788431401000
+        },
+        {
+          "id": "cdemo_d0_i003",
+          "name": "Detergent (1 kg)",
+          "categoryId": "cdemo_d0_clean",
+          "unit": "Kg",
+          "locationId": "ggn_hq",
+          "createdAt": 1788431402000,
+          "updatedAt": 1788431402000
+        },
+        {
+          "id": "cdemo_d0_i004",
+          "name": "Tea Powder (250 g)",
+          "categoryId": "cdemo_d0_canteen",
+          "unit": "Packet",
+          "locationId": "ggn_hq",
+          "createdAt": 1788431403000,
+          "updatedAt": 1788431403000
+        },
+        {
+          "id": "cdemo_d0_i005",
+          "name": "Biscuits (100 g)",
+          "categoryId": "cdemo_d0_canteen",
+          "unit": "Packet",
+          "locationId": "ggn_hq",
+          "createdAt": 1788431404000,
+          "updatedAt": 1788431404000
+        },
+        {
+          "id": "cdemo_d0_i006",
+          "name": "Note Book A4 (200 pp)",
+          "categoryId": "cdemo_d0_office",
+          "unit": "Piece",
+          "locationId": "ggn_hq",
+          "createdAt": 1788431405000,
+          "updatedAt": 1788431405000
+        },
+        {
+          "id": "cdemo_d0_i007",
+          "name": "Ballpoint Pen (Blue)",
+          "categoryId": "cdemo_d0_office",
+          "unit": "Piece",
+          "locationId": "ggn_hq",
+          "createdAt": 1788431406000,
+          "updatedAt": 1788431406000
+        },
+        {
+          "id": "cdemo_d0_i008",
+          "name": "Photocopy Paper A4 (Ream)",
+          "categoryId": "cdemo_d0_office",
+          "unit": "Ream",
+          "locationId": "ggn_hq",
+          "createdAt": 1788431407000,
+          "updatedAt": 1788431407000
+        }
+      ],
+      "dist_2": [
+        {
+          "id": "cdemo_d1_i001",
+          "name": "Ghee (1 kg Pouch)",
+          "categoryId": "cdemo_d1_canteen",
+          "unit": "Pouch",
+          "locationId": "fbd_hq",
+          "createdAt": 1788431400000,
+          "updatedAt": 1788431400000
+        },
+        {
+          "id": "cdemo_d1_i002",
+          "name": "Soap - Life Buoy (100 g)",
+          "categoryId": "cdemo_d1_clean",
+          "unit": "Bar",
+          "locationId": "fbd_hq",
+          "createdAt": 1788431401000,
+          "updatedAt": 1788431401000
+        },
+        {
+          "id": "cdemo_d1_i003",
+          "name": "Detergent (1 kg)",
+          "categoryId": "cdemo_d1_clean",
+          "unit": "Kg",
+          "locationId": "fbd_hq",
+          "createdAt": 1788431402000,
+          "updatedAt": 1788431402000
+        },
+        {
+          "id": "cdemo_d1_i004",
+          "name": "Tea Powder (250 g)",
+          "categoryId": "cdemo_d1_canteen",
+          "unit": "Packet",
+          "locationId": "fbd_hq",
+          "createdAt": 1788431403000,
+          "updatedAt": 1788431403000
+        },
+        {
+          "id": "cdemo_d1_i005",
+          "name": "Biscuits (100 g)",
+          "categoryId": "cdemo_d1_canteen",
+          "unit": "Packet",
+          "locationId": "fbd_hq",
+          "createdAt": 1788431404000,
+          "updatedAt": 1788431404000
+        },
+        {
+          "id": "cdemo_d1_i006",
+          "name": "Note Book A4 (200 pp)",
+          "categoryId": "cdemo_d1_office",
+          "unit": "Piece",
+          "locationId": "fbd_hq",
+          "createdAt": 1788431405000,
+          "updatedAt": 1788431405000
+        },
+        {
+          "id": "cdemo_d1_i007",
+          "name": "Ballpoint Pen (Blue)",
+          "categoryId": "cdemo_d1_office",
+          "unit": "Piece",
+          "locationId": "fbd_hq",
+          "createdAt": 1788431406000,
+          "updatedAt": 1788431406000
+        },
+        {
+          "id": "cdemo_d1_i008",
+          "name": "Photocopy Paper A4 (Ream)",
+          "categoryId": "cdemo_d1_office",
+          "unit": "Ream",
+          "locationId": "fbd_hq",
+          "createdAt": 1788431407000,
+          "updatedAt": 1788431407000
+        }
+      ],
+      "dist_mul2ptia8a7zr": [
+        {
+          "id": "cdemo_d2_i001",
+          "name": "Ghee (1 kg Pouch)",
+          "categoryId": "cdemo_d2_canteen",
+          "unit": "Pouch",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "createdAt": 1788431400000,
+          "updatedAt": 1788431400000
+        },
+        {
+          "id": "cdemo_d2_i002",
+          "name": "Soap - Life Buoy (100 g)",
+          "categoryId": "cdemo_d2_clean",
+          "unit": "Bar",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "createdAt": 1788431401000,
+          "updatedAt": 1788431401000
+        },
+        {
+          "id": "cdemo_d2_i003",
+          "name": "Detergent (1 kg)",
+          "categoryId": "cdemo_d2_clean",
+          "unit": "Kg",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "createdAt": 1788431402000,
+          "updatedAt": 1788431402000
+        },
+        {
+          "id": "cdemo_d2_i004",
+          "name": "Tea Powder (250 g)",
+          "categoryId": "cdemo_d2_canteen",
+          "unit": "Packet",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "createdAt": 1788431403000,
+          "updatedAt": 1788431403000
+        },
+        {
+          "id": "cdemo_d2_i005",
+          "name": "Biscuits (100 g)",
+          "categoryId": "cdemo_d2_canteen",
+          "unit": "Packet",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "createdAt": 1788431404000,
+          "updatedAt": 1788431404000
+        },
+        {
+          "id": "cdemo_d2_i006",
+          "name": "Note Book A4 (200 pp)",
+          "categoryId": "cdemo_d2_office",
+          "unit": "Piece",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "createdAt": 1788431405000,
+          "updatedAt": 1788431405000
+        },
+        {
+          "id": "cdemo_d2_i007",
+          "name": "Ballpoint Pen (Blue)",
+          "categoryId": "cdemo_d2_office",
+          "unit": "Piece",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "createdAt": 1788431406000,
+          "updatedAt": 1788431406000
+        },
+        {
+          "id": "cdemo_d2_i008",
+          "name": "Photocopy Paper A4 (Ream)",
+          "categoryId": "cdemo_d2_office",
+          "unit": "Ream",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "createdAt": 1788431407000,
+          "updatedAt": 1788431407000
+        }
+      ]
     },
     "hp_inventory.consumable_txns": {
-      "dist_1": []
+      "dist_1": [
+        {
+          "id": "cdemo_d0_a001",
+          "type": "ADD",
+          "itemId": "cdemo_d0_i001",
+          "qty": 40,
+          "date": 1788431400000,
+          "time": "10:30",
+          "byId": "u1",
+          "byName": "District Admin - Gurugram District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d0_canteen",
+          "locationId": "ggn_hq",
+          "createdAt": 1788431400000
+        },
+        {
+          "id": "cdemo_d0_a002",
+          "type": "ADD",
+          "itemId": "cdemo_d0_i002",
+          "qty": 120,
+          "date": 1788517800000,
+          "time": "10:30",
+          "byId": "u1",
+          "byName": "District Admin - Gurugram District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d0_clean",
+          "locationId": "ggn_hq",
+          "createdAt": 1788517800000
+        },
+        {
+          "id": "cdemo_d0_a003",
+          "type": "ADD",
+          "itemId": "cdemo_d0_i003",
+          "qty": 25,
+          "date": 1788604200000,
+          "time": "10:30",
+          "byId": "u1",
+          "byName": "District Admin - Gurugram District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d0_clean",
+          "locationId": "ggn_hq",
+          "createdAt": 1788604200000
+        },
+        {
+          "id": "cdemo_d0_a004",
+          "type": "ADD",
+          "itemId": "cdemo_d0_i004",
+          "qty": 60,
+          "date": 1788690600000,
+          "time": "10:30",
+          "byId": "u1",
+          "byName": "District Admin - Gurugram District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d0_canteen",
+          "locationId": "ggn_hq",
+          "createdAt": 1788690600000
+        },
+        {
+          "id": "cdemo_d0_a005",
+          "type": "ADD",
+          "itemId": "cdemo_d0_i005",
+          "qty": 200,
+          "date": 1788777000000,
+          "time": "10:30",
+          "byId": "u1",
+          "byName": "District Admin - Gurugram District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d0_canteen",
+          "locationId": "ggn_hq",
+          "createdAt": 1788777000000
+        },
+        {
+          "id": "cdemo_d0_a006",
+          "type": "ADD",
+          "itemId": "cdemo_d0_i006",
+          "qty": 80,
+          "date": 1788863400000,
+          "time": "10:30",
+          "byId": "u1",
+          "byName": "District Admin - Gurugram District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d0_office",
+          "locationId": "ggn_hq",
+          "createdAt": 1788863400000
+        },
+        {
+          "id": "cdemo_d0_a007",
+          "type": "ADD",
+          "itemId": "cdemo_d0_i007",
+          "qty": 150,
+          "date": 1788949800000,
+          "time": "10:30",
+          "byId": "u1",
+          "byName": "District Admin - Gurugram District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d0_office",
+          "locationId": "ggn_hq",
+          "createdAt": 1788949800000
+        },
+        {
+          "id": "cdemo_d0_a008",
+          "type": "ADD",
+          "itemId": "cdemo_d0_i008",
+          "qty": 30,
+          "date": 1789036200000,
+          "time": "10:30",
+          "byId": "u1",
+          "byName": "District Admin - Gurugram District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d0_office",
+          "locationId": "ggn_hq",
+          "createdAt": 1789036200000
+        },
+        {
+          "id": "cdemo_d0_l1",
+          "type": "LOSS",
+          "itemId": "cdemo_d0_i002",
+          "qty": 5,
+          "date": 1789209000000,
+          "time": "11:15",
+          "byId": "u1",
+          "byName": "District Admin - Gurugram District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d0_clean",
+          "locationId": "ggn_hq",
+          "remarks": "Damaged in store",
+          "createdAt": 1789209000000
+        }
+      ],
+      "dist_2": [
+        {
+          "id": "cdemo_d1_a001",
+          "type": "ADD",
+          "itemId": "cdemo_d1_i001",
+          "qty": 40,
+          "date": 1788431400000,
+          "time": "10:30",
+          "byId": "u2",
+          "byName": "District Admin - Faridabad District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d1_canteen",
+          "locationId": "fbd_hq",
+          "createdAt": 1788431400000
+        },
+        {
+          "id": "cdemo_d1_a002",
+          "type": "ADD",
+          "itemId": "cdemo_d1_i002",
+          "qty": 120,
+          "date": 1788517800000,
+          "time": "10:30",
+          "byId": "u2",
+          "byName": "District Admin - Faridabad District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d1_clean",
+          "locationId": "fbd_hq",
+          "createdAt": 1788517800000
+        },
+        {
+          "id": "cdemo_d1_a003",
+          "type": "ADD",
+          "itemId": "cdemo_d1_i003",
+          "qty": 25,
+          "date": 1788604200000,
+          "time": "10:30",
+          "byId": "u2",
+          "byName": "District Admin - Faridabad District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d1_clean",
+          "locationId": "fbd_hq",
+          "createdAt": 1788604200000
+        },
+        {
+          "id": "cdemo_d1_a004",
+          "type": "ADD",
+          "itemId": "cdemo_d1_i004",
+          "qty": 60,
+          "date": 1788690600000,
+          "time": "10:30",
+          "byId": "u2",
+          "byName": "District Admin - Faridabad District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d1_canteen",
+          "locationId": "fbd_hq",
+          "createdAt": 1788690600000
+        },
+        {
+          "id": "cdemo_d1_a005",
+          "type": "ADD",
+          "itemId": "cdemo_d1_i005",
+          "qty": 200,
+          "date": 1788777000000,
+          "time": "10:30",
+          "byId": "u2",
+          "byName": "District Admin - Faridabad District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d1_canteen",
+          "locationId": "fbd_hq",
+          "createdAt": 1788777000000
+        },
+        {
+          "id": "cdemo_d1_a006",
+          "type": "ADD",
+          "itemId": "cdemo_d1_i006",
+          "qty": 80,
+          "date": 1788863400000,
+          "time": "10:30",
+          "byId": "u2",
+          "byName": "District Admin - Faridabad District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d1_office",
+          "locationId": "fbd_hq",
+          "createdAt": 1788863400000
+        },
+        {
+          "id": "cdemo_d1_a007",
+          "type": "ADD",
+          "itemId": "cdemo_d1_i007",
+          "qty": 150,
+          "date": 1788949800000,
+          "time": "10:30",
+          "byId": "u2",
+          "byName": "District Admin - Faridabad District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d1_office",
+          "locationId": "fbd_hq",
+          "createdAt": 1788949800000
+        },
+        {
+          "id": "cdemo_d1_a008",
+          "type": "ADD",
+          "itemId": "cdemo_d1_i008",
+          "qty": 30,
+          "date": 1789036200000,
+          "time": "10:30",
+          "byId": "u2",
+          "byName": "District Admin - Faridabad District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d1_office",
+          "locationId": "fbd_hq",
+          "createdAt": 1789036200000
+        },
+        {
+          "id": "cdemo_d1_l1",
+          "type": "LOSS",
+          "itemId": "cdemo_d1_i002",
+          "qty": 5,
+          "date": 1789209000000,
+          "time": "11:15",
+          "byId": "u2",
+          "byName": "District Admin - Faridabad District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d1_clean",
+          "locationId": "fbd_hq",
+          "remarks": "Damaged in store",
+          "createdAt": 1789209000000
+        }
+      ],
+      "dist_mul2ptia8a7zr": [
+        {
+          "id": "cdemo_d2_a001",
+          "type": "ADD",
+          "itemId": "cdemo_d2_i001",
+          "qty": 40,
+          "date": 1788431400000,
+          "time": "10:30",
+          "byId": "us_fc8730dadf810a2e",
+          "byName": "Computer/IT Staff - Panchkula District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d2_canteen",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "createdAt": 1788431400000
+        },
+        {
+          "id": "cdemo_d2_a002",
+          "type": "ADD",
+          "itemId": "cdemo_d2_i002",
+          "qty": 120,
+          "date": 1788517800000,
+          "time": "10:30",
+          "byId": "us_fc8730dadf810a2e",
+          "byName": "Computer/IT Staff - Panchkula District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d2_clean",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "createdAt": 1788517800000
+        },
+        {
+          "id": "cdemo_d2_a003",
+          "type": "ADD",
+          "itemId": "cdemo_d2_i003",
+          "qty": 25,
+          "date": 1788604200000,
+          "time": "10:30",
+          "byId": "us_fc8730dadf810a2e",
+          "byName": "Computer/IT Staff - Panchkula District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d2_clean",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "createdAt": 1788604200000
+        },
+        {
+          "id": "cdemo_d2_a004",
+          "type": "ADD",
+          "itemId": "cdemo_d2_i004",
+          "qty": 60,
+          "date": 1788690600000,
+          "time": "10:30",
+          "byId": "us_fc8730dadf810a2e",
+          "byName": "Computer/IT Staff - Panchkula District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d2_canteen",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "createdAt": 1788690600000
+        },
+        {
+          "id": "cdemo_d2_a005",
+          "type": "ADD",
+          "itemId": "cdemo_d2_i005",
+          "qty": 200,
+          "date": 1788777000000,
+          "time": "10:30",
+          "byId": "us_fc8730dadf810a2e",
+          "byName": "Computer/IT Staff - Panchkula District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d2_canteen",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "createdAt": 1788777000000
+        },
+        {
+          "id": "cdemo_d2_a006",
+          "type": "ADD",
+          "itemId": "cdemo_d2_i006",
+          "qty": 80,
+          "date": 1788863400000,
+          "time": "10:30",
+          "byId": "us_fc8730dadf810a2e",
+          "byName": "Computer/IT Staff - Panchkula District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d2_office",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "createdAt": 1788863400000
+        },
+        {
+          "id": "cdemo_d2_a007",
+          "type": "ADD",
+          "itemId": "cdemo_d2_i007",
+          "qty": 150,
+          "date": 1788949800000,
+          "time": "10:30",
+          "byId": "us_fc8730dadf810a2e",
+          "byName": "Computer/IT Staff - Panchkula District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d2_office",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "createdAt": 1788949800000
+        },
+        {
+          "id": "cdemo_d2_a008",
+          "type": "ADD",
+          "itemId": "cdemo_d2_i008",
+          "qty": 30,
+          "date": 1789036200000,
+          "time": "10:30",
+          "byId": "us_fc8730dadf810a2e",
+          "byName": "Computer/IT Staff - Panchkula District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d2_office",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "createdAt": 1789036200000
+        },
+        {
+          "id": "cdemo_d2_l1",
+          "type": "LOSS",
+          "itemId": "cdemo_d2_i002",
+          "qty": 5,
+          "date": 1789209000000,
+          "time": "11:15",
+          "byId": "us_fc8730dadf810a2e",
+          "byName": "Computer/IT Staff - Panchkula District (Demo)",
+          "toType": "",
+          "toId": "",
+          "toName": "",
+          "categoryId": "cdemo_d2_clean",
+          "locationId": "staff_it_dist_mul2ptia8a7zr",
+          "remarks": "Damaged in store",
+          "createdAt": 1789209000000
+        }
+      ]
     },
     "hp_inventory.rt_events": [],
     "hp_inventory.demands_dist_1": [],

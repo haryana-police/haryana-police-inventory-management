@@ -918,20 +918,27 @@
       <div class="alloc-tab" data-alloc-tab="allotted">
         <div class="toolbar">
           <input type="text" id="allocSearch" placeholder="Search name / belt / item / posting / rank...">
-          <select id="allocCatFilter"><option value="">All Categories</option></select>
+          <span class="cb cb-multiselect" data-ms>
+            <input type="text" class="cb-input" id="allocCatInput" placeholder="Any Category" autocomplete="off" readonly>
+            <span class="cb-menu hidden" id="allocCatMenu"></span>
+            <select id="allocCatFilter" class="cb-hidden-sel" multiple><option value="">All Categories</option></select>
+          </span>
           <select id="allocItemFilter"><option value="">All Items</option></select>
           <input type="text" id="allocPostingFilter" placeholder="Posting...">
           <select id="allocRankFilter"><option value="">All Ranks</option></select>
-          <select id="allocStatusFilter">
-            <option value="">All Status</option>
-            <option value="ALLOTTED">Issued</option>
-            <option value="PARTIALLY_RETURNED">Partially Returned</option>
-            <option value="PARTIALLY_RECOVERED">Partially Recovered</option>
-            <option value="RETURNED">Returned</option>
-            <option value="LOST">Lost</option>
-            <option value="DAMAGED">Scrap</option>
-            <option value="CANCELLED">Cancelled</option>
-          </select>
+          <span class="cb cb-multiselect" data-ms>
+            <input type="text" class="cb-input" id="allocStatusInput" placeholder="Any Status" autocomplete="off" readonly>
+            <span class="cb-menu hidden" id="allocStatusMenu"></span>
+            <select id="allocStatusFilter" class="cb-hidden-sel" multiple>
+              <option value="ALLOTTED">Issued</option>
+              <option value="PARTIALLY_RETURNED">Partially Returned</option>
+              <option value="PARTIALLY_RECOVERED">Partially Recovered</option>
+              <option value="RETURNED">Returned</option>
+              <option value="LOST">Lost</option>
+              <option value="DAMAGED">Scrap</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+          </span>
           <input type="date" id="allocDateFrom" title="From date">
           <input type="date" id="allocDateTo" title="To date">
           <button class="btn btn-sm btn-outline" id="allocClearFilter">Clear</button>
@@ -949,7 +956,7 @@
           <div class="table-wrap">
             <table>
               <thead>
-                <tr><th>S.No</th><th class="sortable" data-sort-col="1" tabindex="0" aria-sort="none">Name <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="2" tabindex="0" aria-sort="none">BELT No. <span class="sort-arrow"></span></th><th>Mobile No.</th><th class="sortable" data-sort-col="3" tabindex="0" aria-sort="none">Item <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="4" tabindex="0" aria-sort="none">Category <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="5" tabindex="0" aria-sort="none">Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="6" tabindex="0" aria-sort="none">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="7" tabindex="0" aria-sort="none">Date <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="8" tabindex="0" aria-sort="none">Time <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="9" tabindex="0" aria-sort="none" title="Sort by status">Status <span class="sort-arrow"></span></th><th>Actions</th></tr>
+                <tr><th>S.No</th><th class="sortable" data-sort-col="1" tabindex="0" aria-sort="none">Name <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="2" tabindex="0" aria-sort="none">BELT No. <span class="sort-arrow"></span></th><th>Mobile No.</th><th class="sortable" data-sort-col="3" tabindex="0" aria-sort="none">Item <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="4" tabindex="0" aria-sort="none">Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="5" tabindex="0" aria-sort="none">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="6" tabindex="0" aria-sort="none">Date <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="7" tabindex="0" aria-sort="none">Time <span class="sort-arrow"></span></th><th>Actions</th></tr>
               </thead>
 <tbody id="allocBody"></tbody>
             </table>
