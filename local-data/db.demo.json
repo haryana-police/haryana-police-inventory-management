@@ -1,0 +1,4836 @@
+{
+  "app_state": {
+    "hp_inventory.districts": [
+      {
+        "id": "dist_1",
+        "code": "GGM",
+        "name": "Gurugram District",
+        "createdAt": 1788342251319,
+        "headquarters": "Gurugram",
+        "rangeId": "loc_range_1"
+      },
+      {
+        "id": "dist_2",
+        "code": "FBD",
+        "name": "Faridabad District",
+        "createdAt": 1788342251319,
+        "headquarters": "Faridabad",
+        "rangeId": "loc_range_1"
+      },
+      {
+        "id": "dist_mugr9nwgs812q",
+        "name": "Panipat District",
+        "code": "PPT",
+        "headquarters": "Panipat",
+        "createdAt": 1790328339521,
+        "rangeId": "loc_range_2"
+      },
+      {
+        "id": "dist_mul2ptia8a7zr",
+        "name": "Panchkula District",
+        "code": "PKL",
+        "headquarters": "panchklua comm",
+        "rangeId": "loc_mul2ku4t46023",
+        "createdAt": 1790589433762
+      }
+    ],
+    "hp_inventory.users": [
+      {
+        "id": "us_fc8730dadf810a2e",
+        "username": "it.staff.panchkuladis",
+        "name": "Computer/IT Staff - Panchkula District (Demo)",
+        "role": "itstaff",
+        "districtId": "dist_mul2ptia8a7zr",
+        "locationId": "staff_it_dist_mul2ptia8a7zr",
+        "mobile": "",
+        "active": true,
+        "createdAt": 1790589785107,
+        "password": ""
+      },
+      {
+        "id": "u_mul2v2i8dt1d2",
+        "username": "mhcpkl",
+        "role": "admin",
+        "name": "District Admin - Panchkula District (Demo)",
+        "mobile": "",
+        "createdAt": 1790589678704,
+        "districtId": "dist_mul2ptia8a7zr",
+        "locationId": "loc_mul2tuni28ngd",
+        "rangeId": "loc_mul2ku4t46023",
+        "password": ""
+      },
+      {
+        "id": "us_c86e1af95e188691",
+        "username": "mto.staff.panchkuladis",
+        "name": "MTO Staff - Panchkula District (Demo)",
+        "role": "mtostaff",
+        "districtId": "dist_mul2ptia8a7zr",
+        "locationId": "staff_mto_dist_mul2ptia8a7zr",
+        "mobile": "",
+        "active": true,
+        "createdAt": 1790589785107,
+        "password": ""
+      },
+      {
+        "id": "mul310c2dlws2",
+        "username": "pkladmin",
+        "role": "ig",
+        "name": "IG - Panchkula District (Demo)",
+        "mobile": "",
+        "state": "Haryana",
+        "locationType": "igRange",
+        "locationId": "loc_mul2ku4t46023",
+        "rangeId": "loc_mul2ku4t46023",
+        "districtId": "dist_mul2ptia8a7zr",
+        "districtIds": [
+          "dist_mul2ptia8a7zr"
+        ],
+        "createdAt": 1790589955826,
+        "password": ""
+      },
+      {
+        "id": "muky9kpst9t8h",
+        "username": "igkarnal",
+        "role": "ig",
+        "name": "IG - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "districtIds": [
+          "dist_mugr9nwgs812q"
+        ],
+        "locationId": "loc_range_2",
+        "createdAt": 1790581957408,
+        "rangeId": "loc_range_2",
+        "locationType": "igRange",
+        "state": "Haryana",
+        "password": ""
+      },
+      {
+        "id": "us_35c6662fea8ac9a5",
+        "username": "it.staff.panipatdistr",
+        "name": "Computer/IT Staff - Panipat District (Demo)",
+        "role": "itstaff",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "staff_it_dist_mugr9nwgs812q",
+        "mobile": "",
+        "active": true,
+        "createdAt": 1790328786193,
+        "password": ""
+      },
+      {
+        "id": "u_mukr5os6g0tqf",
+        "username": "mhcbapoli",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "mudmmfzq1wscc",
+        "createdAt": 1790570018742,
+        "password": ""
+      },
+      {
+        "id": "u_mukqmo2nqoyst",
+        "username": "mhcchandanibagh",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "mudmhhtdimcm5",
+        "createdAt": 1790569131359,
+        "password": ""
+      },
+      {
+        "id": "u_mukqywxnxudgd",
+        "username": "mhccity",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "mudmiolh7g18d",
+        "createdAt": 1790569702715,
+        "password": ""
+      },
+      {
+        "id": "u_mukrbt0lcu2bs",
+        "username": "mhccybercrime",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "mudmomz3blsen",
+        "createdAt": 1790570304165,
+        "password": ""
+      },
+      {
+        "id": "u_mukqq5luu0qm4",
+        "username": "mhcindustrialsec29",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "mudmhxf2po2ve",
+        "createdAt": 1790569294050,
+        "password": ""
+      },
+      {
+        "id": "u_mugrn833otfpo",
+        "username": "mhcisrana",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "loc_mugrlik4t0is5",
+        "createdAt": 1790328972208,
+        "password": ""
+      },
+      {
+        "id": "u_mukr73ur218a3",
+        "username": "mhcmatlauda",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "mudmmxvhskf4x",
+        "createdAt": 1790570084931,
+        "password": ""
+      },
+      {
+        "id": "u_mukqioiiqnuzi",
+        "username": "mhcmodeltown",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "mudmgs5k73h9k",
+        "createdAt": 1790568945306,
+        "password": ""
+      },
+      {
+        "id": "u_mukqttvss3mnx",
+        "username": "mhcoldindustrial",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "mudmi9eqo62ly",
+        "createdAt": 1790569465480,
+        "password": ""
+      },
+      {
+        "id": "u_mukqvpqh7vyhe",
+        "username": "mhcquilla",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "mudmijc45nl7f",
+        "createdAt": 1790569553417,
+        "password": ""
+      },
+      {
+        "id": "u_mukr9c41ek6bq",
+        "username": "mhcsadar",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "mudmnxccvuu4r",
+        "createdAt": 1790570188945,
+        "password": ""
+      },
+      {
+        "id": "u_mukr8cjmzhap0",
+        "username": "mhcsamalkha",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "mudmnqx15gzou",
+        "createdAt": 1790570142850,
+        "password": ""
+      },
+      {
+        "id": "u_mukraefdg2ea1",
+        "username": "mhcsanoli",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "mudmo5xl6i029",
+        "createdAt": 1790570238601,
+        "password": ""
+      },
+      {
+        "id": "u_mukr1q845zp8i",
+        "username": "mhcsector13/17",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "mudmkgivn8p55",
+        "createdAt": 1790569833988,
+        "password": ""
+      },
+      {
+        "id": "u_mukr06w689k73",
+        "username": "mhctehsilcamp",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "mudmj8isz4tun",
+        "createdAt": 1790569762279,
+        "password": ""
+      },
+      {
+        "id": "u_mukr4kl1kiu9c",
+        "username": "mhctraffic",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "mudml6i71e5f5",
+        "createdAt": 1790569966645,
+        "password": ""
+      },
+      {
+        "id": "u_mukr3mwykswqy",
+        "username": "mhcwomen",
+        "role": "mhc",
+        "name": "MHC Officer - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "mudmkw8cs690s",
+        "createdAt": 1790569923010,
+        "password": ""
+      },
+      {
+        "id": "us_6e8002d82c0cb0de",
+        "username": "mto.staff.panipatdistr",
+        "name": "MTO Staff - Panipat District (Demo)",
+        "role": "mtostaff",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "staff_mto_dist_mugr9nwgs812q",
+        "mobile": "",
+        "active": true,
+        "createdAt": 1790328786193,
+        "password": ""
+      },
+      {
+        "id": "u_mugrhvyhj535n",
+        "username": "thcpanipat",
+        "role": "admin",
+        "name": "District Admin - Panipat District (Demo)",
+        "mobile": "",
+        "districtId": "dist_mugr9nwgs812q",
+        "locationId": "loc_mugrguzgow294",
+        "createdAt": 1790328723209,
+        "rangeId": "loc_range_2",
+        "password": ""
+      },
+      {
+        "id": "u1",
+        "name": "District Admin - Gurugram District (Demo)",
+        "role": "admin",
+        "mobile": "",
+        "username": "admin",
+        "createdAt": 1788342251319,
+        "districtId": "dist_1",
+        "locationId": "ggn_hq",
+        "rangeId": "loc_range_1",
+        "password": ""
+      },
+      {
+        "id": "u_ig_demo",
+        "username": "ig",
+        "role": "ig",
+        "name": "IG - Gurugram District (Demo)",
+        "mobile": "",
+        "districtId": "dist_1",
+        "districtIds": [
+          "dist_1",
+          "dist_2"
+        ],
+        "locationId": "loc_range_1",
+        "active": true,
+        "createdAt": 1790580327306,
+        "rangeId": "loc_range_1",
+        "locationType": "igRange",
+        "state": "Haryana",
+        "password": ""
+      },
+      {
+        "id": "us_8eb748a9282f28a8",
+        "username": "it.staff.gurugramdist",
+        "name": "Computer/IT Staff - Gurugram District (Demo)",
+        "role": "itstaff",
+        "districtId": "dist_1",
+        "locationId": "staff_it_dist_1",
+        "mobile": "",
+        "active": true,
+        "createdAt": 1790310045979,
+        "password": ""
+      },
+      {
+        "id": "u4",
+        "name": "MHC Officer - Gurugram District (Demo)",
+        "role": "mhc",
+        "mobile": "",
+        "username": "mhc",
+        "createdAt": 1788342251319,
+        "districtId": "dist_1",
+        "locationId": "ggn_mhc",
+        "password": ""
+      },
+      {
+        "id": "us_c59e39931c745cd4",
+        "username": "mto.staff.gurugramdist",
+        "name": "MTO Staff - Gurugram District (Demo)",
+        "role": "mtostaff",
+        "districtId": "dist_1",
+        "locationId": "staff_mto_dist_1",
+        "mobile": "",
+        "active": true,
+        "createdAt": 1790310045979,
+        "password": ""
+      },
+      {
+        "id": "mu0tei6qfe3yh",
+        "name": "Police Post - Gurugram District (Demo)",
+        "role": "post",
+        "mobile": "",
+        "username": "PPSector12",
+        "createdAt": 1789364465810,
+        "districtId": "dist_1",
+        "locationId": "mu0t4a9889vd8",
+        "password": ""
+      },
+      {
+        "id": "mtoaxyflp1g8u",
+        "name": "Police Post - Gurugram District (Demo)",
+        "role": "post",
+        "mobile": "",
+        "username": "sec5ggm",
+        "createdAt": 1788607866513,
+        "districtId": "dist_1",
+        "locationId": "ggn_post_1",
+        "password": ""
+      },
+      {
+        "id": "u5",
+        "name": "Station Manager - Gurugram District (Demo)",
+        "role": "station",
+        "mobile": "",
+        "username": "station",
+        "createdAt": 1788342251319,
+        "districtId": "dist_1",
+        "locationId": "ggn_station_1",
+        "password": ""
+      },
+      {
+        "id": "u3",
+        "name": "General Staff - Gurugram District (Demo)",
+        "role": "user",
+        "mobile": "",
+        "username": "user",
+        "createdAt": 1788342251319,
+        "districtId": "dist_1",
+        "locationId": "ggn_station_1",
+        "password": ""
+      },
+      {
+        "id": "u2",
+        "name": "District Admin - Faridabad District (Demo)",
+        "role": "admin",
+        "mobile": "",
+        "username": "admin2",
+        "createdAt": 1788342251319,
+        "districtId": "dist_2",
+        "locationId": "fbd_hq",
+        "rangeId": "loc_range_1",
+        "password": ""
+      },
+      {
+        "id": "u0",
+        "name": "Developer Admin - Faridabad District (Demo)",
+        "role": "devadmin",
+        "mobile": "",
+        "username": "developer",
+        "createdAt": 1788342251319,
+        "districtId": "dist_2",
+        "locationId": "loc_phq_haryana",
+        "locationType": "phq",
+        "state": "Haryana",
+        "password": ""
+      },
+      {
+        "id": "u7",
+        "name": "MHC Officer - Faridabad District (Demo)",
+        "role": "mhc",
+        "mobile": "",
+        "username": "fbd_mhc",
+        "createdAt": 1788342251319,
+        "districtId": "dist_2",
+        "locationId": "fbd_mhc",
+        "password": ""
+      },
+      {
+        "id": "u6",
+        "name": "General Staff - Faridabad District (Demo)",
+        "role": "user",
+        "mobile": "",
+        "username": "fbd_user",
+        "createdAt": 1788342251319,
+        "districtId": "dist_2",
+        "locationId": "fbd_station_1",
+        "password": ""
+      },
+      {
+        "id": "us_e0949661072d2565",
+        "username": "it.staff.faridabaddis",
+        "name": "Computer/IT Staff - Faridabad District (Demo)",
+        "role": "itstaff",
+        "districtId": "dist_2",
+        "locationId": "staff_it_dist_2",
+        "mobile": "",
+        "active": true,
+        "createdAt": 1790310045979,
+        "password": ""
+      },
+      {
+        "id": "us_0760305d38383e00",
+        "username": "mto.staff.faridabaddis",
+        "name": "MTO Staff - Faridabad District (Demo)",
+        "role": "mtostaff",
+        "districtId": "dist_2",
+        "locationId": "staff_mto_dist_2",
+        "mobile": "",
+        "active": true,
+        "createdAt": 1790310045979,
+        "password": ""
+      },
+      {
+        "id": "igfbd_66a34cdb196f",
+        "username": "ig.fbd",
+        "name": "IG - Faridabad District (Demo)",
+        "role": "ig",
+        "mobile": "",
+        "districtId": "dist_2",
+        "districtIds": [
+          "dist_2"
+        ],
+        "locationId": "loc_range_1",
+        "locationType": "igRange",
+        "rangeId": "loc_range_1",
+        "state": "Haryana",
+        "active": true,
+        "createdAt": 1790667848309,
+        "password": ""
+      }
+    ],
+    "hp_inventory.locations": {
+      "dist_1": [
+        {
+          "id": "ggn_hq",
+          "name": "District HQ - Gurugram",
+          "type": "district",
+          "districtId": "dist_1"
+        },
+        {
+          "id": "ggn_station_1",
+          "name": "PS DLF Phase 3",
+          "type": "station",
+          "districtId": "dist_1"
+        },
+        {
+          "id": "ggn_station_2",
+          "name": "PS Sadar Bazaar",
+          "type": "station",
+          "districtId": "dist_1"
+        },
+        {
+          "id": "ggn_post_1",
+          "name": "PP Sector 5",
+          "type": "post",
+          "districtId": "dist_1"
+        },
+        {
+          "id": "ggn_mhc",
+          "name": "MHC Gurugram Central",
+          "type": "mhc",
+          "districtId": "dist_1"
+        },
+        {
+          "id": "mu0t4a9889vd8",
+          "name": "PP Sector 12",
+          "type": "post",
+          "districtId": "dist_1"
+        },
+        {
+          "id": "staff_it_dist_1",
+          "name": "Computer/IT Staff",
+          "type": "staff",
+          "districtId": "dist_1"
+        },
+        {
+          "id": "staff_mto_dist_1",
+          "name": "MTO Staff",
+          "type": "staff",
+          "districtId": "dist_1"
+        },
+        {
+          "id": "loc_otherhq_dist_1",
+          "name": "Other HQ - Gurugram District",
+          "type": "otherHq",
+          "districtId": "dist_1",
+          "createdAt": 1790583356589
+        }
+      ],
+      "dist_2": [
+        {
+          "id": "fbd_hq",
+          "name": "District HQ - Faridabad",
+          "type": "district",
+          "districtId": "dist_2"
+        },
+        {
+          "id": "fbd_station_1",
+          "name": "PS NIT",
+          "type": "station",
+          "districtId": "dist_2"
+        },
+        {
+          "id": "fbd_station_2",
+          "name": "PS Ballabgarh",
+          "type": "station",
+          "districtId": "dist_2"
+        },
+        {
+          "id": "fbd_post_1",
+          "name": "PP Nehar Par",
+          "type": "post",
+          "districtId": "dist_2"
+        },
+        {
+          "id": "fbd_mhc",
+          "name": "MHC Faridabad Central",
+          "type": "mhc",
+          "districtId": "dist_2"
+        },
+        {
+          "id": "staff_it_dist_2",
+          "name": "Computer/IT Staff",
+          "type": "staff",
+          "districtId": "dist_2"
+        },
+        {
+          "id": "staff_mto_dist_2",
+          "name": "MTO Staff",
+          "type": "staff",
+          "districtId": "dist_2"
+        },
+        {
+          "id": "loc_otherhq_dist_2",
+          "name": "Other HQ - Faridabad District",
+          "type": "otherHq",
+          "districtId": "dist_2",
+          "createdAt": 1790583356589
+        },
+        {
+          "id": "loc_mul2otflz0do2",
+          "name": "PANCHKULA",
+          "type": "district",
+          "districtId": "dist_2"
+        }
+      ],
+      "dist_mugr9nwgs812q": [
+        {
+          "id": "loc_mugrguzgow294",
+          "name": "THC PANIPAT",
+          "type": "district",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "staff_it_dist_mugr9nwgs812q",
+          "name": "Computer/IT Staff",
+          "type": "staff",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "staff_mto_dist_mugr9nwgs812q",
+          "name": "MTO Staff",
+          "type": "staff",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "loc_mugrlik4t0is5",
+          "name": "PS ISRANA",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "mudmgs5k73h9k",
+          "name": "PS MODEL TOWN",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "mudmhhtdimcm5",
+          "name": "PS CHANDANI BAGH",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "mudmhxf2po2ve",
+          "name": "PS INDUSTRIAL SEC 29",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "mudmi9eqo62ly",
+          "name": "PS OLD INDUSTRIAL",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "mudmijc45nl7f",
+          "name": "PS QUILLA",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "mudmiolh7g18d",
+          "name": "PS CITY",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "mudmj8isz4tun",
+          "name": "PS TEHSIL CAMP",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "mudmkgivn8p55",
+          "name": "PS SECTOR 13/17",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "mudmkw8cs690s",
+          "name": "PS WOMEN",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "mudml6i71e5f5",
+          "name": "PS TRAFFIC",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "mudmmfzq1wscc",
+          "name": "PS BAPOLI",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "mudmmxvhskf4x",
+          "name": "PS MATLAUDA",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "mudmnqx15gzou",
+          "name": "PS SAMALKHA",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "mudmnxccvuu4r",
+          "name": "PS SADAR",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "mudmo5xl6i029",
+          "name": "PS SANOLI",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "mudmomz3blsen",
+          "name": "PS CYBER CRIME",
+          "type": "station",
+          "districtId": "dist_mugr9nwgs812q"
+        },
+        {
+          "id": "loc_otherhq_dist_mugr9nwgs812q",
+          "name": "Other HQ - Panipat District",
+          "type": "otherHq",
+          "districtId": "dist_mugr9nwgs812q",
+          "createdAt": 1790583356589
+        }
+      ],
+      "__hq__": [
+        {
+          "id": "loc_phq_haryana",
+          "name": "PHQ Haryana",
+          "type": "phq",
+          "districtId": null,
+          "state": "Haryana",
+          "createdAt": 1790583356589
+        },
+        {
+          "id": "loc_range_1",
+          "name": "IG Range - Gurugram + Faridabad",
+          "type": "igRange",
+          "districtId": null,
+          "state": "Haryana",
+          "createdAt": 1790583356589
+        },
+        {
+          "id": "loc_range_2",
+          "name": "IG Range - Panipat",
+          "type": "igRange",
+          "districtId": null,
+          "state": "Haryana",
+          "createdAt": 1790583356589
+        },
+        {
+          "id": "loc_mul2ku4t46023",
+          "name": "PKL COMMISSION",
+          "type": "igRange",
+          "districtId": null,
+          "state": "Haryana"
+        }
+      ],
+      "dist_mul2ptia8a7zr": [
+        {
+          "id": "loc_mul2tuni28ngd",
+          "name": "Panchkula District",
+          "type": "district",
+          "districtId": "dist_mul2ptia8a7zr"
+        },
+        {
+          "id": "staff_it_dist_mul2ptia8a7zr",
+          "name": "Computer/IT Staff",
+          "type": "staff",
+          "districtId": "dist_mul2ptia8a7zr"
+        },
+        {
+          "id": "staff_mto_dist_mul2ptia8a7zr",
+          "name": "MTO Staff",
+          "type": "staff",
+          "districtId": "dist_mul2ptia8a7zr"
+        }
+      ]
+    },
+    "hp_inventory.items": {
+      "dist_1": [
+        {
+          "id": "i_ggn_4bcfe4d0b30631",
+          "name": "Steel Almirah स्टील अलमारी",
+          "categoryId": "c_ggn_f2b568baca88b5",
+          "unit": "Pcs",
+          "quantity": 6,
+          "minStock": 2,
+          "locationId": "ggn_hq",
+          "conditionCounts": {
+            "good": 6,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_7b109cc7a6b60e",
+          "name": "Office Chair ऑफिस कुर्सी",
+          "categoryId": "c_ggn_f2b568baca88b5",
+          "unit": "Pcs",
+          "quantity": 24,
+          "minStock": 4,
+          "locationId": "ggn_hq",
+          "conditionCounts": {
+            "good": 22,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_60e437a1f63827",
+          "name": "LED Tube Light 40W एलईडी ट्यूब लाइट 40 वाट",
+          "categoryId": "c_ggn_383ed79bbd0527",
+          "unit": "Pcs",
+          "quantity": 48,
+          "minStock": 10,
+          "locationId": "ggn_hq",
+          "conditionCounts": {
+            "good": 45,
+            "poor": 3,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_a6f7501d89a0be",
+          "name": "Emergency Torch आपातकालीन टॉर्च",
+          "categoryId": "c_ggn_383ed79bbd0527",
+          "unit": "Pcs",
+          "quantity": 22,
+          "minStock": 6,
+          "locationId": "ggn_hq",
+          "conditionCounts": {
+            "good": 20,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_0a26c76deaf1ed",
+          "name": "Desktop Computer डेस्कटॉप कंप्यूटर",
+          "categoryId": "c_ggn_47e9ea42340f5e",
+          "unit": "Pcs",
+          "quantity": 8,
+          "minStock": 2,
+          "locationId": "ggn_hq",
+          "conditionCounts": {
+            "good": 7,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_742bb6b5063f8c",
+          "name": "Water Dispenser वाटर डिस्पेंसर",
+          "categoryId": "c_ggn_fe1c09507f0890",
+          "unit": "Pcs",
+          "quantity": 3,
+          "minStock": 1,
+          "locationId": "ggn_hq",
+          "conditionCounts": {
+            "good": 3,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_ed9a0b7fe45bf1",
+          "name": "Bullet Proof Vest बुलेट प्रूफ वेस्ट",
+          "categoryId": "c_ggn_a60ec14a7f3a82",
+          "unit": "Pcs",
+          "quantity": 14,
+          "minStock": 4,
+          "locationId": "ggn_station_1",
+          "conditionCounts": {
+            "good": 12,
+            "poor": 1,
+            "damaged": 1
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_9c1353d4a2c601",
+          "name": "Fire Extinguisher अग्निशामक यंत्र",
+          "categoryId": "c_ggn_383ed79bbd0527",
+          "unit": "Pcs",
+          "quantity": 10,
+          "minStock": 3,
+          "locationId": "ggn_station_1",
+          "conditionCounts": {
+            "good": 9,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_7eb8729fa1b13e",
+          "name": "Walkie Talkie वॉकी टॉकी",
+          "categoryId": "c_ggn_47e9ea42340f5e",
+          "unit": "Pcs",
+          "quantity": 12,
+          "minStock": 3,
+          "locationId": "ggn_station_1",
+          "conditionCounts": {
+            "good": 11,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_75ca5c1512ad58",
+          "name": "Police Baton पुलिस बटन",
+          "categoryId": "c_ggn_a60ec14a7f3a82",
+          "unit": "Pcs",
+          "quantity": 16,
+          "minStock": 4,
+          "locationId": "ggn_station_1",
+          "conditionCounts": {
+            "good": 15,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_7cff1eb22874a7",
+          "name": "Raincoat रेनकोट",
+          "categoryId": "c_ggn_a60ec14a7f3a82",
+          "unit": "Pcs",
+          "quantity": 20,
+          "minStock": 6,
+          "locationId": "ggn_station_1",
+          "conditionCounts": {
+            "good": 18,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_11054ad20b0a74",
+          "name": "Hand Cuffs हथकड़ी",
+          "categoryId": "c_ggn_a60ec14a7f3a82",
+          "unit": "Pcs",
+          "quantity": 20,
+          "minStock": 5,
+          "locationId": "ggn_station_2",
+          "conditionCounts": {
+            "good": 18,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_db9fd2396e70b6",
+          "name": "Polycarbonate Shield पॉलीकार्बोनेट शील्ड",
+          "categoryId": "c_ggn_a60ec14a7f3a82",
+          "unit": "Pcs",
+          "quantity": 10,
+          "minStock": 3,
+          "locationId": "ggn_station_2",
+          "conditionCounts": {
+            "good": 9,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_65a796bba0f622",
+          "name": "First Aid Kit प्राथमिक चिकित्सा किट",
+          "categoryId": "c_ggn_fe1c09507f0890",
+          "unit": "Pcs",
+          "quantity": 8,
+          "minStock": 2,
+          "locationId": "ggn_station_2",
+          "conditionCounts": {
+            "good": 8,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_b0b9f1f3bf7250",
+          "name": "Shoe Cover जूता कवर",
+          "categoryId": "c_ggn_a60ec14a7f3a82",
+          "unit": "Pcs",
+          "quantity": 30,
+          "minStock": 10,
+          "locationId": "ggn_station_2",
+          "conditionCounts": {
+            "good": 28,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_7dea92a5d59b78",
+          "name": "Traffic Cone ट्रैफिक कोन",
+          "categoryId": "c_ggn_383ed79bbd0527",
+          "unit": "Pcs",
+          "quantity": 14,
+          "minStock": 4,
+          "locationId": "ggn_post_1",
+          "conditionCounts": {
+            "good": 13,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_b8c4e6f519edaf",
+          "name": "Reflective Vest रिफ्लेक्टिव वेस्ट",
+          "categoryId": "c_ggn_a60ec14a7f3a82",
+          "unit": "Pcs",
+          "quantity": 10,
+          "minStock": 3,
+          "locationId": "ggn_post_1",
+          "conditionCounts": {
+            "good": 9,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_4154768ddb2357",
+          "name": "Stretcher स्ट्रेचर",
+          "categoryId": "c_ggn_fe1c09507f0890",
+          "unit": "Pcs",
+          "quantity": 4,
+          "minStock": 1,
+          "locationId": "ggn_mhc",
+          "conditionCounts": {
+            "good": 4,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_e1fac34928a750",
+          "name": "Oxygen Cylinder ऑक्सीजन सिलेंडर",
+          "categoryId": "c_ggn_fe1c09507f0890",
+          "unit": "Pcs",
+          "quantity": 6,
+          "minStock": 2,
+          "locationId": "ggn_mhc",
+          "conditionCounts": {
+            "good": 5,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_2341d18734c768",
+          "name": "BP Monitor बीपी मॉनिटर",
+          "categoryId": "c_ggn_fe1c09507f0890",
+          "unit": "Pcs",
+          "quantity": 5,
+          "minStock": 1,
+          "locationId": "ggn_mhc",
+          "conditionCounts": {
+            "good": 5,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_50e929f5d2ddea",
+          "name": "Steel Almirah स्टील अलमारी",
+          "categoryId": "c_ggn_f2b568baca88b5",
+          "unit": "Pcs",
+          "quantity": 8,
+          "minStock": 2,
+          "locationId": "fbd_hq",
+          "conditionCounts": {
+            "good": 8,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_c451da5ca27d5e",
+          "name": "Office Chair ऑफिस कुर्सी",
+          "categoryId": "c_ggn_f2b568baca88b5",
+          "unit": "Pcs",
+          "quantity": 30,
+          "minStock": 6,
+          "locationId": "fbd_hq",
+          "conditionCounts": {
+            "good": 28,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_07050ac83b968d",
+          "name": "LED Tube Light 40W एलईडी ट्यूब लाइट 40 वाट",
+          "categoryId": "c_ggn_383ed79bbd0527",
+          "unit": "Pcs",
+          "quantity": 60,
+          "minStock": 12,
+          "locationId": "fbd_hq",
+          "conditionCounts": {
+            "good": 57,
+            "poor": 3,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_b5f5e448213397",
+          "name": "Laptop लैपटॉप",
+          "categoryId": "c_ggn_47e9ea42340f5e",
+          "unit": "Pcs",
+          "quantity": 6,
+          "minStock": 2,
+          "locationId": "fbd_hq",
+          "conditionCounts": {
+            "good": 5,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_2493aaf941ed45",
+          "name": "Air Cooler एयर कूलर",
+          "categoryId": "c_ggn_fe1c09507f0890",
+          "unit": "Pcs",
+          "quantity": 4,
+          "minStock": 1,
+          "locationId": "fbd_hq",
+          "conditionCounts": {
+            "good": 4,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_92c978c7831c41",
+          "name": "Bullet Proof Vest बुलेट प्रूफ वेस्ट",
+          "categoryId": "c_ggn_a60ec14a7f3a82",
+          "unit": "Pcs",
+          "quantity": 16,
+          "minStock": 5,
+          "locationId": "fbd_station_1",
+          "conditionCounts": {
+            "good": 14,
+            "poor": 1,
+            "damaged": 1
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_f3e26f782f3eb0",
+          "name": "Fire Extinguisher अग्निशामक यंत्र",
+          "categoryId": "c_ggn_383ed79bbd0527",
+          "unit": "Pcs",
+          "quantity": 12,
+          "minStock": 3,
+          "locationId": "fbd_station_1",
+          "conditionCounts": {
+            "good": 11,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_b5e018f55f8c48",
+          "name": "Walkie Talkie वॉकी टॉकी",
+          "categoryId": "c_ggn_47e9ea42340f5e",
+          "unit": "Pcs",
+          "quantity": 14,
+          "minStock": 4,
+          "locationId": "fbd_station_1",
+          "conditionCounts": {
+            "good": 13,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_5ac6e027debae9",
+          "name": "Police Baton पुलिस बटन",
+          "categoryId": "c_ggn_a60ec14a7f3a82",
+          "unit": "Pcs",
+          "quantity": 18,
+          "minStock": 5,
+          "locationId": "fbd_station_1",
+          "conditionCounts": {
+            "good": 16,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_b0c9f19b4c937d",
+          "name": "Hand Cuffs हथकड़ी",
+          "categoryId": "c_ggn_a60ec14a7f3a82",
+          "unit": "Pcs",
+          "quantity": 22,
+          "minStock": 6,
+          "locationId": "fbd_station_2",
+          "conditionCounts": {
+            "good": 20,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_b5f633da033f69",
+          "name": "Polycarbonate Shield पॉलीकार्बोनेट शील्ड",
+          "categoryId": "c_ggn_a60ec14a7f3a82",
+          "unit": "Pcs",
+          "quantity": 12,
+          "minStock": 4,
+          "locationId": "fbd_station_2",
+          "conditionCounts": {
+            "good": 11,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_1428e1f41fa31e",
+          "name": "Shoe Cover जूता कवर",
+          "categoryId": "c_ggn_a60ec14a7f3a82",
+          "unit": "Pcs",
+          "quantity": 35,
+          "minStock": 10,
+          "locationId": "fbd_station_2",
+          "conditionCounts": {
+            "good": 33,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_a2ce488c41b6f3",
+          "name": "Raincoat रेनकोट",
+          "categoryId": "c_ggn_a60ec14a7f3a82",
+          "unit": "Pcs",
+          "quantity": 24,
+          "minStock": 6,
+          "locationId": "fbd_station_2",
+          "conditionCounts": {
+            "good": 22,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_37992ef5642b3c",
+          "name": "Traffic Cone ट्रैफिक कोन",
+          "categoryId": "c_ggn_383ed79bbd0527",
+          "unit": "Pcs",
+          "quantity": 16,
+          "minStock": 4,
+          "locationId": "fbd_post_1",
+          "conditionCounts": {
+            "good": 15,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_4a26a1367502f8",
+          "name": "Reflective Vest रिफ्लेक्टिव वेस्ट",
+          "categoryId": "c_ggn_a60ec14a7f3a82",
+          "unit": "Pcs",
+          "quantity": 12,
+          "minStock": 4,
+          "locationId": "fbd_post_1",
+          "conditionCounts": {
+            "good": 11,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_defe9bee6b38ef",
+          "name": "Stretcher स्ट्रेचर",
+          "categoryId": "c_ggn_fe1c09507f0890",
+          "unit": "Pcs",
+          "quantity": 5,
+          "minStock": 1,
+          "locationId": "fbd_mhc",
+          "conditionCounts": {
+            "good": 5,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_c33e1c187b0099",
+          "name": "Oxygen Cylinder ऑक्सीजन सिलेंडर",
+          "categoryId": "c_ggn_fe1c09507f0890",
+          "unit": "Pcs",
+          "quantity": 8,
+          "minStock": 2,
+          "locationId": "fbd_mhc",
+          "conditionCounts": {
+            "good": 7,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_ggn_5a3b8308dc6699",
+          "name": "BP Monitor बीपी मॉनिटर",
+          "categoryId": "c_ggn_fe1c09507f0890",
+          "unit": "Pcs",
+          "quantity": 6,
+          "minStock": 1,
+          "locationId": "fbd_mhc",
+          "conditionCounts": {
+            "good": 6,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        }
+      ],
+      "dist_2": [
+        {
+          "id": "i_fbd_45549b2be4bd99",
+          "name": "Steel Almirah स्टील अलमारी",
+          "categoryId": "c_fbd_d96fef4f971900",
+          "unit": "Pcs",
+          "quantity": 6,
+          "minStock": 2,
+          "locationId": "ggn_hq",
+          "conditionCounts": {
+            "good": 6,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_d9f8c33992ea26",
+          "name": "Office Chair ऑफिस कुर्सी",
+          "categoryId": "c_fbd_d96fef4f971900",
+          "unit": "Pcs",
+          "quantity": 24,
+          "minStock": 4,
+          "locationId": "ggn_hq",
+          "conditionCounts": {
+            "good": 22,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_6ad5d281b5a02b",
+          "name": "LED Tube Light 40W एलईडी ट्यूब लाइट 40 वाट",
+          "categoryId": "c_fbd_25975c5035c14e",
+          "unit": "Pcs",
+          "quantity": 48,
+          "minStock": 10,
+          "locationId": "ggn_hq",
+          "conditionCounts": {
+            "good": 45,
+            "poor": 3,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_7a427c48a23464",
+          "name": "Emergency Torch आपातकालीन टॉर्च",
+          "categoryId": "c_fbd_25975c5035c14e",
+          "unit": "Pcs",
+          "quantity": 22,
+          "minStock": 6,
+          "locationId": "ggn_hq",
+          "conditionCounts": {
+            "good": 20,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_423cba705e0335",
+          "name": "Desktop Computer डेस्कटॉप कंप्यूटर",
+          "categoryId": "c_fbd_2cad11edf1b960",
+          "unit": "Pcs",
+          "quantity": 8,
+          "minStock": 2,
+          "locationId": "ggn_hq",
+          "conditionCounts": {
+            "good": 7,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_76d990cffb5e40",
+          "name": "Water Dispenser वाटर डिस्पेंसर",
+          "categoryId": "c_fbd_c43f1f4b9cb28e",
+          "unit": "Pcs",
+          "quantity": 3,
+          "minStock": 1,
+          "locationId": "ggn_hq",
+          "conditionCounts": {
+            "good": 3,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_b03151c2e404a4",
+          "name": "Bullet Proof Vest बुलेट प्रूफ वेस्ट",
+          "categoryId": "c_fbd_9e6c7666bb3f4d",
+          "unit": "Pcs",
+          "quantity": 14,
+          "minStock": 4,
+          "locationId": "ggn_station_1",
+          "conditionCounts": {
+            "good": 12,
+            "poor": 1,
+            "damaged": 1
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_0d167fbb3dc07a",
+          "name": "Fire Extinguisher अग्निशामक यंत्र",
+          "categoryId": "c_fbd_25975c5035c14e",
+          "unit": "Pcs",
+          "quantity": 10,
+          "minStock": 3,
+          "locationId": "ggn_station_1",
+          "conditionCounts": {
+            "good": 9,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_08240ad2fe7aa9",
+          "name": "Walkie Talkie वॉकी टॉकी",
+          "categoryId": "c_fbd_2cad11edf1b960",
+          "unit": "Pcs",
+          "quantity": 12,
+          "minStock": 3,
+          "locationId": "ggn_station_1",
+          "conditionCounts": {
+            "good": 11,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_1f773a0e1aa7c8",
+          "name": "Police Baton पुलिस बटन",
+          "categoryId": "c_fbd_9e6c7666bb3f4d",
+          "unit": "Pcs",
+          "quantity": 16,
+          "minStock": 4,
+          "locationId": "ggn_station_1",
+          "conditionCounts": {
+            "good": 15,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_fe7a71f2c3ed01",
+          "name": "Raincoat रेनकोट",
+          "categoryId": "c_fbd_9e6c7666bb3f4d",
+          "unit": "Pcs",
+          "quantity": 20,
+          "minStock": 6,
+          "locationId": "ggn_station_1",
+          "conditionCounts": {
+            "good": 18,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_fdb740fdfd609c",
+          "name": "Hand Cuffs हथकड़ी",
+          "categoryId": "c_fbd_9e6c7666bb3f4d",
+          "unit": "Pcs",
+          "quantity": 20,
+          "minStock": 5,
+          "locationId": "ggn_station_2",
+          "conditionCounts": {
+            "good": 18,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_e1c33bcb6dfcb0",
+          "name": "Polycarbonate Shield पॉलीकार्बोनेट शील्ड",
+          "categoryId": "c_fbd_9e6c7666bb3f4d",
+          "unit": "Pcs",
+          "quantity": 10,
+          "minStock": 3,
+          "locationId": "ggn_station_2",
+          "conditionCounts": {
+            "good": 9,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_9978c09cc94bf1",
+          "name": "First Aid Kit प्राथमिक चिकित्सा किट",
+          "categoryId": "c_fbd_c43f1f4b9cb28e",
+          "unit": "Pcs",
+          "quantity": 8,
+          "minStock": 2,
+          "locationId": "ggn_station_2",
+          "conditionCounts": {
+            "good": 8,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_f23d9f27c3f30d",
+          "name": "Shoe Cover जूता कवर",
+          "categoryId": "c_fbd_9e6c7666bb3f4d",
+          "unit": "Pcs",
+          "quantity": 30,
+          "minStock": 10,
+          "locationId": "ggn_station_2",
+          "conditionCounts": {
+            "good": 28,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_63a5c6a1ffe725",
+          "name": "Traffic Cone ट्रैफिक कोन",
+          "categoryId": "c_fbd_25975c5035c14e",
+          "unit": "Pcs",
+          "quantity": 14,
+          "minStock": 4,
+          "locationId": "ggn_post_1",
+          "conditionCounts": {
+            "good": 13,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_67fcda9ce022ec",
+          "name": "Reflective Vest रिफ्लेक्टिव वेस्ट",
+          "categoryId": "c_fbd_9e6c7666bb3f4d",
+          "unit": "Pcs",
+          "quantity": 10,
+          "minStock": 3,
+          "locationId": "ggn_post_1",
+          "conditionCounts": {
+            "good": 9,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_4caae2a2b8a24f",
+          "name": "Stretcher स्ट्रेचर",
+          "categoryId": "c_fbd_c43f1f4b9cb28e",
+          "unit": "Pcs",
+          "quantity": 4,
+          "minStock": 1,
+          "locationId": "ggn_mhc",
+          "conditionCounts": {
+            "good": 4,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_63e2b6ff0a9d88",
+          "name": "Oxygen Cylinder ऑक्सीजन सिलेंडर",
+          "categoryId": "c_fbd_c43f1f4b9cb28e",
+          "unit": "Pcs",
+          "quantity": 6,
+          "minStock": 2,
+          "locationId": "ggn_mhc",
+          "conditionCounts": {
+            "good": 5,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_e9bc32b50f6710",
+          "name": "BP Monitor बीपी मॉनिटर",
+          "categoryId": "c_fbd_c43f1f4b9cb28e",
+          "unit": "Pcs",
+          "quantity": 5,
+          "minStock": 1,
+          "locationId": "ggn_mhc",
+          "conditionCounts": {
+            "good": 5,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_f97166d84acad7",
+          "name": "Steel Almirah स्टील अलमारी",
+          "categoryId": "c_fbd_d96fef4f971900",
+          "unit": "Pcs",
+          "quantity": 8,
+          "minStock": 2,
+          "locationId": "fbd_hq",
+          "conditionCounts": {
+            "good": 8,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_5487b1ee865faa",
+          "name": "Office Chair ऑफिस कुर्सी",
+          "categoryId": "c_fbd_d96fef4f971900",
+          "unit": "Pcs",
+          "quantity": 30,
+          "minStock": 6,
+          "locationId": "fbd_hq",
+          "conditionCounts": {
+            "good": 28,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_962ab245e8156a",
+          "name": "LED Tube Light 40W एलईडी ट्यूब लाइट 40 वाट",
+          "categoryId": "c_fbd_25975c5035c14e",
+          "unit": "Pcs",
+          "quantity": 60,
+          "minStock": 12,
+          "locationId": "fbd_hq",
+          "conditionCounts": {
+            "good": 57,
+            "poor": 3,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_65c75177a6775a",
+          "name": "Laptop लैपटॉप",
+          "categoryId": "c_fbd_2cad11edf1b960",
+          "unit": "Pcs",
+          "quantity": 6,
+          "minStock": 2,
+          "locationId": "fbd_hq",
+          "conditionCounts": {
+            "good": 5,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_2243ae0619723c",
+          "name": "Air Cooler एयर कूलर",
+          "categoryId": "c_fbd_c43f1f4b9cb28e",
+          "unit": "Pcs",
+          "quantity": 4,
+          "minStock": 1,
+          "locationId": "fbd_hq",
+          "conditionCounts": {
+            "good": 4,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_3563ec6ba4f1b9",
+          "name": "Bullet Proof Vest बुलेट प्रूफ वेस्ट",
+          "categoryId": "c_fbd_9e6c7666bb3f4d",
+          "unit": "Pcs",
+          "quantity": 16,
+          "minStock": 5,
+          "locationId": "fbd_station_1",
+          "conditionCounts": {
+            "good": 14,
+            "poor": 1,
+            "damaged": 1
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_c6a4ba7cd9e9bd",
+          "name": "Fire Extinguisher अग्निशामक यंत्र",
+          "categoryId": "c_fbd_25975c5035c14e",
+          "unit": "Pcs",
+          "quantity": 12,
+          "minStock": 3,
+          "locationId": "fbd_station_1",
+          "conditionCounts": {
+            "good": 11,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_4b33bc70528766",
+          "name": "Walkie Talkie वॉकी टॉकी",
+          "categoryId": "c_fbd_2cad11edf1b960",
+          "unit": "Pcs",
+          "quantity": 14,
+          "minStock": 4,
+          "locationId": "fbd_station_1",
+          "conditionCounts": {
+            "good": 13,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_f8c1d674388069",
+          "name": "Police Baton पुलिस बटन",
+          "categoryId": "c_fbd_9e6c7666bb3f4d",
+          "unit": "Pcs",
+          "quantity": 18,
+          "minStock": 5,
+          "locationId": "fbd_station_1",
+          "conditionCounts": {
+            "good": 16,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_16ef2048757eb9",
+          "name": "Hand Cuffs हथकड़ी",
+          "categoryId": "c_fbd_9e6c7666bb3f4d",
+          "unit": "Pcs",
+          "quantity": 22,
+          "minStock": 6,
+          "locationId": "fbd_station_2",
+          "conditionCounts": {
+            "good": 20,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_36644905c44549",
+          "name": "Polycarbonate Shield पॉलीकार्बोनेट शील्ड",
+          "categoryId": "c_fbd_9e6c7666bb3f4d",
+          "unit": "Pcs",
+          "quantity": 12,
+          "minStock": 4,
+          "locationId": "fbd_station_2",
+          "conditionCounts": {
+            "good": 11,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_8671ec505f4872",
+          "name": "Shoe Cover जूता कवर",
+          "categoryId": "c_fbd_9e6c7666bb3f4d",
+          "unit": "Pcs",
+          "quantity": 35,
+          "minStock": 10,
+          "locationId": "fbd_station_2",
+          "conditionCounts": {
+            "good": 33,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_317a6f64eee78a",
+          "name": "Raincoat रेनकोट",
+          "categoryId": "c_fbd_9e6c7666bb3f4d",
+          "unit": "Pcs",
+          "quantity": 24,
+          "minStock": 6,
+          "locationId": "fbd_station_2",
+          "conditionCounts": {
+            "good": 22,
+            "poor": 2,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_82b4692abfa81a",
+          "name": "Traffic Cone ट्रैफिक कोन",
+          "categoryId": "c_fbd_25975c5035c14e",
+          "unit": "Pcs",
+          "quantity": 16,
+          "minStock": 4,
+          "locationId": "fbd_post_1",
+          "conditionCounts": {
+            "good": 15,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_10b6e528a8fe43",
+          "name": "Reflective Vest रिफ्लेक्टिव वेस्ट",
+          "categoryId": "c_fbd_9e6c7666bb3f4d",
+          "unit": "Pcs",
+          "quantity": 12,
+          "minStock": 4,
+          "locationId": "fbd_post_1",
+          "conditionCounts": {
+            "good": 11,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_88af5c58d1ef53",
+          "name": "Stretcher स्ट्रेचर",
+          "categoryId": "c_fbd_c43f1f4b9cb28e",
+          "unit": "Pcs",
+          "quantity": 5,
+          "minStock": 1,
+          "locationId": "fbd_mhc",
+          "conditionCounts": {
+            "good": 5,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_7a161e28de00d9",
+          "name": "Oxygen Cylinder ऑक्सीजन सिलेंडर",
+          "categoryId": "c_fbd_c43f1f4b9cb28e",
+          "unit": "Pcs",
+          "quantity": 8,
+          "minStock": 2,
+          "locationId": "fbd_mhc",
+          "conditionCounts": {
+            "good": 7,
+            "poor": 1,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        },
+        {
+          "id": "i_fbd_5e4449f313d203",
+          "name": "BP Monitor बीपी मॉनिटर",
+          "categoryId": "c_fbd_c43f1f4b9cb28e",
+          "unit": "Pcs",
+          "quantity": 6,
+          "minStock": 1,
+          "locationId": "fbd_mhc",
+          "conditionCounts": {
+            "good": 6,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790580044540,
+          "updatedAt": 1790580044540
+        }
+      ],
+      "dist_mugr9nwgs812q": [
+        {
+          "id": "mukrs7zkutdmw",
+          "name": "Cooler Iron कूलर लोहा",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571070064,
+          "updatedAt": 1790571070064
+        },
+        {
+          "id": "mukrsjcjpph5z",
+          "name": "Cooler Plastic कूलर प्लास्टिक",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571084787,
+          "updatedAt": 1790571084787
+        },
+        {
+          "id": "mukrsuebs89fl",
+          "name": "Container कन्टैनर",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571099107,
+          "updatedAt": 1790571099107
+        },
+        {
+          "id": "mukrtgh7sq8dn",
+          "name": "Freeze (Refrigerator) फ्रीज़",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571127723,
+          "updatedAt": 1790571127723
+        },
+        {
+          "id": "mukrtxkn4khn9",
+          "name": "Iron Cooler Stand लोहा का कूलर स्टैन्ड",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571149879,
+          "updatedAt": 1790571149879
+        },
+        {
+          "id": "mukrujy2lee7r",
+          "name": "Juicer Mixer जूसर मिक्सर",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571178874,
+          "updatedAt": 1790571178874
+        },
+        {
+          "id": "mukrutcfksfmb",
+          "name": "Oven ओवन",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571191055,
+          "updatedAt": 1790571191055
+        },
+        {
+          "id": "mukrvvy27ozdj",
+          "name": "R.O. water purifier आर. ओ.",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571241082,
+          "updatedAt": 1790571241082
+        },
+        {
+          "id": "mukrwbxpt7wb0",
+          "name": "Tullu Pump Motor Compressor पम्प कम्प्रेसर",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571261805,
+          "updatedAt": 1790571261805
+        },
+        {
+          "id": "mukrwpt58ckai",
+          "name": "Vacuum Cleaner Machine वैक्यूम क्लीनर",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571279785,
+          "updatedAt": 1790571279785
+        },
+        {
+          "id": "mukrwzisz2yrf",
+          "name": "Washing Machine वाशिंग मशीन",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571292372,
+          "updatedAt": 1790571292372
+        },
+        {
+          "id": "mukrxepvzd65k",
+          "name": "Water Camper वाटर कैम्पर",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571312067,
+          "updatedAt": 1790571312067
+        },
+        {
+          "id": "mukrxo9zrhwk7",
+          "name": "Water Cooler वाटर कूलर",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571324455,
+          "updatedAt": 1790571324455
+        },
+        {
+          "id": "mukry2aw2ys3v",
+          "name": "Water Tank Plastic टंकी प्लास्टिक",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571342632,
+          "updatedAt": 1790571342632
+        },
+        {
+          "id": "mukryja6344h7",
+          "name": "Weight Machine वैट मशीन",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571364638,
+          "updatedAt": 1790571364638
+        },
+        {
+          "id": "mukryw46i3p73",
+          "name": "Cylinder सिलिन्डर",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571381270,
+          "updatedAt": 1790571381270
+        },
+        {
+          "id": "mukrzdffjxumg",
+          "name": "Geyser गीजर",
+          "categoryId": "mukrrg4m9dani",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790571403707,
+          "updatedAt": 1790571403707
+        },
+        {
+          "id": "mukscrg1a5kg3",
+          "name": "Bandolier Leather बंडोलीर लेदर",
+          "categoryId": "muksbafmtnscy",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572028401,
+          "updatedAt": 1790572028401
+        },
+        {
+          "id": "muksdibvyodff",
+          "name": "Handcuffs Chain हथकड़ी चैन",
+          "categoryId": "muksbafmtnscy",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572063243,
+          "updatedAt": 1790572063243
+        },
+        {
+          "id": "mukse0fdkeois",
+          "name": "Rifle Chain राइफल चैन",
+          "categoryId": "muksbafmtnscy",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572086697,
+          "updatedAt": 1790572086697
+        },
+        {
+          "id": "muksef1kosjn8",
+          "name": "Rifle Rack Iron राइफल रैक लोहा",
+          "categoryId": "muksbafmtnscy",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572105640,
+          "updatedAt": 1790572105640
+        },
+        {
+          "id": "mukses1j1kko5",
+          "name": "Rifle Rack Wooden राइफल रैक लकड़ी",
+          "categoryId": "muksbafmtnscy",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572122487,
+          "updatedAt": 1790572122487
+        },
+        {
+          "id": "muksf5tdmllmf",
+          "name": "Talwar Salami तलवार सलामी",
+          "categoryId": "muksbafmtnscy",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572140337,
+          "updatedAt": 1790572140337
+        },
+        {
+          "id": "muksgtkzdqsey",
+          "name": "GUM Boot गम बूट",
+          "categoryId": "muksfkw9d2qi3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572217795,
+          "updatedAt": 1790572217795
+        },
+        {
+          "id": "muksh5zx8sra0",
+          "name": "Rain Coat रैन कोट",
+          "categoryId": "muksfkw9d2qi3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572233885,
+          "updatedAt": 1790572233885
+        },
+        {
+          "id": "mukshj9z0csks",
+          "name": "Umbrella छत्तरी",
+          "categoryId": "muksfkw9d2qi3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572251095,
+          "updatedAt": 1790572251095
+        },
+        {
+          "id": "muksii19sy3n8",
+          "name": "Amplifier ऐम्प्लफाइअर",
+          "categoryId": "mukshysa72htz",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572296141,
+          "updatedAt": 1790572296141
+        },
+        {
+          "id": "mukskgdrq9g69",
+          "name": "Cordless Telephone कोर्डलेस टेलीफोन",
+          "categoryId": "mukshysa72htz",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572387311,
+          "updatedAt": 1790572387311
+        },
+        {
+          "id": "mukslw5qx6g9q",
+          "name": "Dish T.V. डीश टीवी",
+          "categoryId": "mukshysa72htz",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572454414,
+          "updatedAt": 1790572454414
+        },
+        {
+          "id": "muksmyqk2hma1",
+          "name": "E-Challan Machine इे-चालान मशीन",
+          "categoryId": "mukshysa72htz",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572504412,
+          "updatedAt": 1790572504412
+        },
+        {
+          "id": "muksp3p8wxjof",
+          "name": "HandyCam Digital Camera हैंडीकैम डिजिटल कैमरा",
+          "categoryId": "mukshysa72htz",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572604156,
+          "updatedAt": 1790572604156
+        },
+        {
+          "id": "mukswew1s8011",
+          "name": "Fax Machine फैक्स मशीन",
+          "categoryId": "mukshysa72htz",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572945249,
+          "updatedAt": 1790572945249
+        },
+        {
+          "id": "mukswpcpgwln6",
+          "name": "LCD ROT एलसीडी राट",
+          "categoryId": "mukshysa72htz",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572958809,
+          "updatedAt": 1790572958809
+        },
+        {
+          "id": "mukswzq9io6oy",
+          "name": "Mega Phone मेगा फोन",
+          "categoryId": "mukshysa72htz",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572972257,
+          "updatedAt": 1790572972257
+        },
+        {
+          "id": "muksxk6zgdwxk",
+          "name": "Mike Battery माइक बैटरी",
+          "categoryId": "mukshysa72htz",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790572998779,
+          "updatedAt": 1790572998779
+        },
+        {
+          "id": "muksxuj0u9kyv",
+          "name": "Mobile Phone Set मोबाईल फोन सेट",
+          "categoryId": "mukshysa72htz",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573012172,
+          "updatedAt": 1790573012172
+        },
+        {
+          "id": "mukt29v3x9u1n",
+          "name": "Photostat Machine फोटस्टैट मशीन",
+          "categoryId": "mukshysa72htz",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573218671,
+          "updatedAt": 1790573218671
+        },
+        {
+          "id": "mukt2x5c2mjne",
+          "name": "LED T.V. एलईडी टीवी",
+          "categoryId": "mukshysa72htz",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573248848,
+          "updatedAt": 1790573248848
+        },
+        {
+          "id": "mukt38r4ti4ek",
+          "name": "T.V. Trolly टीवी ट्रॉली",
+          "categoryId": "mukshysa72htz",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573263888,
+          "updatedAt": 1790573263888
+        },
+        {
+          "id": "mukt3l1qzkxcv",
+          "name": "Tape Recorder (Voice) टेप रीकॉर्डर",
+          "categoryId": "mukshysa72htz",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573279822,
+          "updatedAt": 1790573279822
+        },
+        {
+          "id": "mukt6biafjkan",
+          "name": "A/C (Air Conditioner) ए /सी",
+          "categoryId": "mukt5sjwowof3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573407426,
+          "updatedAt": 1790573755291
+        },
+        {
+          "id": "mukt75hfsqfeh",
+          "name": "Ceiling Fan पंखा  छत का",
+          "categoryId": "mukt5sjwowof3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573446275,
+          "updatedAt": 1790573446275
+        },
+        {
+          "id": "mukt81dh9nso7",
+          "name": "Door Bell घंटी दरवाजे की",
+          "categoryId": "mukt5sjwowof3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573487605,
+          "updatedAt": 1790573487605
+        },
+        {
+          "id": "mukt8bham0jjl",
+          "name": "Electricity Meter बिजली मीटर",
+          "categoryId": "mukt5sjwowof3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573500702,
+          "updatedAt": 1790573500702
+        },
+        {
+          "id": "mukt9yb3iawu2",
+          "name": "Emergency Light आपातकाल लाइट",
+          "categoryId": "mukt5sjwowof3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573576943,
+          "updatedAt": 1790573576943
+        },
+        {
+          "id": "muktatr40v4hv",
+          "name": "Exhaust Fan इग्ज़ॉस्ट पंखा",
+          "categoryId": "mukt5sjwowof3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573617696,
+          "updatedAt": 1790573617696
+        },
+        {
+          "id": "muktbfhk1yki7",
+          "name": "Invertor Battery इंवर्टर बैटरी",
+          "categoryId": "mukt5sjwowof3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573645864,
+          "updatedAt": 1790573645864
+        },
+        {
+          "id": "muktcb0lw4glm",
+          "name": "LED Light Search एलईडी लाइट सर्च",
+          "categoryId": "mukt5sjwowof3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573686725,
+          "updatedAt": 1790573686725
+        },
+        {
+          "id": "muktd7kip656v",
+          "name": "Mini Fan Bathroom स्नानघर का छोटा पंखा",
+          "categoryId": "mukt5sjwowof3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573728914,
+          "updatedAt": 1790573728914
+        },
+        {
+          "id": "mukth9p28ohvp",
+          "name": "Press Electric इलेक्ट्रिक इस्त्री",
+          "categoryId": "mukt5sjwowof3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573918294,
+          "updatedAt": 1790573918294
+        },
+        {
+          "id": "mukthv2j7f8kt",
+          "name": "Room Heater रूम हीटर",
+          "categoryId": "mukt5sjwowof3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573945995,
+          "updatedAt": 1790573945995
+        },
+        {
+          "id": "muktimkrn1vbt",
+          "name": "Sky Emergency Light आकाश आपातकाल लाइट",
+          "categoryId": "mukt5sjwowof3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573981643,
+          "updatedAt": 1790573981643
+        },
+        {
+          "id": "muktiwg0fhbt3",
+          "name": "Standing Fan स्टैन्डींग पंखा",
+          "categoryId": "mukt5sjwowof3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790573994432,
+          "updatedAt": 1790573994432
+        },
+        {
+          "id": "muktjc7b3luon",
+          "name": "Wall Fan Standing दीवार स्टैन्डींग पंखा",
+          "categoryId": "mukt5sjwowof3",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574014855,
+          "updatedAt": 1790574014855
+        },
+        {
+          "id": "muktmajhc6u5k",
+          "name": "Fire Bucket आग बुझाने वाली बाल्टी",
+          "categoryId": "muktl42yle9fs",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574152669,
+          "updatedAt": 1790574152669
+        },
+        {
+          "id": "muktmx4vc83pp",
+          "name": "Fire Extinguisher आग बुझाने वाल यंत्र",
+          "categoryId": "muktl42yle9fs",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574181951,
+          "updatedAt": 1790574201227
+        },
+        {
+          "id": "muktnoo2iqizv",
+          "name": "First Add Box फर्स्ट ऐड बॉक्स",
+          "categoryId": "muktl42yle9fs",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574217634,
+          "updatedAt": 1790574217634
+        },
+        {
+          "id": "mukto4r4xdduv",
+          "name": "Gas Stock गैस चूला",
+          "categoryId": "muktl42yle9fs",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574238480,
+          "updatedAt": 1790574238480
+        },
+        {
+          "id": "muktojqkp8nft",
+          "name": "Women Health Desk वुमन हेल्थ डेस्क",
+          "categoryId": "muktl42yle9fs",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574257900,
+          "updatedAt": 1790574257900
+        },
+        {
+          "id": "muktrq2srpnns",
+          "name": "3 Seater Chair Plastic तीन सीटर कुर्सी प्लास्टिक",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574406084,
+          "updatedAt": 1790574427658
+        },
+        {
+          "id": "muktsmrrs9c2j",
+          "name": "Almira Iron अलमारी लोहा",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574448455,
+          "updatedAt": 1790574448455
+        },
+        {
+          "id": "mukttb80xskn3",
+          "name": "Almira Wooden अलमारी लकड़ी",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574480144,
+          "updatedAt": 1790574480144
+        },
+        {
+          "id": "mukttl1w2m8bc",
+          "name": "Chair Plastic कुर्सी प्लास्टिक",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574492884,
+          "updatedAt": 1790574492884
+        },
+        {
+          "id": "muktu7oy75gxz",
+          "name": "Curtains Window and Door परदे खिड़की व दरवाजे के",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574522226,
+          "updatedAt": 1790574522226
+        },
+        {
+          "id": "muktuow6v212t",
+          "name": "Dining Table Set खाने का तबेल",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574544518,
+          "updatedAt": 1790574544518
+        },
+        {
+          "id": "muktv371kpwcg",
+          "name": "Double Bed डबल बेड",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574563053,
+          "updatedAt": 1790574563053
+        },
+        {
+          "id": "muktwuycl5tyz",
+          "name": "Iron Chair Canen कुर्सी लोहा कैनन",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574645684,
+          "updatedAt": 1790574645684
+        },
+        {
+          "id": "muktxfx2renld",
+          "name": "Lecture Stand लेक्चर स्टैन्ड",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574672854,
+          "updatedAt": 1790574672854
+        },
+        {
+          "id": "muktxpmynhz73",
+          "name": "Library लाइब्रेरी",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574685450,
+          "updatedAt": 1790574685450
+        },
+        {
+          "id": "muktytkhjeift",
+          "name": "Office Chair Gade Daar ऑफिस कुर्सी गदा",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574737201,
+          "updatedAt": 1790574737201
+        },
+        {
+          "id": "muktzsdmbfp2q",
+          "name": "Plastic Table प्लास्टिक टेबल",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574782314,
+          "updatedAt": 1790574782314
+        },
+        {
+          "id": "muku08ehn4bhe",
+          "name": "Rotating Chair घूमने वाली कुर्सी",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574803081,
+          "updatedAt": 1790574803081
+        },
+        {
+          "id": "muku13elx0mgz",
+          "name": "Side Unit Wooden साइड यूनिट लकड़ी",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574843261,
+          "updatedAt": 1790574843261
+        },
+        {
+          "id": "muku1fzf9jerd",
+          "name": "Table Iron लोहा टेबल",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574859563,
+          "updatedAt": 1790574859563
+        },
+        {
+          "id": "muku28z1iqp71",
+          "name": "Table Wooden Sunmica टेबल लकड़ी सुनमिका",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574897133,
+          "updatedAt": 1790574897133
+        },
+        {
+          "id": "muku3136hwudg",
+          "name": "Takhat Bed Wooden तकत बेड लकड़ी",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574933570,
+          "updatedAt": 1790574933570
+        },
+        {
+          "id": "muku3gtnz5v7z",
+          "name": "Wooden Bench लकड़ी बेंच",
+          "categoryId": "muktqon2mcdlt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790574953963,
+          "updatedAt": 1790574953963
+        },
+        {
+          "id": "muku5k874xy6g",
+          "name": "Alco Sense Meter शराब मापने का मीटर",
+          "categoryId": "muku4swmvsplt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790575051687,
+          "updatedAt": 1790575051687
+        },
+        {
+          "id": "muku6r3ar2xta",
+          "name": "Fingerprint Kit उंगलियों की छाप किट",
+          "categoryId": "muku4swmvsplt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790575107238,
+          "updatedAt": 1790575107238
+        },
+        {
+          "id": "muku7xg2j12gz",
+          "name": "Investigation Bag तफतीश बसता",
+          "categoryId": "muku4swmvsplt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790575162130,
+          "updatedAt": 1790575162130
+        },
+        {
+          "id": "muku8c7xentvn",
+          "name": "Laser Machine लेसर मशीन",
+          "categoryId": "muku4swmvsplt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790575181277,
+          "updatedAt": 1790575181277
+        },
+        {
+          "id": "muku9e8dx1pjr",
+          "name": "Narcotic Drug नार्काटिक दृग",
+          "categoryId": "muku4swmvsplt",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790575230541,
+          "updatedAt": 1790575230541
+        },
+        {
+          "id": "mukuv0xiog08d",
+          "name": "Biometrics Scanner MFS110 बीओमेट्रिक स्कैनर  मंत्रा",
+          "categoryId": "muku9ue3eoxmb",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576239735,
+          "updatedAt": 1790576239735
+        },
+        {
+          "id": "mukuwnby9ulp6",
+          "name": "C.C.T.V. Camera सी.सी.टी.वी. कैमरा",
+          "categoryId": "muku9ue3eoxmb",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576315422,
+          "updatedAt": 1790576315422
+        },
+        {
+          "id": "mukuwxnm0d39r",
+          "name": "Drone Camera ड्रोन कैमरा",
+          "categoryId": "muku9ue3eoxmb",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576328802,
+          "updatedAt": 1790576328802
+        },
+        {
+          "id": "mukuxf1spu63x",
+          "name": "Zebronics WEB Camera वेब  कैमरा",
+          "categoryId": "muku9ue3eoxmb",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576351344,
+          "updatedAt": 1790576351344
+        },
+        {
+          "id": "mukuymkkiq7jr",
+          "name": "Brazier अंगीठी",
+          "categoryId": "mukuxqw63rcbn",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576407748,
+          "updatedAt": 1790576407748
+        },
+        {
+          "id": "mukuzd430gd59",
+          "name": "Brass Ashok Stambh अशोक स्तम्भ",
+          "categoryId": "mukuxqw63rcbn",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576442147,
+          "updatedAt": 1790576442147
+        },
+        {
+          "id": "mukv02r012g6x",
+          "name": "Brass Bell पीतल की घंटी",
+          "categoryId": "mukuxqw63rcbn",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576475372,
+          "updatedAt": 1790576475372
+        },
+        {
+          "id": "mukv0f50nxfqp",
+          "name": "Calculator कैलक्यूलेटर",
+          "categoryId": "mukuxqw63rcbn",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576491428,
+          "updatedAt": 1790576491428
+        },
+        {
+          "id": "mukv1hefu9tiz",
+          "name": "Carpet Floor दरी फ़र्शी",
+          "categoryId": "mukuxqw63rcbn",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576541015,
+          "updatedAt": 1790576541015
+        },
+        {
+          "id": "mukv23n1aysue",
+          "name": "H.P. Batch ह.पु बैच",
+          "categoryId": "mukuxqw63rcbn",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576569837,
+          "updatedAt": 1790576569837
+        },
+        {
+          "id": "mukv31gbpjuys",
+          "name": "Iron Chaarpi चारपाई लोहा",
+          "categoryId": "mukuxqw63rcbn",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576613659,
+          "updatedAt": 1790576613659
+        },
+        {
+          "id": "mukv3aurzwlg7",
+          "name": "Iron Lock ताल लोहा",
+          "categoryId": "mukuxqw63rcbn",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576625843,
+          "updatedAt": 1790576625843
+        },
+        {
+          "id": "mukv47oo4t66q",
+          "name": "Jute Carpet जुट की दरी",
+          "categoryId": "mukuxqw63rcbn",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576668392,
+          "updatedAt": 1790576668392
+        },
+        {
+          "id": "mukv4vjyq2q4u",
+          "name": "Mattress गदा",
+          "categoryId": "mukuxqw63rcbn",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576699326,
+          "updatedAt": 1790576699326
+        },
+        {
+          "id": "mukv5q5jgohnw",
+          "name": "Press Brass पीतल प्रेस",
+          "categoryId": "mukuxqw63rcbn",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576738983,
+          "updatedAt": 1790576738983
+        },
+        {
+          "id": "mukv5ymy0o3ea",
+          "name": "Swing झूला",
+          "categoryId": "mukuxqw63rcbn",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576749978,
+          "updatedAt": 1790576749978
+        },
+        {
+          "id": "mukv792oh1axj",
+          "name": "Wall Clock दीवार घड़ी",
+          "categoryId": "mukuxqw63rcbn",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576810160,
+          "updatedAt": 1790576810160
+        },
+        {
+          "id": "mukv7sov51u36",
+          "name": "Bed Sheet बेड की चादर",
+          "categoryId": "mukuxqw63rcbn",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790576835583,
+          "updatedAt": 1790576835583
+        },
+        {
+          "id": "mum8aiv1382s7",
+          "name": "Battery Tri Cell तीन सेली बैटरी",
+          "categoryId": "mum88vrir9yq4",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790659263997,
+          "updatedAt": 1790659263997
+        },
+        {
+          "id": "mum8axkphe1f6",
+          "name": "Generator Set जनरेटर सेट",
+          "categoryId": "mum88vrir9yq4",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790659283065,
+          "updatedAt": 1790659283065
+        },
+        {
+          "id": "mum8g74mrg8oa",
+          "name": "Arm Guard आर्म गार्ड",
+          "categoryId": "mum8fabqb5pah",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790659528726,
+          "updatedAt": 1790659528726
+        },
+        {
+          "id": "mum8glf5blnqs",
+          "name": "Body Protector बॉडी प्रटेक्टर",
+          "categoryId": "mum8fabqb5pah",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790659547249,
+          "updatedAt": 1790659547249
+        },
+        {
+          "id": "mum8gzryc0ct9",
+          "name": "Bullet Proof Jacket बुलेट प्रूफ जैकिट",
+          "categoryId": "mum8fabqb5pah",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790659565854,
+          "updatedAt": 1790659565854
+        },
+        {
+          "id": "mum8hdmbhlp9z",
+          "name": "Cane Shield Banet कैन शिलेड बनेट",
+          "categoryId": "mum8fabqb5pah",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790659583796,
+          "updatedAt": 1790659583796
+        },
+        {
+          "id": "mum8ioc1oac6y",
+          "name": "Dandaa Banet डंडा बनेट",
+          "categoryId": "mum8fabqb5pah",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790659644337,
+          "updatedAt": 1790659644337
+        },
+        {
+          "id": "mum8j33mrieai",
+          "name": "Dandaa Carbonateडंडा कार्बनैट",
+          "categoryId": "mum8fabqb5pah",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790659663474,
+          "updatedAt": 1790659663474
+        },
+        {
+          "id": "mum8k5ql9h88g",
+          "name": "Full Body Protector पूरा बॉडी प्रटेक्टर",
+          "categoryId": "mum8fabqb5pah",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790659713549,
+          "updatedAt": 1790659713549
+        },
+        {
+          "id": "mum8kkhps0i8a",
+          "name": "Helmet Cricket क्रिकेट  हेलमेट",
+          "categoryId": "mum8fabqb5pah",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790659732669,
+          "updatedAt": 1790659732669
+        },
+        {
+          "id": "mum8kx73hq42n",
+          "name": "Helmet Motorcycle हेलमेट मोटरसाइकिल",
+          "categoryId": "mum8fabqb5pah",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790659749135,
+          "updatedAt": 1790659749135
+        },
+        {
+          "id": "mum8l7906n98q",
+          "name": "Helmet Steel हेलमेट स्टील",
+          "categoryId": "mum8fabqb5pah",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790659762164,
+          "updatedAt": 1790659762164
+        },
+        {
+          "id": "mum8lheojwo9z",
+          "name": "Laathi Baas लाठी बास",
+          "categoryId": "mum8fabqb5pah",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790659775328,
+          "updatedAt": 1790659775328
+        },
+        {
+          "id": "mum8lz7f6vhq7",
+          "name": "Rope Banet  रस्सा बनेट",
+          "categoryId": "mum8fabqb5pah",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790659798395,
+          "updatedAt": 1790659798395
+        },
+        {
+          "id": "mum8mh6ifc2hg",
+          "name": "Shield Carbonate शील्ड कार्बनैट",
+          "categoryId": "mum8fabqb5pah",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790659821690,
+          "updatedAt": 1790659821690
+        },
+        {
+          "id": "mum8nn21wwtbn",
+          "name": "Shin Guard पिंडली गार्ड",
+          "categoryId": "mum8fabqb5pah",
+          "unit": "Pcs",
+          "quantity": 0,
+          "minStock": 0,
+          "locationId": "loc_mugrguzgow294",
+          "conditionCounts": {
+            "good": 0,
+            "poor": 0,
+            "damaged": 0
+          },
+          "createdAt": 1790659875961,
+          "updatedAt": 1790659875961
+        }
+      ],
+      "dist_mul2ptia8a7zr": []
+    },
+    "hp_inventory.seedVersion": 5,
+    "hp_inventory.categories": {
+      "dist_1": [
+        {
+          "id": "c_ggn_f2b568baca88b5",
+          "name": "Furniture & Storage"
+        },
+        {
+          "id": "c_ggn_383ed79bbd0527",
+          "name": "Electrical & Lighting"
+        },
+        {
+          "id": "c_ggn_d6acbb580451ed",
+          "name": "Ammunition & Weapons"
+        },
+        {
+          "id": "c_ggn_c254570c12bcdc",
+          "name": "Uniform & Personal Kit"
+        },
+        {
+          "id": "c_ggn_47e9ea42340f5e",
+          "name": "Communication Equipment"
+        },
+        {
+          "id": "c_ggn_fe1c09507f0890",
+          "name": "Appliances & Utilities"
+        },
+        {
+          "id": "c_ggn_a60ec14a7f3a82",
+          "name": "Safety & Protection"
+        },
+        {
+          "id": "c_ggn_1c7480ad69000e",
+          "name": "Vehicles & Transport"
+        }
+      ],
+      "dist_2": [
+        {
+          "id": "c_fbd_d96fef4f971900",
+          "name": "Furniture & Storage"
+        },
+        {
+          "id": "c_fbd_25975c5035c14e",
+          "name": "Electrical & Lighting"
+        },
+        {
+          "id": "c_fbd_54452be38b4bf8",
+          "name": "Ammunition & Weapons"
+        },
+        {
+          "id": "c_fbd_b7e07cc3538746",
+          "name": "Uniform & Personal Kit"
+        },
+        {
+          "id": "c_fbd_2cad11edf1b960",
+          "name": "Communication Equipment"
+        },
+        {
+          "id": "c_fbd_c43f1f4b9cb28e",
+          "name": "Appliances & Utilities"
+        },
+        {
+          "id": "c_fbd_9e6c7666bb3f4d",
+          "name": "Safety & Protection"
+        },
+        {
+          "id": "c_fbd_10c64cc2666bab",
+          "name": "Vehicles & Transport"
+        }
+      ],
+      "dist_mugr9nwgs812q": [
+        {
+          "id": "mukrrg4m9dani",
+          "name": "Appliances & Utilities"
+        },
+        {
+          "id": "muksbafmtnscy",
+          "name": "Arms & Weapon Equipment"
+        },
+        {
+          "id": "muksfkw9d2qi3",
+          "name": "Clothing & Personal Gear"
+        },
+        {
+          "id": "mukshysa72htz",
+          "name": "Electronics & Communication"
+        },
+        {
+          "id": "mukt5sjwowof3",
+          "name": "Electrical & Lighting"
+        },
+        {
+          "id": "muktl42yle9fs",
+          "name": "Fire & Emergency Safety"
+        },
+        {
+          "id": "muktqon2mcdlt",
+          "name": "Furniture & Fixtures"
+        },
+        {
+          "id": "muku4swmvsplt",
+          "name": "Investigation & Forensic"
+        },
+        {
+          "id": "muku9ue3eoxmb",
+          "name": "IT & Digital Equipment"
+        },
+        {
+          "id": "mukuxqw63rcbn",
+          "name": "Miscellaneous"
+        },
+        {
+          "id": "mum88vrir9yq4",
+          "name": "Power & Generator"
+        },
+        {
+          "id": "mum8fabqb5pah",
+          "name": "Protection & Riot Control"
+        }
+      ],
+      "dist_mul2ptia8a7zr": []
+    },
+    "hp_inventory.cons_categories": {
+      "dist_1": [],
+      "dist_2": [
+        {
+          "id": "mumahddy9m3k4",
+          "name": "kapil"
+        }
+      ],
+      "dist_mugr9nwgs812q": [
+        {
+          "id": "mumakofzikv4z",
+          "name": "kjansxjak"
+        }
+      ],
+      "dist_mul2ptia8a7zr": []
+    },
+    "hp_inventory.inspections_dist_1": [],
+    "hp_inventory.inspections_dist_2": [],
+    "hp_inventory.demandSeq": 89,
+    "hp_inventory.distSeq": 30,
+    "hp_inventory.persons": [
+      {
+        "id": "mtqrw9515shxf",
+        "name": "Demo Person 1",
+        "rank": "constable",
+        "beltNo": "123",
+        "posting": "police line",
+        "createdAt": 1788757272901,
+        "districtId": "dist_1",
+        "locationId": "ggn_hq"
+      },
+      {
+        "id": "mtqvzyo4lr7k2",
+        "name": "Demo Person 2",
+        "rank": "constable",
+        "beltNo": "121/RWR",
+        "posting": "police line",
+        "createdAt": 1788764164420,
+        "districtId": "dist_1",
+        "locationId": "ggn_hq",
+        "mobile": "",
+        "updatedAt": 1789798885485,
+        "updatedBy": "District Admin - Gurugram"
+      },
+      {
+        "id": "mtqw3u7u0olqk",
+        "name": "Demo Person 3",
+        "rank": "ASi",
+        "beltNo": "234/PPT",
+        "posting": "police line",
+        "createdAt": 1788764345274,
+        "districtId": "dist_1",
+        "locationId": "ggn_hq"
+      },
+      {
+        "id": "muf4pd0jql07k",
+        "name": "Demo Person 4",
+        "rank": "HC",
+        "beltNo": "F152",
+        "posting": "PS Final",
+        "mobile": "",
+        "districtId": "dist_1",
+        "locationId": "ggn_hq",
+        "createdAt": 1790229974563
+      }
+    ],
+    "hp_inventory.maintSeq": 3,
+    "hp_inventory.allotments": [
+      {
+        "id": "mu7tltwz5plyg",
+        "issueId": "mu7tltwz7nf87",
+        "personId": "mtqvzyo4lr7k2",
+        "name": "Kapil",
+        "rank": "constable",
+        "beltNo": "121/RWR",
+        "posting": "police line",
+        "districtId": "dist_1",
+        "locationId": "ggn_hq",
+        "itemId": "gg_i7",
+        "itemName": "Boots (Pair)",
+        "categoryId": "uniforms",
+        "categoryName": "Uniforms & Clothing",
+        "qtyAllotted": 15,
+        "qtyReturned": 0,
+        "status": "ALLOTTED",
+        "date": "2026-09-19",
+        "time": "08:50",
+        "remarks": "",
+        "createdBy": "District Admin - Gurugram",
+        "createdAt": 1789788070835,
+        "returns": []
+      },
+      {
+        "id": "mu5f6e5acecrc",
+        "date": "2026-09-17",
+        "name": "Kapil",
+        "rank": "constable",
+        "time": "16:31",
+        "beltNo": "121/RWR",
+        "itemId": "gg_i7",
+        "status": "RETURNED",
+        "issueId": "mu5f6e5a4pxic",
+        "posting": "police line",
+        "remarks": "",
+        "returns": [
+          {
+            "at": 1789642920982,
+            "qty": 1,
+            "date": "2026-09-17",
+            "time": "16:31",
+            "remarks": "ok",
+            "condition": "good",
+            "receivedBy": "District Admin - Gurugram"
+          }
+        ],
+        "itemName": "Boots (Pair)",
+        "personId": "mtqvzyo4lr7k2",
+        "createdAt": 1789642903582,
+        "createdBy": "District Admin - Gurugram",
+        "categoryId": "uniforms",
+        "districtId": "dist_1",
+        "locationId": "ggn_hq",
+        "qtyAllotted": 1,
+        "qtyReturned": 1,
+        "categoryName": "Uniforms & Clothing"
+      },
+      {
+        "id": "mu5f5upj4fqzh",
+        "date": "2026-09-17",
+        "name": "Kapil",
+        "rank": "constable",
+        "time": "16:30",
+        "beltNo": "121/RWR",
+        "itemId": "gg_i5",
+        "status": "PARTIALLY_RETURNED",
+        "issueId": "mu5f5upjtidgo",
+        "posting": "police line",
+        "remarks": "done",
+        "returns": [
+          {
+            "at": 1789642950013,
+            "qty": 3,
+            "date": "2026-09-17",
+            "time": "16:32",
+            "remarks": "ok",
+            "condition": "good",
+            "receivedBy": "District Admin - Gurugram"
+          }
+        ],
+        "itemName": "Khaki Uniform Set",
+        "personId": "mtqvzyo4lr7k2",
+        "createdAt": 1789642878391,
+        "createdBy": "District Admin - Gurugram",
+        "categoryId": "uniforms",
+        "districtId": "dist_1",
+        "locationId": "ggn_hq",
+        "qtyAllotted": 11,
+        "qtyReturned": 3,
+        "categoryName": "Uniforms & Clothing"
+      },
+      {
+        "id": "mtqw3u7uwi300",
+        "date": "2026-09-07",
+        "name": "Ram",
+        "rank": "ASi",
+        "time": "12:27",
+        "beltNo": "234/PPT",
+        "itemId": "gg_i21",
+        "losses": [
+          {
+            "at": 1789627831278,
+            "by": "District Admin - Gurugram",
+            "id": "mu567ca68gey1",
+            "qty": 10,
+            "date": "2026-09-17",
+            "time": "12:20",
+            "reason": "jhhg"
+          }
+        ],
+        "status": "RETURNED",
+        "posting": "police line",
+        "qtyLost": 10,
+        "remarks": "For nafri",
+        "returns": [],
+        "itemName": "Lathi (Riot Cane)",
+        "personId": "mtqw3u7u0olqk",
+        "createdAt": 1788764345274,
+        "createdBy": "District Admin - Gurugram",
+        "categoryId": "weapons",
+        "districtId": "dist_1",
+        "locationId": "ggn_hq",
+        "qtyAllotted": 10,
+        "qtyReturned": 0,
+        "categoryName": "Weapons & Ammunition",
+        "qtyRecovered": 10,
+        "recoveries": [
+          {
+            "id": "mu7ufl2d8f8l9",
+            "qty": 3,
+            "mode": "found",
+            "date": "2026-09-19",
+            "time": "09:13",
+            "remarks": "ok",
+            "by": "District Admin - Gurugram",
+            "at": 1789789459045
+          },
+          {
+            "id": "mu7uh7jiw8oxr",
+            "qty": 7,
+            "mode": "returned",
+            "date": "2026-09-19",
+            "time": "09:15",
+            "remarks": "",
+            "by": "District Admin - Gurugram",
+            "at": 1789789534830
+          }
+        ]
+      },
+      {
+        "id": "mtqvzyo4gzmi5",
+        "date": "2026-09-07",
+        "name": "Kapil",
+        "rank": "constable",
+        "time": "12:24",
+        "beltNo": "121/RWR",
+        "itemId": "gg_i6",
+        "losses": [
+          {
+            "at": 1789629313037,
+            "by": "District Admin - Gurugram",
+            "id": "mu5733m55wx8t",
+            "qty": 2,
+            "date": "2026-09-17",
+            "time": "12:45",
+            "reason": "in nafri"
+          }
+        ],
+        "status": "PARTIALLY_RECOVERED",
+        "posting": "police line",
+        "qtyLost": 2,
+        "remarks": "new",
+        "returns": [
+          {
+            "at": 1789642814531,
+            "qty": 2,
+            "date": "2026-09-17",
+            "time": "16:30",
+            "remarks": "ok",
+            "condition": "good",
+            "receivedBy": "District Admin - Gurugram"
+          }
+        ],
+        "itemName": "Police Belt",
+        "personId": "mtqvzyo4lr7k2",
+        "createdAt": 1788764164420,
+        "createdBy": "District Admin - Gurugram",
+        "categoryId": "uniforms",
+        "districtId": "dist_1",
+        "locationId": "ggn_hq",
+        "qtyAllotted": 4,
+        "qtyReturned": 2,
+        "categoryName": "Uniforms & Clothing",
+        "qtyRecovered": 1,
+        "recoveries": [
+          {
+            "id": "mu8kak94lcges",
+            "qty": 1,
+            "mode": "found",
+            "date": "2026-09-19",
+            "time": "21:18",
+            "remarks": "",
+            "by": "District Admin - Gurugram",
+            "at": 1789832894728
+          }
+        ]
+      },
+      {
+        "id": "mtqrw951un4fd",
+        "date": "2026-09-07",
+        "name": "ankit",
+        "rank": "constable",
+        "time": "22:30",
+        "beltNo": "123",
+        "itemId": "gg_i6",
+        "status": "RETURNED",
+        "posting": "police line",
+        "remarks": "",
+        "returns": [
+          {
+            "at": 1788763220256,
+            "qty": 1,
+            "date": "2026-09-07",
+            "time": "12:10",
+            "remarks": "",
+            "condition": "good",
+            "receivedBy": "District Admin - Gurugram"
+          }
+        ],
+        "itemName": "Police Belt",
+        "personId": "mtqrw9515shxf",
+        "createdAt": 1788757272901,
+        "createdBy": "District Admin - Gurugram",
+        "categoryId": "riot",
+        "districtId": "dist_1",
+        "locationId": "ggn_hq",
+        "qtyAllotted": 1,
+        "qtyReturned": 1,
+        "categoryName": "Riot Gear"
+      }
+    ],
+    "hp_inventory.accessRequests": [
+      {
+        "id": "ar_1789364044895",
+        "name": "Demo Applicant 1",
+        "post": "Constable",
+        "mobile": "",
+        "status": "pending",
+        "userType": "post",
+        "createdAt": 1789364044895,
+        "districtId": "dist_1",
+        "locationId": "mu0t4a9889vd8"
+      },
+      {
+        "id": "ar_1789363726756",
+        "name": "Demo Applicant 2",
+        "post": "Constable",
+        "mobile": "",
+        "status": "pending",
+        "userType": "mhc",
+        "createdAt": 1789363726756,
+        "districtId": "dist_1",
+        "locationId": "ggn_station_1"
+      },
+      {
+        "id": "ar_1788765786526",
+        "name": "Demo Applicant 3",
+        "post": "ct",
+        "mobile": "",
+        "status": "pending",
+        "userType": "user",
+        "createdAt": 1788765786526,
+        "districtId": "dist_2",
+        "locationId": "fbd_hq"
+      }
+    ],
+    "hp_inventory.consumable_items": {
+      "dist_1": []
+    },
+    "hp_inventory.consumable_txns": {
+      "dist_1": []
+    },
+    "hp_inventory.rt_events": [],
+    "hp_inventory.demands_dist_1": [],
+    "hp_inventory.distributions_dist_1": [],
+    "hp_inventory.distributions_dist_2": [],
+    "hp_inventory.demands_dist_2": [],
+    "hp_inventory.inspections_dist_mugr9nwgs812q": [
+      {
+        "id": "mudlrl71dobp2",
+        "itemName": "General Stock",
+        "inspectedBy": "Inspector Rajesh Kumar",
+        "type": "routine",
+        "date": "2026-09-08",
+        "locationId": "loc_mugrguzgow294",
+        "findings": "Routine check completed. No issues found.",
+        "recommendations": "Request new stock for low-quantity items.",
+        "status": "overdue",
+        "createdAt": 1788841699597
+      },
+      {
+        "id": "mudlrl71ztk7z",
+        "itemName": "General Stock",
+        "inspectedBy": "ASI Mohan Lal",
+        "type": "routine",
+        "date": "2026-08-15",
+        "locationId": "staff_it_dist_mugr9nwgs812q",
+        "findings": "Inventory partially updated. Some records need correction.",
+        "recommendations": "No action required at this time.",
+        "status": "overdue",
+        "createdAt": 1786768099597
+      },
+      {
+        "id": "mudlrl71n9q8u",
+        "itemName": "General Stock",
+        "inspectedBy": "ASI Mohan Lal",
+        "type": "special",
+        "date": "2026-08-01",
+        "locationId": "staff_mto_dist_mugr9nwgs812q",
+        "findings": "Complete audit done. Everything matches the records.",
+        "recommendations": "Report discrepancy to senior officer.",
+        "status": "pending",
+        "createdAt": 1785558499597
+      },
+      {
+        "id": "mudlrl71qam89",
+        "itemName": "General Stock",
+        "inspectedBy": "ASI Mohan Lal",
+        "type": "special",
+        "date": "2026-08-08",
+        "locationId": "staff_mto_dist_mugr9nwgs812q",
+        "findings": "Complete audit done. Everything matches the records.",
+        "recommendations": "Replace worn-out items within 2 weeks.",
+        "status": "overdue",
+        "createdAt": 1786163299597
+      },
+      {
+        "id": "mudlrl71g45hn",
+        "itemName": "General Stock",
+        "inspectedBy": "SI Pooja Sharma",
+        "type": "special",
+        "date": "2026-08-12",
+        "locationId": "staff_mto_dist_mugr9nwgs812q",
+        "findings": "Found 2 items missing from inventory. Investigation recommended.",
+        "recommendations": "Report discrepancy to senior officer.",
+        "status": "completed",
+        "createdAt": 1786508899597
+      },
+      {
+        "id": "mudlrl719sxf0",
+        "itemName": "General Stock",
+        "inspectedBy": "Inspector Vikram Singh",
+        "type": "special",
+        "date": "2026-08-04",
+        "locationId": "staff_mto_dist_mugr9nwgs812q",
+        "findings": "Equipment in good working condition. Regular maintenance required.",
+        "recommendations": "Update inventory records immediately.",
+        "status": "completed",
+        "createdAt": 1785817699597
+      },
+      {
+        "id": "mudlrl71w15os",
+        "itemName": "General Stock",
+        "inspectedBy": "ASI Mohan Lal",
+        "type": "annual",
+        "date": "2026-08-27",
+        "locationId": "loc_mugrguzgow294",
+        "findings": "Equipment in good working condition. Regular maintenance required.",
+        "recommendations": "Request new stock for low-quantity items.",
+        "status": "completed",
+        "createdAt": 1787804899597
+      },
+      {
+        "id": "mudlrl71awf67",
+        "itemName": "General Stock",
+        "inspectedBy": "ASI Mohan Lal",
+        "type": "routine",
+        "date": "2026-07-11",
+        "locationId": "staff_mto_dist_mugr9nwgs812q",
+        "findings": "Equipment in good working condition. Regular maintenance required.",
+        "recommendations": "Replace worn-out items within 2 weeks.",
+        "status": "completed",
+        "createdAt": 1783744099597
+      }
+    ],
+    "hp_inventory.inspections_dist_mul2ptia8a7zr": [
+      {
+        "id": "mum8bjf1m90m7",
+        "itemName": "General Stock",
+        "inspectedBy": "SI Pooja Sharma",
+        "type": "special",
+        "date": "2026-09-24",
+        "locationId": "",
+        "findings": "Inventory partially updated. Some records need correction.",
+        "recommendations": "Schedule maintenance for vehicle fleet.",
+        "status": "completed",
+        "createdAt": 1790227311373
+      },
+      {
+        "id": "mum8bjf1x5zsv",
+        "itemName": "General Stock",
+        "inspectedBy": "SI Pooja Sharma",
+        "type": "annual",
+        "date": "2026-09-21",
+        "locationId": "",
+        "findings": "Stock levels adequate. Some items need replacement due to wear.",
+        "recommendations": "No action required at this time.",
+        "status": "pending",
+        "createdAt": 1789968111373
+      },
+      {
+        "id": "mum8bjf1hf7nf",
+        "itemName": "General Stock",
+        "inspectedBy": "SI Pooja Sharma",
+        "type": "routine",
+        "date": "2026-08-31",
+        "locationId": "",
+        "findings": "Found damaged items that need immediate replacement.",
+        "recommendations": "Schedule maintenance for vehicle fleet.",
+        "status": "pending",
+        "createdAt": 1788153711373
+      },
+      {
+        "id": "mum8bjf1e4r2j",
+        "itemName": "General Stock",
+        "inspectedBy": "ASI Mohan Lal",
+        "type": "routine",
+        "date": "2026-09-21",
+        "locationId": "",
+        "findings": "Found 2 items missing from inventory. Investigation recommended.",
+        "recommendations": "Schedule maintenance for vehicle fleet.",
+        "status": "completed",
+        "createdAt": 1789968111373
+      },
+      {
+        "id": "mum8bjf1ruus3",
+        "itemName": "General Stock",
+        "inspectedBy": "Inspector Vikram Singh",
+        "type": "annual",
+        "date": "2026-07-30",
+        "locationId": "",
+        "findings": "Complete audit done. Everything matches the records.",
+        "recommendations": "Replace worn-out items within 2 weeks.",
+        "status": "overdue",
+        "createdAt": 1785388911373
+      },
+      {
+        "id": "mum8bjf187ena",
+        "itemName": "General Stock",
+        "inspectedBy": "Inspector Vikram Singh",
+        "type": "annual",
+        "date": "2026-07-13",
+        "locationId": "",
+        "findings": "All items accounted for in good condition. Minor wear on some equipment.",
+        "recommendations": "No action required at this time.",
+        "status": "completed",
+        "createdAt": 1783920111373
+      },
+      {
+        "id": "mum8bjf1a9h2n",
+        "itemName": "General Stock",
+        "inspectedBy": "Inspector Vikram Singh",
+        "type": "annual",
+        "date": "2026-08-16",
+        "locationId": "",
+        "findings": "Inventory partially updated. Some records need correction.",
+        "recommendations": "Request new stock for low-quantity items.",
+        "status": "pending",
+        "createdAt": 1786857711373
+      },
+      {
+        "id": "mum8bjf1v6n64",
+        "itemName": "General Stock",
+        "inspectedBy": "SI Pooja Sharma",
+        "type": "special",
+        "date": "2026-07-17",
+        "locationId": "",
+        "findings": "Found damaged items that need immediate replacement.",
+        "recommendations": "Conduct surprise audit next month.",
+        "status": "overdue",
+        "createdAt": 1784265711373
+      }
+    ],
+    "hp_inventory.demands_dist_mugr9nwgs812q": [
+      {
+        "id": "muks4525wizkd",
+        "demandNo": "DEM-000018",
+        "itemName": "Oven ओवन",
+        "quantity": 5,
+        "categoryId": "mukrrg4m9dani",
+        "categoryName": "Appliances & Utilities  अनुप्रयोग और उपयोजगिताएँ",
+        "condition": "poor",
+        "urgency": "urgent",
+        "reason": "Emergency operational need",
+        "remarks": "Please process at earliest",
+        "requestedBy": "Admin",
+        "requestedById": null,
+        "requestedFromDistrict": "dist_mugr9nwgs812q",
+        "demandToDistrict": "dist_2",
+        "demandToDistrictName": "Faridabad District",
+        "demandToLocation": "fbd_hq",
+        "demandToLocationName": "District HQ - Faridabad",
+        "status": "rejected",
+        "actionRemarks": "As per HQ directive",
+        "rejectionReason": "Item not available in sufficient quantity at this time.",
+        "processing": [],
+        "createdAt": 1788066026141,
+        "updatedAt": 1788152426141
+      },
+      {
+        "id": "muks45252v79q",
+        "demandNo": "DEM-000019",
+        "itemName": "Water Cooler वाटर कूलर",
+        "quantity": 7,
+        "categoryId": "mukrrg4m9dani",
+        "categoryName": "Appliances & Utilities  अनुप्रयोग और उपयोजगिताएँ",
+        "condition": "poor",
+        "urgency": "critical",
+        "reason": "Training exercise requirements",
+        "remarks": "Required before next month",
+        "requestedBy": "Admin",
+        "requestedById": null,
+        "requestedFromDistrict": "dist_mugr9nwgs812q",
+        "demandToDistrict": "dist_1",
+        "demandToDistrictName": "Gurugram District",
+        "demandToLocation": "ggn_station_2",
+        "demandToLocationName": "PS Sadar Bazaar",
+        "status": "pending",
+        "actionRemarks": "",
+        "rejectionReason": "",
+        "processing": [],
+        "createdAt": 1789966826141,
+        "updatedAt": null
+      },
+      {
+        "id": "muks4525tqdmw",
+        "demandNo": "DEM-000020",
+        "itemName": "Geyser गीजर",
+        "quantity": 19,
+        "categoryId": "mukrrg4m9dani",
+        "categoryName": "Appliances & Utilities  अनुप्रयोग और उपयोजगिताएँ",
+        "condition": "poor",
+        "urgency": "normal",
+        "reason": "Training exercise requirements",
+        "remarks": "Priority item for field operations",
+        "requestedBy": "Admin",
+        "requestedById": null,
+        "requestedFromDistrict": "dist_mugr9nwgs812q",
+        "demandToDistrict": "dist_1",
+        "demandToDistrictName": "Gurugram District",
+        "demandToLocation": "ggn_mhc",
+        "demandToLocationName": "MHC Gurugram Central",
+        "status": "approved",
+        "actionRemarks": "Budget approved for this quarter",
+        "rejectionReason": "",
+        "processing": [],
+        "createdAt": 1789362026141,
+        "updatedAt": 1789448426141
+      },
+      {
+        "id": "muks4525ev0ed",
+        "demandNo": "DEM-000021",
+        "itemName": "Tullu Pump Motor Compressor पम्प कम्प्रेसर",
+        "quantity": 11,
+        "categoryId": "mukrrg4m9dani",
+        "categoryName": "Appliances & Utilities  अनुप्रयोग और उपयोजगिताएँ",
+        "condition": "good",
+        "urgency": "urgent",
+        "reason": "Replacement of damaged/unserviceable equipment",
+        "remarks": "Required before next month",
+        "requestedBy": "Admin",
+        "requestedById": null,
+        "requestedFromDistrict": "dist_mugr9nwgs812q",
+        "demandToDistrict": "dist_1",
+        "demandToDistrictName": "Gurugram District",
+        "demandToLocation": "mu0t4a9889vd8",
+        "demandToLocationName": "PP Sector 12",
+        "status": "approved",
+        "actionRemarks": "Please process at earliest",
+        "rejectionReason": "",
+        "processing": [],
+        "createdAt": 1788325226141,
+        "updatedAt": 1788411626141
+      },
+      {
+        "id": "muks4525iarp3",
+        "demandNo": "DEM-000022",
+        "itemName": "Weight Machine वैट मशीन",
+        "quantity": 6,
+        "categoryId": "mukrrg4m9dani",
+        "categoryName": "Appliances & Utilities  अनुप्रयोग और उपयोजगिताएँ",
+        "condition": "good",
+        "urgency": "normal",
+        "reason": "Emergency operational need",
+        "remarks": "Please process at earliest",
+        "requestedBy": "Admin",
+        "requestedById": null,
+        "requestedFromDistrict": "dist_mugr9nwgs812q",
+        "demandToDistrict": "dist_2",
+        "demandToDistrictName": "Faridabad District",
+        "demandToLocation": "staff_it_dist_2",
+        "demandToLocationName": "Computer/IT Staff",
+        "status": "pending",
+        "actionRemarks": "",
+        "rejectionReason": "",
+        "processing": [],
+        "createdAt": 1789880426141,
+        "updatedAt": null
+      },
+      {
+        "id": "muks4525it1o8",
+        "demandNo": "DEM-000023",
+        "itemName": "Oven ओवन",
+        "quantity": 5,
+        "categoryId": "mukrrg4m9dani",
+        "categoryName": "Appliances & Utilities  अनुप्रयोग और उपयोजगिताएँ",
+        "condition": "any",
+        "urgency": "critical",
+        "reason": "Operational requirement for upcoming deployment",
+        "remarks": "Required before next month",
+        "requestedBy": "Admin",
+        "requestedById": null,
+        "requestedFromDistrict": "dist_mugr9nwgs812q",
+        "demandToDistrict": "dist_2",
+        "demandToDistrictName": "Faridabad District",
+        "demandToLocation": "fbd_hq",
+        "demandToLocationName": "District HQ - Faridabad",
+        "status": "rejected",
+        "actionRemarks": "Please process at earliest",
+        "rejectionReason": "Item not available in sufficient quantity at this time.",
+        "processing": [],
+        "createdAt": 1789794026141,
+        "updatedAt": 1789880426141
+      }
+    ],
+    "hp_inventory.distributions_dist_mugr9nwgs812q": [
+      {
+        "id": "muks452547a7v",
+        "distNo": "DIST-000007",
+        "remarks": "Quarterly deployment distribution.",
+        "fromDistrictId": "dist_mugr9nwgs812q",
+        "fromDistrictName": "Panipat District",
+        "fromLocationId": "loc_mugrguzgow294",
+        "fromLocationName": "THC PANIPAT",
+        "fromUserId": "u_mugrhvyhj535n",
+        "fromUserName": "THC PANIPAT",
+        "toType": "unit",
+        "toDistrictId": "dist_mugr9nwgs812q",
+        "toDistrictName": "Panipat District",
+        "toName": "Computer/IT Staff",
+        "toLocationId": "staff_it_dist_mugr9nwgs812q",
+        "toLocationName": "Computer/IT Staff",
+        "toUserId": "us_35c6662fea8ac9a5",
+        "toUserName": "Computer/IT Staff",
+        "items": [
+          {
+            "key": "ijrwcj",
+            "itemName": "Weight Machine वैट मशीन",
+            "qty": 3,
+            "condition": "good",
+            "categoryId": "mukrrg4m9dani",
+            "categoryName": "Appliances & Utilities  अनुप्रयोग और उपयोजगिताएँ",
+            "unit": "Pcs",
+            "fromItemId": "mukryja6344h7",
+            "fromLocationId": "loc_mugrguzgow294",
+            "toItemId": null
+          }
+        ],
+        "status": "completed",
+        "approveRemark": "Received in good condition.",
+        "approvedBy": "Computer/IT Staff",
+        "approvedAt": 1790053226141,
+        "rejectRemark": "",
+        "rejectedBy": "",
+        "rejectedAt": null,
+        "createdAt": 1789794026141,
+        "updatedAt": 1790053226141
+      },
+      {
+        "id": "muks4525ycl7v",
+        "distNo": "DIST-000008",
+        "remarks": "Awaiting acceptance from the unit.",
+        "fromDistrictId": "dist_mugr9nwgs812q",
+        "fromDistrictName": "Panipat District",
+        "fromLocationId": "loc_mugrguzgow294",
+        "fromLocationName": "THC PANIPAT",
+        "fromUserId": "u_mugrhvyhj535n",
+        "fromUserName": "THC PANIPAT",
+        "toType": "admin",
+        "toDistrictId": "dist_1",
+        "toDistrictName": "Gurugram District",
+        "toName": "Gurugram District (Admin)",
+        "toLocationId": "ggn_hq",
+        "toLocationName": "District HQ - Gurugram",
+        "toUserId": "u1",
+        "toUserName": "District Admin - Gurugram",
+        "items": [
+          {
+            "key": "ilyfzb",
+            "itemName": "Water Cooler वाटर कूलर",
+            "qty": 2,
+            "condition": "any",
+            "categoryId": "mukrrg4m9dani",
+            "categoryName": "Appliances & Utilities  अनुप्रयोग और उपयोजगिताएँ",
+            "unit": "Pcs",
+            "fromItemId": "mukrxo9zrhwk7",
+            "fromLocationId": "loc_mugrguzgow294",
+            "toItemId": null
+          }
+        ],
+        "status": "pending",
+        "approveRemark": "",
+        "approvedBy": "",
+        "approvedAt": null,
+        "rejectRemark": "",
+        "rejectedBy": "",
+        "rejectedAt": null,
+        "createdAt": 1790485226141,
+        "updatedAt": null
+      }
+    ],
+    "hp_inventory.documents_dist_1": [],
+    "hp_inventory.maintenance_dist_1": [],
+    "hp_inventory.transactions_dist_1": [],
+    "hp_inventory.transactions_dist_2": [],
+    "hp_inventory.notifications_dist_1": [],
+    "hp_inventory.notifications_dist_2": [],
+    "hp_inventory.sessions": {},
+    "hp_inventory.isDemoData": true,
+    "hp_inventory.demoNote": "Sample data. Every name, mobile number and document here is invented. Every account uses the password demo@123."
+  },
+  "rt_seq": 98,
+  "rt_events": [],
+  "rt_dedupe": {},
+  "hp_inventory.sessions": {}
+}
