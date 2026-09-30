@@ -10574,6 +10574,9 @@ document.addEventListener("click", e => {
   $("#manageCatsBtn").addEventListener("click", openCatModal);
 $("#consManageCatsBtn")?.addEventListener("click", openConsCatModal);
 $("#consCatAddBtn")?.addEventListener("click", addConsCategory);
+$("#consCatInput")?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); addConsCategory(); }
+});
 // The consumable category items dialog can add an item too, exactly as the
 // stock one can. Both are name-only quick adds: the quantity lives in the
 // consumable ledger rather than on the item, so a new row starts at zero.
@@ -12946,8 +12949,18 @@ function saveConsCategoriesForDistrict(districtId, list) {
 }
 function getConsCats() { return getConsCategoriesForDistrict(__activeCatDistrictId()); }
 function saveConsCats(c) { saveConsCategoriesForDistrict(__activeCatDistrictId(), c); }
-function openConsCatModal() { renderConsCatList(); const a = $("#consCatInput"); if (a) a.value = ""; openModal("#consCatModal"); }
+function openConsCatModal() {
+  renderConsCatList();
+  const a = $("#consCatInput");
+  if (a) {
+    a.value = "";
+    setTimeout(() => { try { a.focus(); } catch (e) {} }, 60);
+  }
+  openModal("#consCatModal");
+}
 function addConsCategory() {
+  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
+  if (!__consCanManage()) return toast("You are not allowed to modify consumables.", "error");
   const name = (($("#consCatInput") || {}).value || "").trim();
   if (!name) return toast("Enter a name.", "error");
   const cats = getConsCats();
@@ -12956,7 +12969,10 @@ function addConsCategory() {
   saveConsCats(cats);
   renderConsCatList();
   toast("Added: " + name, "success");
-  const a = $("#consCatInput"); if (a) a.value = "";
+  const a = $("#consCatInput");
+  if (a) { a.value = ""; try { a.focus(); } catch (e) {} }
+  if (typeof renderConsumables === "function") renderConsumables();
+  if (typeof __repopulateConsMultiCat === "function") __repopulateConsMultiCat($("#consStockCat"));
 }
 function renderConsCatList() {
   const box = $("#consCatList");
@@ -13098,9 +13114,18 @@ function startEditConsCat(idx) {
   nameSpan.innerHTML = '<input class="cat-edit-input" id="consCatEditName" value="' + esc(c.name) + '">';
   actionsDiv.innerHTML = '<button class="btn btn-sm btn-primary" data-ccat-save="' + idx + '">Save</button><button class="btn btn-sm btn-outline" data-ccat-cancel="' + idx + '">Cancel</button>';
   const inp = $("#consCatEditName");
-  if (inp) { inp.focus(); inp.select(); }
+  if (inp) {
+    inp.focus();
+    inp.select();
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); saveEditConsCat(idx); }
+      else if (e.key === "Escape") { e.preventDefault(); renderConsCatList(); }
+    });
+  }
 }
 function saveEditConsCat(idx) {
+  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
+  if (!__consCanManage()) return toast("You are not allowed to modify consumables.", "error");
   const cats = getConsCats();
   const name = (($("#consCatEditName") || {}).value || "").trim();
   if (!name) return toast("Enter a name.", "error");
@@ -13109,8 +13134,12 @@ function saveEditConsCat(idx) {
   saveConsCats(cats);
   renderConsCatList();
   toast("Updated: " + name, "success");
+  if (typeof renderConsumables === "function") renderConsumables();
+  if (typeof __repopulateConsMultiCat === "function") __repopulateConsMultiCat($("#consStockCat"));
 }
 function deleteConsCategory(idx) {
+  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
+  if (!__consCanManage()) return toast("You are not allowed to modify consumables.", "error");
   const cats = getConsCats();
   const cat = cats[idx];
   if (!cat) return;
@@ -13119,6 +13148,8 @@ function deleteConsCategory(idx) {
   saveConsCats(cats);
   renderConsCatList();
   toast("Deleted: " + cat.name, "success");
+  if (typeof renderConsumables === "function") renderConsumables();
+  if (typeof __repopulateConsMultiCat === "function") __repopulateConsMultiCat($("#consStockCat"));
 }
 
 function __consCanManage() {
