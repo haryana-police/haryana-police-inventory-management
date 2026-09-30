@@ -715,7 +715,7 @@ function restoreScopeFor(user, current, incoming) {
     if (key === D_DISTRICTS_KEY) {
       out[key] = __stitchUnique(
         dArr(cur).filter((d) => !inScope(d && d.id)),
-        dArr(value).filter((d) => inScope(d && d.id))
+        dArr(out[key]).filter((d) => inScope(d && d.id))
       );
       continue;
     }
