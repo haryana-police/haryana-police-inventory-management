@@ -2405,7 +2405,7 @@ function bindItemSearch() {
   const renderOpts = (filter) => {
     const q = (filter || "").toLowerCase();
     const items = getItems()
-      .filter(i => q ? i.name.toLowerCase().includes(q) : true)
+      .filter(i => !i.isDeleted && (q ? i.name.toLowerCase().includes(q) : true))
       .sort((a, b) => a.name.localeCompare(b.name))
       .slice(0, MAX);
     if (!items.length) {
@@ -2461,6 +2461,7 @@ function __invFiltered() {
     if (typeof catFilter === "function" ? !catFilter(i) : (catFilter && i.categoryId !== catFilter)) return false;
     if (locFilter && i.locationId !== locFilter) return false;
     if (condFilter) {
+      if (i.isDeleted) return false;
       const cc = i.conditionCounts || {};
       if (!(cc[condFilter] > 0)) return false;
     }
@@ -2542,16 +2543,21 @@ if (filtered.length) {
 const cc = i.conditionCounts || { good: i.quantity, poor: 0, damaged: 0 };
       const displayQty = condFilter ? (cc[condFilter] || 0) : i.quantity;
       totalQty += displayQty;
-      const cls = displayQty === 0 ? "status-out" : displayQty <= i.minStock ? "status-low" : "status-ok";
-      const label = displayQty === 0 ? "Out of Stock" : displayQty <= i.minStock ? "Low Stock" : "In Stock";
+      const isDel = !!i.isDeleted;
+      const cls = isDel ? "status-out" : (displayQty === 0 ? "status-out" : displayQty <= i.minStock ? "status-low" : "status-ok");
+      const label = isDel ? "Deleted" : (displayQty === 0 ? "Out of Stock" : displayQty <= i.minStock ? "Low Stock" : "In Stock");
   const __chg = (() => { if (condFilter) return null; const h = i.history || []; const last = h[h.length - 1]; if (!last) return null; const q = Number(last.qty) || 0; const when = (last.date || "") + (last.time ? " " + last.time : ""); const parts = when.split(" "); return { q: q, when: when, nice: (parts[0] ? fmtDate(parts[0]) : "") + (parts[1] ? " " + parts[1] : ""), rem: last.remarks || "", photos: last.photos || null }; })();
-const __chgCell = condFilter ? `<td class="qty-strong">${displayQty}</td>` : (__chg ? `<td class="qty-strong" style="color:var(--${__chg.q > 0 ? "green" : "red"})" title="${esc("Last update " + __chg.when + ": " + __chg.rem)}">${__chg.q > 0 ? "+" + __chg.q : __chg.q}${photoChipsHtml({ photos: __chg.photos })}</td>` : `<td class="qty-strong"><span class="muted">&mdash;</span></td>`);
+const isDelItem = isDel || (__chg && (__chg.type === "ITEM_DELETED" || __chg.rem === "Deleted Item"));
+const __chgCell = condFilter ? `<td class="qty-strong">${displayQty}</td>` : (isDelItem ? `<td class="qty-strong" style="color:var(--red)" title="${esc("Deleted: " + (__chg ? __chg.when : ""))}"><span class="status-badge status-out" style="font-size:0.75rem">Deleted Item</span></td>` : (__chg ? `<td class="qty-strong" style="color:var(--${__chg.q > 0 ? "green" : "red"})" title="${esc("Last update " + __chg.when + ": " + __chg.rem)}">${__chg.q > 0 ? "+" + __chg.q : __chg.q}${photoChipsHtml({ photos: __chg.photos })}</td>` : `<td class="qty-strong"><span class="muted">&mdash;</span></td>`));
       /* Actions column: record-level RBAC. Every row gets View; Edit/Delete
          only when the record belongs to the logged-in user's own unit.
          Developer Admin gets View only ? no Edit/Delete buttons at all.
          Other units under the district: Edit/Delete disabled with a tooltip.
          ("All Locations" evaluates this PER RECORD, never per filter.) */
       let btns;
+      if (isDel) {
+        btns = actDD([{ label: "View", attrs: `data-action="view" data-id="${i.id}"` }]);
+      } else {
       const locFilterVal = ($("#locationFilter") || {}).value || "";
       const adminOwnSelected = currentUser.role !== "admin" || (locFilterVal === currentUser.locationId);
       if (!canViewItem(i)) btns = "";
@@ -2571,7 +2577,8 @@ const __chgCell = condFilter ? `<td class="qty-strong">${displayQty}</td>` : (__
           { label: "View", attrs: `data-action="view" data-id="${i.id}"` },
         ]);
       }
-      return `<tr data-item-id="${i.id}"><td class="item-name">${__ipLink(i)}</td>${__chgCell}<td>${esc(loc ? loc.name : "")}</td><td>${buildCondBar(cc)}</td><td><span class="status-badge ${cls}">${label}</span></td><td>${__chg ? esc(__chg.nice) : (i.updatedAt ? fmtDate(i.updatedAt) : "<span style='color:var(--muted)'>\u2014</span>")}</td><td class="actions-cell">${btns}</td></tr>`;
+      }
+      return `<tr data-item-id="${i.id}"><td class="item-name">${__ipLink(i)}${isDel ? ' <span class="status-badge status-out" style="font-size:.68rem;padding:1px 6px;margin-left:4px">Deleted</span>' : ''}</td>${__chgCell}<td>${esc(loc ? loc.name : "")}</td><td>${buildCondBar(cc)}</td><td><span class="status-badge ${cls}">${label}</span></td><td>${__chg ? esc(__chg.nice) : (i.updatedAt ? fmtDate(i.updatedAt) : "<span style='color:var(--muted)'>\u2014</span>")}</td><td class="actions-cell">${btns}</td></tr>`;
     }).join("");
 
     if (condFilter) {
@@ -2919,7 +2926,7 @@ function openViewItem(item) {
   $("#viCondGood").textContent = cc.good || 0;
   $("#viCondPoor").textContent = cc.poor || 0;
   $("#viCondDamaged").textContent = cc.damaged || 0;
-  const st = qty === 0 ? ["Out of Stock", "status-out"] : qty <= (item.minStock || 0) ? ["Low Stock", "status-low"] : ["In Stock", "status-ok"];
+  const st = item.isDeleted ? ["Deleted", "status-out"] : (qty === 0 ? ["Out of Stock", "status-out"] : qty <= (item.minStock || 0) ? ["Low Stock", "status-low"] : ["In Stock", "status-ok"]);
   const stEl = $("#viStatus");
   stEl.textContent = st[0];
   stEl.className = "status-badge " + st[1];
@@ -3338,7 +3345,7 @@ function __asPopulateRowItems(row) {
     if (row.__itemCombo) row.__itemCombo.sync();
     return;
   }
-  const names = __byName([...new Set(getItems().filter(i => i.locationId === currentUser.locationId && i.categoryId === cid).map(i => i.name))].filter(Boolean), x => x);
+  const names = __byName([...new Set(getItems().filter(i => i.locationId === currentUser.locationId && i.categoryId === cid && !i.isDeleted).map(i => i.name))].filter(Boolean), x => x);
   itemSel.disabled = false;
   itemSel.innerHTML = `<option value="">Select item</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("") + `<option value="__new__">&#10133; New item...</option>`;
   if (row.__itemCombo) row.__itemCombo.sync();
@@ -3496,13 +3503,31 @@ function photoChipsHtml(h) {
   if (!ph.length) return "";
   return ` <span class="hist-photos">${ph.map(x => `<button type="button" class="hist-photo-chip" data-stock-photo="${x.id}" title="${esc(x.fileName || "Photo")}">&#128247;</button>`).join("")}</span>`;
 }function deleteItem(id) {
-  const item = getItems().find(i => i.id === id);
+  const items = getItems();
+  const item = items.find(i => i.id === id);
+  if (!item) return;
   if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!canManageItem(item)) return toast(__rbacLockMsg(), "error");
+  const totalQty = (Number(item.quantity) || 0) + (Number(item.allotted) || 0);
+  if (totalQty > 0) return toast("Cannot delete item with remaining stock. Total quantity must be 0.", "error");
   if (!confirm("Delete this item?")) return;
-  const it = getItems().find(i => i.id === id);
-  saveItems(getItems().filter(i => i.id !== id));
-  __audit("Item Deleted", `"${it ? it.name : id}"`, { entity: "Item" });
+  item.isDeleted = true;
+  item.deletedAt = Date.now();
+  item.updatedAt = Date.now();
+  if (!item.history) item.history = [];
+  item.history.push({
+    type: "ITEM_DELETED",
+    qty: 0,
+    prev: 0,
+    balance: 0,
+    at: Date.now(),
+    date: todayStr(),
+    time: nowTimeStr(),
+    user: (currentUser && currentUser.name) || "",
+    remarks: "Deleted Item"
+  });
+  saveItems(items);
+  __audit("Item Deleted", `"${item.name || id}"`, { entity: "Item" });
   toast("Item deleted.", "success");
   render();
 }
@@ -3532,7 +3557,7 @@ function renderCatList() {
       (canDelete ? "" : ` disabled title="Remove items first"`) + `>Delete</button>` +
       `</div></div>`;
   };
-  box.innerHTML = cats.map((c, idx) => row(c, idx, items.filter(i => i.categoryId === c.id).length, "cat")).join("");
+  box.innerHTML = cats.map((c, idx) => row(c, idx, items.filter(i => i.categoryId === c.id && !i.isDeleted).length, "cat")).join("");
 }
 
 function startEditCat(idx) {
@@ -3587,7 +3612,7 @@ let __citOpenCatId = null;
 function __renderCatItems(cid) {
   const body = $("#citBody");
   if (!body) return;
-  const items = getAllDistrictItems().filter(i => i.categoryId === cid);
+  const items = getAllDistrictItems().filter(i => i.categoryId === cid && !i.isDeleted);
   body.innerHTML = items.length
     ? items.map(i => {
         const editable = itemOwnedByCurrentUser(i) && !isDevAdmin();
@@ -3629,8 +3654,25 @@ function __citDelete(id) {
   const items = getItems();
   const item = items.find(i => i.id === id);
   if (!item || !canDeleteItem(item)) return toast(__rbacLockMsg(), "error");
+  const totalQty = (Number(item.quantity) || 0) + (Number(item.allotted) || 0);
+  if (totalQty > 0) return toast("Cannot delete item with remaining stock. Total quantity must be 0.", "error");
   if (!confirm("Delete this item from this category?")) return;
-  saveItems(items.filter(i => i.id !== id));
+  item.isDeleted = true;
+  item.deletedAt = Date.now();
+  item.updatedAt = Date.now();
+  if (!item.history) item.history = [];
+  item.history.push({
+    type: "ITEM_DELETED",
+    qty: 0,
+    prev: 0,
+    balance: 0,
+    at: Date.now(),
+    date: todayStr(),
+    time: nowTimeStr(),
+    user: (currentUser && currentUser.name) || "",
+    remarks: "Deleted Item"
+  });
+  saveItems(items);
   __audit("Item Deleted", '"' + (item.name || id) + '"', { entity: "Item" });
   toast("Item deleted.", "success");
   __renderCatItems(item.categoryId);
@@ -3682,7 +3724,7 @@ function deleteCategory(idx) {
   if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const cats = getCategories();
   const cat = cats[idx];
-  if (getAllDistrictItems().filter(i => i.categoryId === cat.id).length > 0) return toast("Has items ? reassign first.", "error");
+  if (getAllDistrictItems().filter(i => i.categoryId === cat.id && !i.isDeleted).length > 0) return toast("Has items ? reassign first.", "error");
   cats.splice(idx, 1);
   saveCategories(cats); // per-district store (2026.09.213) — was clobbering the map with a flat array
   renderCatList();
@@ -4592,13 +4634,13 @@ function __distPopulateRowItems(row) {
     return;
   }
   if (__distType() === "cons") {
-    const names = __byName([...new Set(getConsItems().filter(i => i.categoryId === cid).map(i => i.name))].filter(Boolean), x => x);
+    const names = __byName([...new Set(getConsItems().filter(i => i.categoryId === cid && !i.isDeleted).map(i => i.name))].filter(Boolean), x => x);
     itemSel.disabled = false;
     itemSel.innerHTML = `<option value="">Select item</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
     __distUpdateRowInfo(row);
     return;
   }
-  const names = __byName([...new Set(getItemsForDistrict(activeDistrictId).filter(i => i.categoryId === cid).map(i => i.name))].filter(Boolean), x => x);
+  const names = __byName([...new Set(getItemsForDistrict(activeDistrictId).filter(i => i.categoryId === cid && !i.isDeleted).map(i => i.name))].filter(Boolean), x => x);
   itemSel.disabled = false;
   itemSel.innerHTML = `<option value="">Select item</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("") + `<option value="__new__">&#10133; New item...</option>`;
   __distUpdateRowInfo(row);
@@ -7745,7 +7787,7 @@ function __histWithBalances(item) {
   let run = (item.quantity || 0) - h.reduce((s, x) => s + (Number(x.qty) || 0), 0);
   return h.map(x => { const prev = run; run += (Number(x.qty) || 0); return Object.assign({}, x, { prev: prev, balance: run }); });
 }
-const __hTypeLabel = { STOCK_IN: "Stock Added", ADJUST: "Stock Adjustment", WRITEOFF: "Write-off", DAMAGE: "Marked Scrap", LOSS: "Marked Lost", RETURN: "Returned", RECOVERED: "Recovered", CANCELLED: "Issue Cancelled" };
+const __hTypeLabel = { STOCK_IN: "Stock Added", ADJUST: "Stock Adjustment", WRITEOFF: "Write-off", DAMAGE: "Marked Scrap", LOSS: "Marked Lost", RETURN: "Returned", RECOVERED: "Recovered", CANCELLED: "Issue Cancelled", ITEM_DELETED: "Item Deleted" };
 function persistAlloc(items, allotments, persons) {
   // RBAC choke-point for the allotment workflows (allot / return / cancel /
   // scan import). These flows legitimately persist the whole district item
@@ -7876,7 +7918,7 @@ function __allocStockFiltered() {
   const q = (($("#allocStockSearch") || {}).value || "").toLowerCase();
   const terms = q.split(/\s+/).filter(Boolean);
   const catF = (typeof __msMatches === "function") ? __msMatches($("#allocStockCat")) : (($("#allocStockCat") || {}).value || "");
-  let pool = getItems();
+  let pool = getItems().filter(i => !i.isDeleted);
   if (isAdmin() && currentUser) {
     if (__invStockLoc === "own") pool = pool.filter(i => i.locationId === currentUser.locationId);
     else if (__invStockLoc !== "all") pool = pool.filter(i => i.locationId === __invStockLoc);
@@ -12922,7 +12964,7 @@ function renderConsCatList() {
   const cats = getConsCats();
   const items = getConsItems(); // own district only (categories are district-scoped, 2026.09.212)
   box.innerHTML = cats.map((c, idx) => {
-    const count = items.filter(i => i.categoryId === c.id).length;
+    const count = items.filter(i => i.categoryId === c.id && !i.isDeleted).length;
     return '<div class="cat-list-row" data-idx="' + idx + '"><span class="cat-list-name">' + esc(c.name) + '</span><span class="cat-list-count">' + count + ' items</span><div class="cat-list-actions"><button class="btn btn-sm btn-outline" data-ccat-items="' + idx + '">Items</button><button class="btn btn-sm btn-outline" data-ccat-edit="' + idx + '">Edit</button><button class="btn btn-sm btn-outline act-dd-del" data-ccat-del="' + idx + '"' + (count > 0 ? ' disabled title="Remove items first"' : '') + '>Delete</button></div></div>';
   }).join("");
 }
@@ -12945,7 +12987,7 @@ function __renderConsCatItems(cid) {
   const body = $("#ccitBody");
   if (!body) return;
   __consCitCatId = cid;
-  const items = getConsItems().filter(i => i.categoryId === cid);
+  const items = getConsItems().filter(i => i.categoryId === cid && !i.isDeleted);
   const editable = __consCanManage();
   // The add row is hidden rather than disabled for a view-only account, so a
   // read-only user is not invited to try; __ccitAdd re-checks either way.
@@ -13020,8 +13062,20 @@ function __ccitDelete(id) {
   const items = getConsItems();
   const item = items.find(i => i.id === id);
   if (!item || !__consCanManage()) return toast("You are not allowed to modify consumables.", "error");
+  const q = __consQty(item.id);
+  if (q.available > 0 || q.pending > 0 || q.total > 0) {
+    return toast("Cannot delete item with remaining stock. Available quantity must be 0.", "error");
+  }
   if (!confirm("Delete this item from this category?")) return;
-  saveConsItems(items.filter(i => i.id !== id));
+  item.isDeleted = true;
+  item.deletedAt = Date.now();
+  item.updatedAt = Date.now();
+  saveConsItems(items);
+  const txns = getConsTxns();
+  const t = __consCommit("DELETED", item, 0, null, null, "Deleted Item", "");
+  txns.unshift(t);
+  saveConsTxns(txns);
+  __audit("Consumable Item Deleted", '"' + (item.name || id) + '"', { entity: "Consumable Item" });
   toast("Item deleted.", "success");
   __renderConsCatItems(item.categoryId);
   renderConsCatList();
@@ -13060,7 +13114,7 @@ function deleteConsCategory(idx) {
   const cats = getConsCats();
   const cat = cats[idx];
   if (!cat) return;
-  if (getConsItems().filter(i => i.categoryId === cat.id).length > 0) return toast("Has items. Remove or reassign items first.", "error"); // own district only (2026.09.212)
+  if (getConsItems().filter(i => i.categoryId === cat.id && !i.isDeleted).length > 0) return toast("Has items. Remove or reassign items first.", "error"); // own district only (2026.09.212)
   cats.splice(idx, 1);
   saveConsCats(cats);
   renderConsCatList();
@@ -13160,7 +13214,7 @@ function __consNow() {
   return { date: d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"), time: d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }), ts: Date.now() };
 }
 function __consStatusBadge(st) {
-  const map = { "Available": "cons-b-green", "Partially Available": "cons-b-amber", "Pending Approval": "cons-b-amber", "Complete": "cons-b-green", "Rejected": "cons-b-red", "Lost": "cons-b-red", "Distributed": "cons-b-blue" };
+  const map = { "Available": "cons-b-green", "Partially Available": "cons-b-amber", "Pending Approval": "cons-b-amber", "Complete": "cons-b-green", "Rejected": "cons-b-red", "Lost": "cons-b-red", "Distributed": "cons-b-blue", "Deleted Item": "cons-b-red", "Deleted": "cons-b-red" };
   return `<span class="cons-badge ${map[st] || "cons-b-gray"}">${esc(st)}</span>`;
 }
 /* ---- Searchable combobox (existing categories / items / recipients) ---- */
@@ -13298,7 +13352,7 @@ function __consStockFilteredRows() {
   const isAdmin = __consIsAdminView();
   const ownKey = __consOwnLocKey();
   const locF = isAdmin ? (($("#consStockLoc") || {}).value || "") : ownKey;
-  const items = getConsItems().map(i => { const qq = !isAdmin ? __consQtyOwn(i.id) : (locF ? __consQtyAt(i.id, locF) : __consQty(i.id)); return { i, q: qq }; });
+  const items = getConsItems().filter(i => !i.isDeleted).map(i => { const qq = !isAdmin ? __consQtyOwn(i.id) : (locF ? __consQtyAt(i.id, locF) : __consQty(i.id)); return { i, q: qq }; });
   let rows = items.filter(x => {
     if (catFilter) {
       if (!catFilter(x.i)) return false;
@@ -13407,6 +13461,7 @@ function __consRowStatus(t) {
   if (t.type === "ADD") return "Available";
   if (t.type === "DISTRIBUTION_REQUEST") return __consReqStatus(t.id);
   if (t.type === "LOSS") return "Lost";
+  if (t.type === "DELETED") return "Deleted Item";
   return "";
 }
 /* Privacy: non-admin users see only transactions they are involved in — as the distributor (Distributed By) or as the recipient (Distributed To). Admins see the full trail. */
@@ -13421,10 +13476,10 @@ function __consInvolved(t) {
 function __consRows() {
   const items = getConsItems();
   const cats = getConsCats();
-  return getConsTxns().filter(t => (t.type === "ADD" || t.type === "DISTRIBUTION_REQUEST" || t.type === "LOSS") && __consInvolved(t)).map(t => {
+  return getConsTxns().filter(t => (t.type === "ADD" || t.type === "DISTRIBUTION_REQUEST" || t.type === "LOSS" || t.type === "DELETED") && __consInvolved(t)).map(t => {
     const it = items.find(x => x.id === t.itemId) || {};
     const cat = (cats.find(c => c.id === (it ? it.categoryId : t.categoryId)) || {}).name || "";
-    return { t, categoryName: cat, itemName: it ? it.name : "(unknown)", status: __consRowStatus(t), to: t.toType ? (t.toName || "") : "", by: t.byName || "", qty: t.qty, date: t.date };
+    return { t, categoryName: cat, itemName: (it && it.name) || t.itemName || "(unknown)", isItemDeleted: !!(it && it.isDeleted), status: __consRowStatus(t), to: t.toType ? (t.toName || "") : "", by: t.byName || "", qty: t.qty, date: t.date };
   });
 }
 function __consRecipientLabel(t) {
@@ -13459,9 +13514,10 @@ function openConsTxnDetails(txnId) {
   if (t.type === "ADD") status = "Added";
   else if (t.type === "DISTRIBUTION_REQUEST") status = __consReqStatus(t.id);
   else if (t.type === "LOSS") status = "Lost";
+  else if (t.type === "DELETED") status = "Deleted Item";
   const ap = t.type === "DISTRIBUTION_REQUEST" ? getConsTxns().find(x => x.type === "DISTRIBUTION_APPROVED" && x.requestId === t.id) : null;
   const rj = t.type === "DISTRIBUTION_REQUEST" ? getConsTxns().find(x => x.type === "DISTRIBUTION_REJECTED" && x.requestId === t.id) : null;
-  const typeLabel = t.type === "ADD" ? "Stock Added" : t.type === "DISTRIBUTION_REQUEST" ? "Distribution" : t.type === "LOSS" ? "Marked Lost" : (t.type || "");
+  const typeLabel = t.type === "ADD" ? "Stock Added" : t.type === "DISTRIBUTION_REQUEST" ? "Distribution" : t.type === "LOSS" ? "Marked Lost" : t.type === "DELETED" ? "Item Deleted" : (t.type || "");
   const row = (k, v) => '<div style="display:flex;justify-content:space-between;gap:14px;padding:8px 0;border-bottom:1px dashed var(--border);font-size:.87rem"><span style="color:var(--muted);min-width:130px">' + k + '</span><span style="text-align:right;font-weight:600">' + v + "</span></div>";
   body.innerHTML =
     row("Item", esc(item.name || "(unknown)") + (item.id ? ' <button type="button" class="linklike" style="margin-left:6px" data-cons-item="' + item.id + '">Open Item Page</button>' : "")) +
@@ -13496,8 +13552,8 @@ function renderConsLedger() {
     // removed: edit button moved to Item Consume tab
     return `<tr data-cons-txn="${t.id}">
       <td data-th="Item Category">${esc(r.categoryName)}</td>
-      <td data-th="Item"><button type="button" class="linklike" data-cons-item="${t.itemId}">${nameCell(r.itemName)}</button></td>
-      <td data-th="Quantity">${t.qty}</td>
+      <td data-th="Item"><button type="button" class="linklike" data-cons-item="${t.itemId}">${nameCell(r.itemName)}</button>${r.isItemDeleted ? ' <span class="status-badge status-out" style="font-size:0.7rem;padding:1px 5px;margin-left:4px">Deleted</span>' : ''}</td>
+      <td data-th="Quantity">${t.type === "DELETED" ? `<span class="muted">&mdash;</span>` : t.qty}</td>
       <td data-th="Date">${esc(fmtDate(t.date ? new Date(t.date) : t.createdAt))}</td>
       <td data-th="Distributed To">${__consRecipientLabel(t)}</td>
       <td data-th="Distributed By">${t.type === "DISTRIBUTION_REQUEST" ? esc(t.byName || "") : esc(t.approvedByName || t.byName || "")}</td>
@@ -13645,7 +13701,7 @@ function __consPopulateRowItems(row) {
     if (row.__itemCombo) row.__itemCombo.sync();
     return;
   }
-  const names = __byName([...new Set(getConsItems().filter(i => i.categoryId === cid).map(i => i.name))].filter(Boolean), x => x);
+  const names = __byName([...new Set(getConsItems().filter(i => i.categoryId === cid && !i.isDeleted).map(i => i.name))].filter(Boolean), x => x);
   itemSel.disabled = false;
   itemSel.innerHTML = `<option value="">Select item</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("") + `<option value="__new__">&#10133; New item...</option>`;
   if (row.__itemCombo) row.__itemCombo.sync();
@@ -13741,7 +13797,7 @@ function saveConsAdd(e) {
   const txns = getConsTxns();
   let added = 0;
   for (const p of cleanRows) {
-    let item = items.find(x => x.name.toLowerCase() === p.newName.toLowerCase() && x.categoryId === p.cid);
+    let item = items.find(x => x.name.toLowerCase() === p.newName.toLowerCase() && x.categoryId === p.cid && !x.isDeleted);
     if (!item) {
       item = { id: uid(), categoryId: p.cid, name: p.newName, photoUrl: "", condition: "Good", remarks: "", createdAt: Date.now() };
       items.push(item);
@@ -13777,7 +13833,7 @@ function __consCommit(type, item, qty, to, reqRef, remarks, photo) {
   const next = { total: a2.total, available: Math.max(0, a2.total - a2.distributed - a2.lost - a2.pending), pending: a2.pending, distributed: a2.distributed, lost: a2.lost };
   const now = __consNow();
   const t = {
-    id: uid(), itemId: item.id, categoryId: item.categoryId, type, qty,
+    id: uid(), itemId: item.id, categoryId: item.categoryId, itemName: item.name, type, qty,
     toType: to ? to.type : null, toId: to ? to.id : null, toName: to ? to.name : null,
     byId: currentUser.id, byName: currentUser.name,
     requestId: reqRef || null, reason: "", remarks: remarks || "", photo: photo || "",

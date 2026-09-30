@@ -179,7 +179,8 @@
         STOCK_IN: { type: "STOCK ADDED", qty: n, cond: "Good" },
         WRITEOFF: { type: "WRITE-OFF", qty: -n, cond: "Scrap" },
         ADJUST: { type: "STOCK ADJUSTMENT", qty: Number(h.qty) || 0, cond: "" },
-        CANCELLED: { type: "ISSUE CANCELLED", qty: n, cond: "Good" }
+        CANCELLED: { type: "ISSUE CANCELLED", qty: n, cond: "Good" },
+        ITEM_DELETED: { type: "DELETED ITEM", qty: 0, cond: "Deleted" }
       }[h.type] || { type: h.type, qty: Number(h.qty) || 0, cond: "" };
       txs.push(T({ ts: tsOf(h.date, h.time, h.at), raw: h.type, type: map.type, qty: map.qty, cond: map.cond,
         ref: h.ref || "", from: (h.type === "ALLOTMENT" || h.type === "RETURN" || h.type === "DAMAGE" || h.type === "LOSS") ? homeLoc : (h.type === "RECOVERED" ? "Lost" : "\u2014"),
@@ -431,6 +432,9 @@
       } else if (t.type === "LOSS") {
         txs.push(T({ ts: ts, raw: "LOSS", type: "MARKED LOST", qty: -q, cond: "Lost", ref: "",
           from: "In Stock", to: "Lost", by: t.byName || "", remarks: t.remarks || "Marked lost", ids: { txnId: t.id } }));
+      } else if (t.type === "DELETED") {
+        txs.push(T({ ts: ts, raw: "DELETED", type: "DELETED ITEM", qty: 0, cond: "Deleted", ref: "",
+          from: "In Stock", to: "Deleted", by: t.byName || "", remarks: t.remarks || "Deleted Item", ids: { txnId: t.id } }));
       }
     });
     txs.sort(function (a, b) { return a.ts - b.ts; });
@@ -520,7 +524,7 @@
     if (state.kind === "cons") return fillHeaderCons(item);
     $("#ipCrumbName").textContent = item.name || "";
     $("#ipTitle").textContent = item.name || "";
-    var st = window.allocStatusOfItem ? allocStatusOfItem(item) : { cls: "status-ok", label: "Available" };
+    var st = item.isDeleted ? { cls: "status-out", label: "Deleted" } : (window.allocStatusOfItem ? allocStatusOfItem(item) : { cls: "status-ok", label: "Available" });
     $("#ipStatusBadge").innerHTML = '<span class="status-badge ' + st.cls + '">' + esc(st.label) + "</span>";
     var dAdded = item.createdAt ? fmtD(item.createdAt) : "\u2014";
     var latestTs = Math.max(item.updatedAt || 0, (state.txs && state.txs[0] ? state.txs[0].ts : 0)) || item.createdAt;
@@ -535,9 +539,9 @@
     var upBtn = document.getElementById("ipUploadBtn");
     if (upBtn) upBtn.style.display = canManagePhotos(item) ? "" : "none";
     var acts = $("#ipTopActions");
-    if (acts) acts.innerHTML =
-      (window.canEditItem && canEditItem(item) ? '<button type="button" class="btn btn-outline" id="ipEditBtn">Edit Item</button>' : "") +
-      '<button type="button" class="btn btn-outline" id="ipAdjustBtn">Adjust Stock</button>';
+    if (acts) acts.innerHTML = item.isDeleted ? "" :
+      ((window.canEditItem && canEditItem(item) ? '<button type="button" class="btn btn-outline" id="ipEditBtn">Edit Item</button>' : "") +
+      '<button type="button" class="btn btn-outline" id="ipAdjustBtn">Adjust Stock</button>');
     var eb = document.getElementById("ipEditBtn");
     if (eb) eb.addEventListener("click", function () { window.openItemModal && openItemModal(item); });
     var ab = document.getElementById("ipAdjustBtn");
@@ -554,7 +558,7 @@
     var q = __consQty(item.id);
     $("#ipCrumbName").textContent = item.name || "";
     $("#ipTitle").textContent = item.name || "";
-    $("#ipStatusBadge").innerHTML = '<span class="status-badge ' + consStatusCls(q.status) + '">' + esc(q.status || "") + "</span>";
+    $("#ipStatusBadge").innerHTML = item.isDeleted ? '<span class="status-badge status-out">Deleted</span>' : ('<span class="status-badge ' + consStatusCls(q.status) + '">' + esc(q.status || "") + "</span>");
     var dAddedCons = item.createdAt ? fmtD(item.createdAt) : "\u2014";
     var latestTsCons = Math.max(item.updatedAt || 0, (state.txs && state.txs[0] ? state.txs[0].ts : 0)) || item.createdAt;
     var dUpdatedCons = latestTsCons ? fmtDT(latestTsCons) : dAddedCons;
