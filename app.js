@@ -1426,7 +1426,7 @@ function saveAccessRequests(arr) { saveData("accessRequests", arr); }
 
 function openRequestAccessModal() {
   const distSel = $("#raDistrict");
-  distSel.innerHTML = '<option value="">Select District...</option>' + getDistricts().map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join("");
+  distSel.innerHTML = '<option value="">Select District...</option>' + __byName(getDistricts()).map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join("");
   distSel.value = "";
   updateRALocationDropdown();
   $("#raName").value = "";
@@ -1448,7 +1448,7 @@ function updateRALocationDropdown() {
     return;
   }
   locSel.disabled = false;
-  locSel.innerHTML = '<option value="">Select Location / Station...</option>' + getLocationsForDistrict(distSel.value).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
+  locSel.innerHTML = '<option value="">Select Location / Station...</option>' + __byName(getLocationsForDistrict(distSel.value)).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
 }
 
 function submitAccessRequest(e) {
@@ -1641,7 +1641,7 @@ function renderDistrictSelector() {
     activeDistrictId = districts[0].id;
     setActiveDistrict(districts[0].id);
   }
-  sel.innerHTML = districts.map(d => `<option value="${d.id}" ${d.id === activeDistrictId ? "selected" : ""}>${esc(d.name)}</option>`).join("");
+  sel.innerHTML = __byName(districts).map(d => `<option value="${d.id}" ${d.id === activeDistrictId ? "selected" : ""}>${esc(d.name)}</option>`).join("");
 }
 
 function switchDistrict(newId) {
@@ -2874,7 +2874,7 @@ const cc = item ? (item.conditionCounts || { good: 0, poor: 0, damaged: 0 }) : {
   } else {
     locSel.disabled = false;
     const locs = getLocations();
-    locSel.innerHTML = `<option value="">Select location</option>` + locs.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
+    locSel.innerHTML = `<option value="">Select location</option>` + __byName(locs).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
   }
   locSel.value = item ? item.locationId : (canSeeAllLocations() ? "" : currentUser.locationId);
   openModal("#itemModal");
@@ -3067,7 +3067,7 @@ function __asPopulateRowItems(row) {
     itemSel.innerHTML = `<option value="">Select a category first...</option>`;
     return;
   }
-  const names = [...new Set(getItems().filter(i => i.locationId === currentUser.locationId && i.categoryId === cid).map(i => i.name))].filter(Boolean).sort();
+  const names = __byName([...new Set(getItems().filter(i => i.locationId === currentUser.locationId && i.categoryId === cid).map(i => i.name))].filter(Boolean), x => x);
   itemSel.disabled = false;
   itemSel.innerHTML = `<option value="">Select item</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("") + `<option value="__new__">&#10133; New item...</option>`;
 }
@@ -3447,7 +3447,7 @@ function renderUsers() {
   const distSel = $("#nuDistrict");
   if (distSel) {
     if (isDevAdmin()) {
-      distSel.innerHTML = districts.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join("");
+      distSel.innerHTML = __byName(districts).map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join("");
       distSel.disabled = false;
     } else {
       const myDist = districts.find(d => d.id === activeDistrictId);
@@ -3583,7 +3583,7 @@ function updateUserLocationDropdown() {
   const locSel = $("#nuLocation");
   if (!distSel || !locSel) return;
   syncIgRow();
-  locSel.innerHTML = getLocationsForDistrict(distSel.value).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
+  locSel.innerHTML = __byName(getLocationsForDistrict(distSel.value)).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
 }
 
 function openUsersModal() {
@@ -3888,7 +3888,7 @@ function openInspectionModal(insp) {
   } else {
     locSel.disabled = false;
     const locs = getLocations();
-    locSel.innerHTML = `<option value="">Select location</option>` + locs.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
+    locSel.innerHTML = `<option value="">Select location</option>` + __byName(locs).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
   }
   locSel.value = insp ? insp.locationId : (canSeeAllLocations() ? "" : currentUser.locationId);
   openModal("#inspectionModal");
@@ -4314,13 +4314,13 @@ function __distPopulateRowItems(row) {
     return;
   }
   if (__distType() === "cons") {
-    const names = [...new Set(getConsItems().filter(i => i.categoryId === cid).map(i => i.name))].filter(Boolean).sort();
+    const names = __byName([...new Set(getConsItems().filter(i => i.categoryId === cid).map(i => i.name))].filter(Boolean), x => x);
     itemSel.disabled = false;
     itemSel.innerHTML = `<option value="">Select item</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
     __distUpdateRowInfo(row);
     return;
   }
-  const names = [...new Set(getItemsForDistrict(activeDistrictId).filter(i => i.categoryId === cid).map(i => i.name))].filter(Boolean).sort();
+  const names = __byName([...new Set(getItemsForDistrict(activeDistrictId).filter(i => i.categoryId === cid).map(i => i.name))].filter(Boolean), x => x);
   itemSel.disabled = false;
   itemSel.innerHTML = `<option value="">Select item</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("") + `<option value="__new__">&#10133; New item...</option>`;
   __distUpdateRowInfo(row);
@@ -7493,12 +7493,33 @@ let __invStockLoc = "all"; // Item Stock location scope for admins: "all" = all 
 
 // Rebuilding the category list must not throw away the boxes the user ticked,
 // so the chosen ids are read back and re-selected afterwards.
-function __repopulateMultiCat(sel) {
+// ms: the bound multiselect instance to re-render, so its label and boxes pick
+  // up the rebuilt option list. Without it the panel would still show the old
+  // categories until something else touched it.
+/* One collator for every dropdown list, so ordering is consistent and, more
+   importantly, reproducible: names that differ only in case or by an accent
+   land together instead of splitting across the list. numeric:true keeps
+   "Belt 2" ahead of "Belt 10". Falls back to a plain lowercased compare on the
+   rare runtime without Intl.Collator. */
+const __listCollator = (typeof Intl !== "undefined" && Intl.Collator)
+  ? new Intl.Collator(undefined, { sensitivity: "base", numeric: true })
+  : null;
+// Returns a NEW array; the caller's array is never mutated, so sorting here
+// cannot reorder the live store that the next render reads from.
+function __byName(list, nameOf) {
+  const key = nameOf || (x => (x && x.name) || "");
+  return (list || []).slice().sort((a, b) => __listCollator
+    ? __listCollator.compare(String(key(a) || ""), String(key(b) || ""))
+    : String(key(a) || "").toLowerCase().localeCompare(String(key(b) || "").toLowerCase()));
+}
+function __sortedCategories() { return __byName(getCategories()); }
+function __repopulateMultiCat(sel, ms) {
   if (!sel) return;
   const keep = (typeof __msSelected === "function" ? __msSelected(sel) : []).map(o => o.value);
-  sel.innerHTML = `<option value="">All Categories</option>` + getCategories().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  sel.innerHTML = `<option value="">All Categories</option>` + __sortedCategories().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
   Array.prototype.forEach.call(sel.options, o => { if (o.value && keep.indexOf(o.value) >= 0) o.selected = true; });
-  if (window.__msCatIS && window.__msCatIS.refresh) window.__msCatIS.refresh();
+  const inst = ms || (sel.id === "allocCatFilter" ? window.__msCatAI : window.__msCatIS);
+  if (inst && inst.refresh) inst.refresh();
 }
 function renderAllotments() {
   __repopulateMultiCat($("#allocStockCat"));
@@ -7511,8 +7532,9 @@ function renderAllotments() {
 function renderAllocStockFilters() {
   const acts = getVisibleAllotments();
   const items = getItems();
-  const catF = $("#allocCatFilter");
-  if (catF) catF.innerHTML = `<option value="">All Categories</option>` + getCategories().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  // Repopulated through the multiselect helper so ticked boxes survive and the
+  // panel label is rewritten with the new option list.
+  __repopulateMultiCat($("#allocCatFilter"));
   const itemF = $("#allocItemFilter");
   if (itemF) itemF.innerHTML = `<option value="">All Items</option>` + items.map(i => `<option value="${i.id}">${esc(i.name)}</option>`).join("");
   const rankF = $("#allocRankFilter");
@@ -7604,7 +7626,7 @@ function renderStockLocToggle() {
   const own = $("#locOwnBtn"), sel = $("#locAllSel");
   if (own) { own.classList.toggle("btn-primary", __invStockLoc === "own"); own.classList.toggle("btn-outline", __invStockLoc !== "own"); }
   if (sel) {
-    sel.innerHTML = `<option value="all">All Locations</option>` + getLocations().map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
+    sel.innerHTML = `<option value="all">All Locations</option>` + __byName(getLocations()).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
     if (__invStockLoc !== "own" && ![...sel.options].some(o => o.value === __invStockLoc)) __invStockLoc = "all";
     if (__invStockLoc !== "own") sel.value = __invStockLoc;
   }
@@ -7659,19 +7681,27 @@ function renderAllocStock() {
 function __allocListFiltered() {
   const cats = getCategories();
   const q = (($("#allocSearch") || {}).value || "").toLowerCase();
-  const catF = (($("#allocCatFilter") || {}).value || "");
+  // Category is a multi-select now, so this is either null (show all) or a
+  // predicate on the row, not a single id to compare against.
+  const catF = (typeof __msMatches === "function") ? __msMatches($("#allocCatFilter")) : (($("#allocCatFilter") || {}).value || "");
   const itemF = (($("#allocItemFilter") || {}).value || "");
   const postF = (($("#allocPostingFilter") || {}).value || "").toLowerCase();
   const rankF = (($("#allocRankFilter") || {}).value || "");
-  const statusF = (($("#allocStatusFilter") || {}).value || "");
+  // Status is a multi-select as well, so the picked values become a Set and an
+  // empty Set means "show every status". __msMatches is category-specific
+  // (it reads row.categoryId), hence __msSelected here rather than it.
+  const statusSel = $("#allocStatusFilter");
+  const statusSet = (typeof __msSelected === "function")
+    ? new Set(__msSelected(statusSel).map(o => o.value))
+    : new Set([((statusSel || {}).value || "")].filter(Boolean));
   const dateFrom = (($("#allocDateFrom") || {}).value || "");
   const dateTo = (($("#allocDateTo") || {}).value || "");
 
   return getVisibleAllotments().filter(a => {
-    if (catF && a.categoryId !== catF) return false;
+    if (catF && a.categoryId && !catF(a)) return false;
     if (itemF && a.itemId !== itemF) return false;
     if (rankF && a.rank !== rankF) return false;
-    if (statusF && allocStatusOf(a) !== statusF) return false;
+    if (statusSet.size && !statusSet.has(allocStatusOf(a))) return false;
     if (postF && ((a.posting || "").toLowerCase()).indexOf(postF) === -1) return false;
     if (q) {
       const hay = [a.name, a.beltNo, a.itemName, a.posting, a.rank, a.categoryName, a.mobile || ""].join(" ").toLowerCase();
@@ -7694,7 +7724,7 @@ function renderAllottedList() {
   if (!body) return;
   const cats = getCategories();
   const rows = __allocListFiltered();
-  if (!rows.length) { body.innerHTML = `<tr class="empty-row"><td colspan="12">No issued items found.</td></tr>`; renderPager("alloc", 0, renderAllottedList); return; }
+  if (!rows.length) { body.innerHTML = `<tr class="empty-row"><td colspan="10">No issued items found.</td></tr>`; renderPager("alloc", 0, renderAllottedList); return; }
   const baseNo = __pgPage("alloc", rows.length) * PAGE_SIZE;
   body.innerHTML = __pgRows("alloc", rows).map((a, idx) => {
     const st = allocStatusOf(a);
@@ -7714,7 +7744,7 @@ function renderAllottedList() {
       ] : [])
     ]);
     const d = a.createdAt || 0;
-    return `<tr><td>${baseNo + idx + 1}</td><td><a href="javascript:void(0)" class="person-link" data-alloc-action="person" data-belt="${esc(a.beltNo)}">${esc(a.name)}</a></td><td>${esc(a.beltNo || "")}</td><td>${esc(__allocMobileOf(a))}</td><td class="item-name">${__ipLink({ id: a.itemId, name: a.itemName })}</td><td><span class="cat-badge">${esc(a.categoryName || "")}</span></td><td class="qty-strong">${outstanding}</td><td class="qty-strong" style="color:var(--red)">${allocRecoverable(a)}</td><td>${d ? fmtDate(d) : "&mdash;"}</td><td>${esc(a.time || "") || "&mdash;"}</td><td>${allocStatusBadge(st)}</td><td class="actions-cell">${acts}</td></tr>`;
+    return `<tr><td>${baseNo + idx + 1}</td><td><a href="javascript:void(0)" class="person-link" data-alloc-action="person" data-belt="${esc(a.beltNo)}">${esc(a.name)}</a></td><td>${esc(a.beltNo || "")}</td><td>${esc(__allocMobileOf(a))}</td><td class="item-name">${__ipLink({ id: a.itemId, name: a.itemName })}</td><td class="qty-strong">${outstanding}</td><td class="qty-strong" style="color:var(--red)">${allocRecoverable(a)}</td><td>${d ? fmtDate(d) : "&mdash;"}</td><td>${esc(a.time || "") || "&mdash;"}</td><td class="actions-cell">${acts}</td></tr>`;
   }).join("");
   renderPager("alloc", rows.length, renderAllottedList);
 }
@@ -7886,7 +7916,7 @@ function addAllotItemRow(prefillItemId) {
   container.insertAdjacentHTML("beforeend", allocRowTemplate(r));
   const catSel = container.querySelector(`.al-row-cats[data-row="${rowKey}"]`);
   if (catSel) {
-    catSel.innerHTML = `<option value="">Select category</option>` + (__alType() === "cons" ? getConsCats() : getCategories()).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+    catSel.innerHTML = `<option value="">Select category</option>` + __byName(__alType() === "cons" ? getConsCats() : getCategories()).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
   }
   if (r.itemId) {
     const it = getItems().find(i => i.id === r.itemId);
@@ -9202,7 +9232,7 @@ function addScanItemRow(personKey, itemId, qty) {
   </div>`);
   const sel = box.querySelector(`.sc-row-items[data-srow="${key}"]`);
   if (sel) {
-    sel.innerHTML = `<option value="">Select item</option>` + getItems().map(i => `<option value="${i.id}" ${i.id === r.itemId ? "selected" : ""}>${esc(i.name)} (Avail: ${availableQty(i)})</option>`).join("");
+    sel.innerHTML = `<option value="">Select item</option>` + __byName(getItems()).map(i => `<option value="${i.id}" ${i.id === r.itemId ? "selected" : ""}>${esc(i.name)} (Avail: ${availableQty(i)})</option>`).join("");
   }
   __scanRefreshSummary();
 }
@@ -9440,7 +9470,7 @@ async function openScanView(id) {
 
 /* ---- Document upload ---- */
 function __docRowHtml() {
-  const opts = `<option value="">Select category...</option>` + getCategories().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  const opts = `<option value="">Select category...</option>` + __sortedCategories().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
   return `<div class="doc-item-row">
     <div class="form-row" style="align-items:end">
       <div class="form-group" style="flex:1 1 42%">
@@ -10423,6 +10453,8 @@ $$("#manageMenu .manage-menu-item").forEach(b => b.addEventListener("click", () 
 
   $("#allocStockSearch")?.addEventListener("input", renderAllocStock);
   window.__msCatIS = bindMultiCombobox("allocStockCatInput", "allocStockCatMenu", "allocStockCat", renderAllocStock);
+  window.__msCatAI = bindMultiCombobox("allocCatInput", "allocCatMenu", "allocCatFilter", renderAllottedList);
+  window.__msStatus = bindMultiCombobox("allocStatusInput", "allocStatusMenu", "allocStatusFilter", renderAllottedList, { anyLabel: 'Any Status', allLabel: 'All Status', emptyLabel: 'No statuses', selectAllLabel: 'Select All', clearLabel: 'Deselect All' });
   document.querySelectorAll("[data-stock-filter]").forEach(b => b.addEventListener("click", () => setStockType(b.dataset.stockFilter)));
   $("#allocStockType")?.addEventListener("change", e => setStockType(e.target.value));
   $("#allocStockTable")?.addEventListener("click", e => {
@@ -10449,7 +10481,10 @@ $$("#manageMenu .manage-menu-item").forEach(b => b.addEventListener("click", () 
   $("#allocDateFrom")?.addEventListener("change", renderAllottedList);
   $("#allocDateTo")?.addEventListener("change", renderAllottedList);
   $("#allocClearFilter")?.addEventListener("click", () => {
-    ["allocSearch", "allocCatFilter", "allocItemFilter", "allocPostingFilter", "allocRankFilter", "allocStatusFilter", "allocDateFrom", "allocDateTo"].forEach(id => { const el = $("#" + id); if (el) el.value = ""; });
+    // allocCatFilter is a multiple select: setting .value = "" on it leaves the
+    // ticked boxes ticked, so the filter would survive the Clear.
+    ["allocSearch", "allocCatFilter", "allocItemFilter", "allocPostingFilter", "allocRankFilter", "allocStatusFilter", "allocDateFrom", "allocDateTo"].forEach(id => { const el = $("#" + id); if (!el) return; if (el.multiple) { Array.prototype.forEach.call(el.options, o => { o.selected = false; }); } else { el.value = ""; } });
+    [window.__msCatAI, window.__msStatus].forEach(h => { if (h && h.refresh) h.refresh(); });
     renderAllottedList();
   });
   $("#allocExportBtn")?.addEventListener("click", e => { e.stopPropagation(); $("#allocExportMenu").classList.toggle("hidden"); });
@@ -12991,7 +13026,7 @@ function renderConsStock() {
         ]) : `<button type="button" class="btn btn-sm btn-outline" data-cons-view="${x.i.id}">View</button>`;
         return `<tr><td>${baseNo + idx + 1}</td><td class="item-name"><button type="button" class="linklike" data-cons-view="${x.i.id}" title="Open item details">${nameCell(x.i.name)}</button></td><td><span class="cat-badge">${esc(cat ? cat.name : "")}</span></td><td class="qty-strong">${x.q.total}</td><td class="qty-strong">${x.q.available}</td><td>${x.q.distributed}</td><td>${x.q.lost}</td><td><span class="status-badge">${esc(st)}</span></td><td>${acts}</td></tr>`;
       }).join("") +
-      `<tr class="rpt-total-row"><td>Total</td><td></td><td></td><td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavail}</td><td>${tdist}</td><td>${tlost}</td><td></td><td></td></tr>`;
+      `<tr class="rpt-total-row"><td></td><td class="rpt-total-label">Total</td><td></td><td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavail}</td><td>${tdist}</td><td>${tlost}</td><td></td><td></td></tr>`;
   const note = $("#consStockNote");
   if (note) {
     let name = "All Locations";
@@ -13290,7 +13325,7 @@ function __consPopulateRowItems(row) {
     itemSel.innerHTML = `<option value="">Select a category first...</option>`;
     return;
   }
-  const names = [...new Set(getConsItems().filter(i => i.categoryId === cid).map(i => i.name))].filter(Boolean).sort();
+  const names = __byName([...new Set(getConsItems().filter(i => i.categoryId === cid).map(i => i.name))].filter(Boolean), x => x);
   itemSel.disabled = false;
   itemSel.innerHTML = `<option value="">Select item</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("") + `<option value="__new__">&#10133; New item...</option>`;
 }
@@ -13811,23 +13846,23 @@ function __consBindToolbar() {
 }
 function __consRefreshFilterOptions() {
   const catSel = $("#consCatFilter");
-  if (catSel) { const v = catSel.value; catSel.innerHTML = `<option value="">All Categories</option>` + getConsCats().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join(""); catSel.value = v; }
+  if (catSel) { const v = catSel.value; catSel.innerHTML = `<option value="">All Categories</option>` + __byName(getConsCats()).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join(""); catSel.value = v; }
   const itemSel = $("#consItemFilter");
-  if (itemSel) { const v = itemSel.value; itemSel.innerHTML = `<option value="">All Items</option>` + getConsItems().map(i => `<option value="${i.id}">${esc(i.name)}</option>`).join(""); itemSel.value = v; }
+  if (itemSel) { const v = itemSel.value; itemSel.innerHTML = `<option value="">All Items</option>` + __byName(getConsItems()).map(i => `<option value="${i.id}">${esc(i.name)}</option>`).join(""); itemSel.value = v; }
   const locSel = $("#consLocFilter");
   if (locSel) {
     const v = locSel.value;
     locSel.innerHTML = `<option value="">All Locations</option>`
-      + getLocations().map(l => `<option value="unit:${l.id}">${esc(l.name)}</option>`).join("")
-      + getUsers().filter(u => u.districtId === activeDistrictId && u.role !== "devadmin").map(u => `<option value="staff:${u.id}">${esc(u.name)} (Staff)</option>`).join("");
+      + __byName(getLocations()).map(l => `<option value="unit:${l.id}">${esc(l.name)}</option>`).join("")
+      + __byName(getUsers().filter(u => u.districtId === activeDistrictId && u.role !== "devadmin")).map(u => `<option value="staff:${u.id}">${esc(u.name)} (Staff)</option>`).join("");
     locSel.value = v;
   }
   const dLocSel = $("#consdLoc");
   if (dLocSel) {
     const v = dLocSel.value;
     dLocSel.innerHTML = `<option value="">All Locations</option>`
-      + getLocations().map(l => `<option value="unit:${l.id}">${esc(l.name)}</option>`).join("")
-      + getUsers().filter(u => u.districtId === activeDistrictId && u.role !== "devadmin").map(u => `<option value="staff:${u.id}">${esc(u.name)} (Staff)</option>`).join("");
+      + __byName(getLocations()).map(l => `<option value="unit:${l.id}">${esc(l.name)}</option>`).join("")
+      + __byName(getUsers().filter(u => u.districtId === activeDistrictId && u.role !== "devadmin")).map(u => `<option value="staff:${u.id}">${esc(u.name)} (Staff)</option>`).join("");
     dLocSel.value = v;
   }
   const sLocSel = $("#consStockLoc");
@@ -13836,7 +13871,7 @@ function __consRefreshFilterOptions() {
     if (__consIsAdminView()) {
       sLocSel.disabled = false;
       sLocSel.innerHTML = `<option value="">All Locations</option>`
-        + getLocations().map(l => `<option value="unit:${l.id}">${esc(l.name)}</option>`).join("");
+        + __byName(getLocations()).map(l => `<option value="unit:${l.id}">${esc(l.name)}</option>`).join("");
       /* (Staff) entries removed from Item Consume location list (2026.09.192) */
       sLocSel.value = v;
       if (sLocSel.selectedIndex < 0) sLocSel.value = "";
@@ -13848,9 +13883,9 @@ function __consRefreshFilterOptions() {
     }
   }
   const dCatSel = $("#consdCat");
-  if (dCatSel) { const v = dCatSel.value; dCatSel.innerHTML = `<option value="">All Categories</option>` + getConsCats().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join(""); dCatSel.value = v; }
+  if (dCatSel) { const v = dCatSel.value; dCatSel.innerHTML = `<option value="">All Categories</option>` + __byName(getConsCats()).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join(""); dCatSel.value = v; }
   const dItemSel = $("#consdItem");
-  if (dItemSel) { const v = dItemSel.value; dItemSel.innerHTML = `<option value="">All Items</option>` + getConsItems().map(i => `<option value="${i.id}">${esc(i.name)}</option>`).join(""); dItemSel.value = v; }
+  if (dItemSel) { const v = dItemSel.value; dItemSel.innerHTML = `<option value="">All Items</option>` + __byName(getConsItems()).map(i => `<option value="${i.id}">${esc(i.name)}</option>`).join(""); dItemSel.value = v; }
 }
 /* ---- Event delegation ---- */
 document.addEventListener("click", (e) => {
