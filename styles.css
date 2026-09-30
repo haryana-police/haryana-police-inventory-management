@@ -2368,6 +2368,21 @@ td .cat-badge { white-space: nowrap; }
   text-align: left;
 }
 
+/* ---------- 18c. ITEM STOCK HEADERS + NARROW ACTIONS ----------
+   The quantity headers (Total Qty, Available, Issued, Lost, Damaged, Scrap)
+   are single words, so when the browser squeezes the columns they have no
+   space to break at and get split mid-word by the `overflow-wrap:anywhere`
+   on th. They are kept on one line, and the Actions column - which only ever
+   holds a small dropdown button - gives up the width to make room. Nothing
+   breaks mid-word as a result (2026.09.235). */
+#allocStockTable thead th { white-space: nowrap; }
+#allocStockTable thead th .sort-arrow { white-space: nowrap; }
+#allocStockTable thead th:last-child,
+#allocStockTable tbody td.actions-cell,
+#allocStockTable tfoot td:last-child { width: 1%; }
+#allocStockTable thead th:nth-child(2),
+#allocStockTable tbody td.item-name { min-width: 130px; }
+
 /* ---------- 19. FIELD VALIDATION STATES ---------- */
 .input-error { border-color: var(--red) !important; box-shadow: 0 0 0 3px rgba(220, 38, 38, .15) !important; background: rgba(220, 38, 38, .03); }
 .field-err { color: var(--red); font-size: .72rem; font-weight: 700; margin-top: 4px; }
