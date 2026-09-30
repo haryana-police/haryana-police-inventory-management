@@ -4054,3 +4054,99 @@ body.modal-open #appRoot {
   color: var(--muted);
   border-top: 1px solid var(--border);
 }
+/* ====================================================================
+   DIALOG TABLES AND DIALOG PADDING
+   --------------------------------------------------------------------
+   Two problems, both reported from the overlays:
+
+   1. A dialog holding a table was not wide enough for the columns in it.
+      The widest, the item detail dialog, has seventeen columns and is
+      allowed 1020px, which holds about seven at a size a word can sit in.
+      The rest of the width was taken by squeezing every column, so words
+      broke across three lines and a number under a heading stopped lining
+      up with it. A table that does not fit now gets the room it needs and
+      scrolls sideways - which is the honest outcome for seventeen columns
+      and is the one the brief allows, as opposed to crushing them.
+
+   2. Text sat against the border of the box around it. The padding on a
+      dialog was written in five places at five different values - 20px 22px,
+      15px 20px, 12px 14px, 14px 16px and a 22px 28px on one dialog - so
+      which one applied depended on where in the file the dialog happened
+      to be. One value now, from one place, and the tables inside get the
+      same inset as everything else.
+   ==================================================================== */
+
+/* ---- 1. Tables in dialogs get the width they need, then scroll.
+       These are the dialogs that hold a table, sized by how many columns
+       each one actually has. */
+#allocItemDetailModal .modal { max-width: min(1180px, calc(100vw - 24px)); }
+#allocPersonDetailModal .modal { max-width: min(1100px, calc(100vw - 24px)); }
+#scanHistoryModal .modal,
+#demandDetailsModal .modal,
+#viewItemModal .modal,
+#demandActionModal .modal { max-width: min(900px, calc(100vw - 24px)); }
+#distDetailModal .modal,
+#consCitModal .modal,
+#catItemsModal .modal { max-width: min(760px, calc(100vw - 24px)); }
+
+/* A table inside a dialog is allowed to be wider than the dialog and to
+   scroll with it. The wrapper is the scrollport; the dialog itself is not,
+   so a long table never pushes the dialog off the screen. */
+.modal .table-wrap,
+.modal-body .table-wrap { max-width: 100%; overflow-x: auto; }
+.modal table { width: 100%; min-width: 100%; }
+
+/* Told by the body id rather than by a class on the table, so no markup has to
+   change for this to take effect. The floor is what the columns need; the
+   wrapper scrolls the rest. */
+.modal table:has(#aidAllottedBody),
+.modal table:has(#aidHistoryBody),
+.modal table:has(#apdAllottedBody),
+.modal table:has(#apdReturnedBody) { min-width: 1000px; }
+.modal table:has(#scanHistoryBody),
+.modal table:has(#demandDetailsItems) { min-width: 760px; }
+.modal table:has(#viHistoryBody),
+.modal table:has(#demandActionItems),
+.modal table:has(#distDetailItems),
+.modal table:has(#inspBody) { min-width: 700px; }
+
+/* Columns keep a size a word can sit in. This is a minimum, so a table with
+   room to spare takes more; the table is never allowed to be narrower than
+   this, and scrolls instead. */
+.modal table th,
+.modal table td { min-width: 6rem; }
+.modal table th:first-child,
+.modal table td:first-child { min-width: 9rem; }   /* the name column */
+/* A quantity, a date or a status is read at a glance and is never split. */
+.modal table td.qty-strong,
+.modal table td.cell-nowrap,
+.modal table td.status,
+.modal table td.cell-date { white-space: nowrap; }
+/* A reason or a remark is prose: it wraps, and it is given room to wrap
+   into two lines rather than five. */
+.modal table td.cell-remark,
+.modal table td.reason,
+.modal table td.remark { min-width: 12rem; white-space: normal; }
+
+/* ---- 2. One inset for the three parts of a dialog.
+       Whichever of the five earlier rules came last used to decide this. */
+.modal-header,
+.modal-body,
+.modal-footer,
+.modal-actions { padding-left: 20px; padding-right: 20px; }
+.modal-header { padding-top: 16px; padding-bottom: 16px; }
+.modal-body { padding-top: 16px; padding-bottom: 16px; }
+.modal-footer,
+.modal-actions { padding-top: 14px; padding-bottom: 14px; }
+
+/* The form dialogs pin their footer with a negative margin to reach the
+   edges; that margin is written against the old padding, so it is brought
+   back in line with the value above or the buttons hang over the edge. */
+.modal > form > .modal-actions { margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; }
+#consTxnModal .modal-body,
+#consTxnModal .modal-header,
+#consTxnModal .modal-actions { padding-left: 20px; padding-right: 20px; }
+
+/* A cell never has its text against its own border either. */
+.modal table th,
+.modal table td { padding-left: 12px; padding-right: 12px; }
