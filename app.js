@@ -12987,21 +12987,33 @@ function __consQtyAt(itemId, loc) {
   return { total: received, available: avail, pending: pendingIn + outPending, distributed: outDist, lost: lost, availForNew: 0, status: status };
 }
 let __consStockLoc = "";
-function renderConsStock() {
-  const body = $("#consStockBody");
-  if (!body) return;
+function __repopulateConsMultiCat(sel, ms) {
+  if (!sel) return;
+  if (!window.__msCatCS && typeof bindMultiCombobox === "function" && $("#consStockCatInput")) {
+    window.__msCatCS = bindMultiCombobox("consStockCatInput", "consStockCatMenu", "consStockCat", renderConsStock);
+  }
+  const keep = (typeof __msSelected === "function" ? __msSelected(sel) : []).map(o => o.value);
+  sel.innerHTML = `<option value="">All Categories</option>` + __byName(getConsCats()).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  Array.prototype.forEach.call(sel.options, o => { if (o.value && keep.indexOf(o.value) >= 0) o.selected = true; });
+  const inst = ms || window.__msCatCS;
+  if (inst && inst.refresh) inst.refresh();
+}
+function __consStockFilteredRows() {
   const cats = getConsCats();
-  const catSel = $("#consStockCat");
-  if (catSel) { const cur = catSel.value; catSel.innerHTML = `<option value="">All Categories</option>` + cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join(""); if (cur) catSel.value = cur; }
   const q = (($("#consStockSearch") || {}).value || "").toLowerCase();
-  const catF = (($("#consStockCat") || {}).value || "");
+  const catFilter = (typeof __msMatches === "function") ? __msMatches($("#consStockCat")) : null;
+  const catF = (!catFilter && $("#consStockCat")) ? $("#consStockCat").value : "";
   const typeF = (($("#consStockType") || {}).value || "all");
   const isAdmin = __consIsAdminView();
   const ownKey = __consOwnLocKey();
   const locF = isAdmin ? (($("#consStockLoc") || {}).value || "") : ownKey;
   const items = getConsItems().map(i => { const qq = !isAdmin ? __consQtyOwn(i.id) : (locF ? __consQtyAt(i.id, locF) : __consQty(i.id)); return { i, q: qq }; });
   let rows = items.filter(x => {
-    if (catF && x.i.categoryId !== catF) return false;
+    if (catFilter) {
+      if (!catFilter(x.i)) return false;
+    } else if (catF && x.i.categoryId !== catF) {
+      return false;
+    }
     const cat = cats.find(c => c.id === x.i.categoryId);
     if (q && !((x.i.name || "").toLowerCase().includes(q) || ((cat && cat.name) || "").toLowerCase().includes(q))) return false;
     if (typeF === "distributed" && x.q.total <= 0) return false;
@@ -13009,24 +13021,36 @@ function renderConsStock() {
     return true;
   });
   rows.sort((a, b) => (a.i.name || "").localeCompare(b.i.name || ""));
+  if (typeof __msGrouped === "function") {
+    rows = __msGrouped(rows, $("#consStockCat"), x => x.i.categoryId);
+  }
+  return rows;
+}
+function renderConsStock() {
+  const body = $("#consStockBody");
+  if (!body) return;
+  __repopulateConsMultiCat($("#consStockCat"));
+  const isAdmin = __consIsAdminView();
+  const ownKey = __consOwnLocKey();
+  const locF = isAdmin ? (($("#consStockLoc") || {}).value || "") : ownKey;
+  const rows = __consStockFilteredRows();
   const head = $("#consStockHead");
-  if (head) { const th = head.querySelectorAll("th")[3]; if (th) th.textContent = locF ? "Total Qty (Received)" : "Total Qty"; }
+  if (head) { const th = head.querySelectorAll("th")[2]; if (th) th.textContent = locF ? "Total Qty (Received)" : "Total Qty"; }
   let ttotal = 0, tavail = 0, tdist = 0, tlost = 0;
   rows.forEach(x => { ttotal += x.q.total; tavail += x.q.available; tdist += x.q.distributed; tlost += x.q.lost; });
   const baseNo = __pgPage("consStock", rows.length) * PAGE_SIZE;
   body.innerHTML = rows.length === 0
-    ? `<tr class="empty-row"><td colspan="9">No consume items found.</td></tr>`
+    ? `<tr class="empty-row"><td colspan="8">No consume items found.</td></tr>`
     : __pgRows("consStock", rows).map((x, idx) => {
-        const cat = cats.find(c => c.id === x.i.categoryId);
         const st = x.q.status;
         const acts = __consCanManage() ? actDD([
           { label: "View", attrs: `data-cons-view="${x.i.id}"` },
           ...((!isAdmin || !locF) && x.q.availForNew > 0 ? [{ label: "Distribute", attrs: `data-cons-dist="${x.i.id}"` }] : []),
           ...((!isAdmin || !locF) && x.q.availForNew > 0 ? [{ label: "Mark Lost", attrs: `data-cons-loss="${x.i.id}"` }] : [])
         ]) : `<button type="button" class="btn btn-sm btn-outline" data-cons-view="${x.i.id}">View</button>`;
-        return `<tr><td>${baseNo + idx + 1}</td><td class="item-name"><button type="button" class="linklike" data-cons-view="${x.i.id}" title="Open item details">${nameCell(x.i.name)}</button></td><td><span class="cat-badge">${esc(cat ? cat.name : "")}</span></td><td class="qty-strong">${x.q.total}</td><td class="qty-strong">${x.q.available}</td><td>${x.q.distributed}</td><td>${x.q.lost}</td><td><span class="status-badge">${esc(st)}</span></td><td>${acts}</td></tr>`;
+        return `<tr><td>${baseNo + idx + 1}</td><td class="item-name"><button type="button" class="linklike" data-cons-view="${x.i.id}" title="Open item details">${nameCell(x.i.name)}</button></td><td class="qty-strong">${x.q.total}</td><td class="qty-strong">${x.q.available}</td><td>${x.q.distributed}</td><td>${x.q.lost}</td><td><span class="status-badge">${esc(st)}</span></td><td>${acts}</td></tr>`;
       }).join("") +
-      `<tr class="rpt-total-row"><td></td><td class="rpt-total-label">Total</td><td></td><td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavail}</td><td>${tdist}</td><td>${tlost}</td><td></td><td></td></tr>`;
+      `<tr class="rpt-total-row"><td></td><td class="rpt-total-label">Total</td><td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavail}</td><td>${tdist}</td><td>${tlost}</td><td></td><td></td></tr>`;
   const note = $("#consStockNote");
   if (note) {
     let name = "All Locations";
@@ -13921,12 +13945,19 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#consAddBtn")?.addEventListener("click", openConsAdd);
 $$("[data-constab]").forEach(t => t.addEventListener("click", () => __consShowTab(t.dataset.constab)));
 $("#consStockSearch")?.addEventListener("input", renderConsStock);
-$("#consStockCat")?.addEventListener("change", renderConsStock);
+window.__msCatCS = bindMultiCombobox("consStockCatInput", "consStockCatMenu", "consStockCat", renderConsStock);
 $("#consStockType")?.addEventListener("change", renderConsStock);
   $("#consStockLoc")?.addEventListener("change", renderConsStock);
   $("#consStockClear")?.addEventListener("click", () => {
     const s = $("#consStockSearch"); if (s) s.value = "";
-    const c = $("#consStockCat"); if (c) c.value = "";
+    const c = $("#consStockCat"); if (c) {
+      if (c.multiple) {
+        Array.prototype.forEach.call(c.options, o => { o.selected = false; });
+      } else {
+        c.value = "";
+      }
+    }
+    if (window.__msCatCS && window.__msCatCS.refresh) window.__msCatCS.refresh();
     const ty = $("#consStockType"); if (ty) ty.value = "all";
     const l = $("#consStockLoc"); if (l && !l.disabled) l.value = "";
     renderConsStock();

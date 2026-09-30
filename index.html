@@ -8,7 +8,7 @@
 <!-- Both stylesheets are versioned: without the query the browser keeps
      serving the old file from its own cache, so a CSS fix appears to do
      nothing until a hard refresh. Bump these when either file changes. -->
-<link rel="stylesheet" href="styles.css?v=2026.09.248">
+<link rel="stylesheet" href="styles.css?v=2026.09.250">
   <script>
     (function () {
       try { if (localStorage.getItem("hpi_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
@@ -502,7 +502,11 @@
       <div class="inv-tab" data-cons_tab="stock">
         <div class="toolbar">
           <input type="text" id="consStockSearch" placeholder="Search by item or category...">
-          <select id="consStockCat"><option value="">All Categories</option></select>
+          <span class="cb cb-multiselect" data-ms>
+            <input type="text" class="cb-input" id="consStockCatInput" placeholder="Any Category" autocomplete="off" readonly>
+            <span class="cb-menu hidden" id="consStockCatMenu"></span>
+            <select id="consStockCat" class="cb-hidden-sel" multiple><option value="">All Categories</option></select>
+          </span>
           <select id="consStockLoc"><option value="">All Locations</option></select>
           <select id="consStockType">
             <option value="all">All Stock</option>
@@ -525,7 +529,7 @@
           <div class="table-wrap">
             <table id="consStockTable" data-sortable="false">
               <thead id="consStockHead">
-                <tr><th style="width:54px">S.No</th><th>Item Name</th><th>Category</th><th>Total Qty</th><th>Available</th><th>Distributed</th><th>Lost</th><th>Status</th><th>Actions</th></tr>
+                <tr><th style="width:54px">S.No</th><th>Item Name</th><th>Total Qty</th><th>Available</th><th>Distributed</th><th>Lost</th><th>Status</th><th>Actions</th></tr>
               </thead>
               <tbody id="consStockBody"></tbody>
             </table>
@@ -2994,9 +2998,9 @@
 <div class="toast hidden" id="toast"></div>
 
 <script src="api-client.js?v=2026.09.211"></script>
-  <script src="enter-to-submit.js?v=2026.09.248"></script>
-  <script src="cat-multiselect.js?v=2026.09.248"></script>
-  <script src="app.js?v=2026.09.248"></script>
+  <script src="enter-to-submit.js?v=2026.09.250"></script>
+  <script src="cat-multiselect.js?v=2026.09.250"></script>
+  <script src="app.js?v=2026.09.250"></script>
 <script src="ims-agent.js?v=2026.09.211" defer></script>
 <script src="item-profile.js?v=2026.09.211"></script>
 <script src="person-profile.js?v=2026.09.211"></script>
