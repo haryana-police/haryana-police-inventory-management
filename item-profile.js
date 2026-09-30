@@ -321,6 +321,10 @@
         '<div class="ip-topbar"><div style="flex:1;min-width:260px">' +
           '<div class="ip-breadcrumb"><a data-ip-nav="back">&larr; Back</a><span>&rsaquo;</span><a data-ip-nav="close">Inventory</a><span>&rsaquo;</span><span>Items</span><span>&rsaquo;</span><b id="ipCrumbName">\u2014</b></div>' +
           '<div class="ip-title-row"><h1 class="ip-title" id="ipTitle">\u2014</h1><span id="ipStatusBadge"></span></div>' +
+          '<div class="ip-dates-line" id="ipDatesLine">' +
+            '<span class="ip-date-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Date of Added: <b id="ipDateAdded">\u2014</b></span>' +
+            '<span class="ip-date-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Date of Latest Update: <b id="ipDateUpdated">\u2014</b></span>' +
+          '</div>' +
           '<div class="ip-meta" id="ipMeta"></div>' +
           '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap" id="ipTopActions"></div>' +
         '</div>' +
@@ -505,8 +509,8 @@
     var view = document.getElementById(VIEW_ID);
     if (!view) return;
     view.classList.remove("hidden");
-    fillHeader(item);
     state.txs = state.kind === "cons" ? deriveConsTxs(item, state.districtId) : deriveTxs(item, state.districtId);
+    fillHeader(item);
     var crumb = view.querySelector('.ip-breadcrumb a[data-ip-nav="close"]');
     if (crumb) crumb.textContent = state.kind === "cons" ? "Consumables" : "Inventory";
     fillBody(item);
@@ -518,6 +522,11 @@
     $("#ipTitle").textContent = item.name || "";
     var st = window.allocStatusOfItem ? allocStatusOfItem(item) : { cls: "status-ok", label: "Available" };
     $("#ipStatusBadge").innerHTML = '<span class="status-badge ' + st.cls + '">' + esc(st.label) + "</span>";
+    var dAdded = item.createdAt ? fmtD(item.createdAt) : "\u2014";
+    var latestTs = Math.max(item.updatedAt || 0, (state.txs && state.txs[0] ? state.txs[0].ts : 0)) || item.createdAt;
+    var dUpdated = latestTs ? fmtDT(latestTs) : dAdded;
+    var elAdded = $("#ipDateAdded"); if (elAdded) elAdded.textContent = dAdded;
+    var elUpdated = $("#ipDateUpdated"); if (elUpdated) elUpdated.textContent = dUpdated;
     $("#ipMeta").innerHTML = [
       ["Item Code", itemCode(item)], ["Category", catName(item.categoryId) || "\u2014"], ["Unit", item.unit || "pcs"],
       ["Location", locName(state.districtId, item.locationId) || "\u2014"], ["District", distName(state.districtId)],
@@ -546,6 +555,11 @@
     $("#ipCrumbName").textContent = item.name || "";
     $("#ipTitle").textContent = item.name || "";
     $("#ipStatusBadge").innerHTML = '<span class="status-badge ' + consStatusCls(q.status) + '">' + esc(q.status || "") + "</span>";
+    var dAddedCons = item.createdAt ? fmtD(item.createdAt) : "\u2014";
+    var latestTsCons = Math.max(item.updatedAt || 0, (state.txs && state.txs[0] ? state.txs[0].ts : 0)) || item.createdAt;
+    var dUpdatedCons = latestTsCons ? fmtDT(latestTsCons) : dAddedCons;
+    var elAddedCons = $("#ipDateAdded"); if (elAddedCons) elAddedCons.textContent = dAddedCons;
+    var elUpdatedCons = $("#ipDateUpdated"); if (elUpdatedCons) elUpdatedCons.textContent = dUpdatedCons;
     $("#ipMeta").innerHTML = [
       ["Item Code", consCode(item)],
       ["Category", window.__consItemCat ? __consItemCat(item.categoryId) : (catName(item.categoryId) || "—")],
@@ -581,7 +595,7 @@
     $("#ipBody").innerHTML =
       '<div class="ip-cards ip-row5">' + cardsRow1.map(statCard).join("") + "</div>" +
       '<div class="ip-cards ip-row4">' + cardsRow2.map(statCard).join("") + "</div>" +
-      '<div class="ip-section"><h3>Item Information</h3><div class="ip-info-grid">' + infoRows(item).join("") + "</div></div>" +
+      
       '<div class="ip-section"><h3>Complete Transaction History</h3>' + toolbarHtml() + '<div id="ipSummary" class="ip-cards" style="margin:10px 0"></div>' +
       '<div class="ip-table-wrap"><table class="ip-tx-table" data-sortable="false"><thead><tr>' +
         th("ts", "Date &amp; Time") + th("type", "Transaction Type") + th("ref", "Reference") + th("from", "From") + th("to", "To") +
@@ -615,7 +629,7 @@
     ];
     $("#ipBody").innerHTML =
       '<div class="ip-cards ip-row5">' + cards.map(statCard).join("") + "</div>" +
-      '<div class="ip-section"><h3>Item Information</h3><div class="ip-info-grid">' + infoRowsCons(item).join("") + "</div></div>" +
+      
       '<div class="ip-section"><h3>Complete Transaction History</h3>' + toolbarHtml() + '<div id="ipSummary" class="ip-cards" style="margin:10px 0"></div>' +
       '<div class="ip-table-wrap"><table class="ip-tx-table" data-sortable="false"><thead><tr>' +
         th("ts", "Date &amp; Time") + th("type", "Transaction Type") + th("ref", "Reference") + th("from", "From") + th("to", "To") +
