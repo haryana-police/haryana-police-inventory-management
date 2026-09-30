@@ -323,7 +323,7 @@ const __SORT_DEFS = {
       i => i.minStock,
       (i, c) => (c.locs.get(i.locationId) || {}).name || "",
       i => (i.conditionCounts || {}).good || 0,
-      (i, c) => { const cc = i.conditionCounts || { good: i.quantity, poor: 0, damaged: 0 }; const q = c.cond ? (cc[c.cond] || 0) : i.quantity; return q <= 0 ? 0 : q <= (Number(i.minStock) || 0) ? 1 : 2; },
+
       i => __lastChangeAt(i) || null,
       null /* Actions */
     ]
@@ -2536,8 +2536,6 @@ if (filtered.length) {
 const cc = i.conditionCounts || { good: i.quantity, poor: 0, damaged: 0 };
       const displayQty = condFilter ? (cc[condFilter] || 0) : i.quantity;
       totalQty += displayQty;
-      const cls = displayQty === 0 ? "status-out" : displayQty <= i.minStock ? "status-low" : "status-ok";
-      const label = displayQty === 0 ? "Out of Stock" : displayQty <= i.minStock ? "Low Stock" : "In Stock";
   const __chg = (() => { if (condFilter) return null; const h = i.history || []; const last = h[h.length - 1]; if (!last) return null; const q = Number(last.qty) || 0; const when = (last.date || "") + (last.time ? " " + last.time : ""); const parts = when.split(" "); return { q: q, when: when, nice: (parts[0] ? fmtDate(parts[0]) : "") + (parts[1] ? " " + parts[1] : ""), rem: last.remarks || "", photos: last.photos || null }; })();
 const __chgCell = condFilter ? `<td class="qty-strong">${displayQty}</td>` : (__chg ? `<td class="qty-strong" style="color:var(--${__chg.q > 0 ? "green" : "red"})" title="${esc("Last update " + __chg.when + ": " + __chg.rem)}">${__chg.q > 0 ? "+" + __chg.q : __chg.q}${photoChipsHtml({ photos: __chg.photos })}</td>` : `<td class="qty-strong"><span class="muted">&mdash;</span></td>`);
       /* Actions column: record-level RBAC. Every row gets View; Edit/Delete
@@ -2565,7 +2563,7 @@ const __chgCell = condFilter ? `<td class="qty-strong">${displayQty}</td>` : (__
           { label: "View", attrs: `data-action="view" data-id="${i.id}"` },
         ]);
       }
-      return `<tr data-item-id="${i.id}"><td class="item-name">${__ipLink(i)}</td><td><span class="cat-badge">${esc(cat ? cat.name : "")}</span></td>${__chgCell}<td>${esc(i.unit)}</td><td>${i.minStock}</td><td>${esc(loc ? loc.name : "")}</td><td>${buildCondBar(cc)}</td><td><span class="status-badge ${cls}">${label}</span></td><td>${__chg ? esc(__chg.nice) : (i.updatedAt ? fmtDate(i.updatedAt) : "<span style='color:var(--muted)'>\u2014</span>")}</td><td class="actions-cell">${btns}</td></tr>`;
+      return `<tr data-item-id="${i.id}"><td class="item-name">${__ipLink(i)}</td><td><span class="cat-badge">${esc(cat ? cat.name : "")}</span></td>${__chgCell}<td>${esc(i.unit)}</td><td>${i.minStock}</td><td>${esc(loc ? loc.name : "")}</td><td>${buildCondBar(cc)}</td><td>${__chg ? esc(__chg.nice) : (i.updatedAt ? fmtDate(i.updatedAt) : "<span style='color:var(--muted)'>\u2014</span>")}</td><td class="actions-cell">${btns}</td></tr>`;
     }).join("");
 
     if (condFilter) {
@@ -2585,16 +2583,16 @@ const __chgCell = condFilter ? `<td class="qty-strong">${displayQty}</td>` : (__
       });
       const catName = catFilter ? (cats.find(c => c.id === catFilter) || {}).name : "";
       const summaryHtml = catFilter
-        ? `<tr class="summary-row"><td colspan="2" style="font-weight:700;color:var(--primary)">${condLabel} Total (${esc(catName)})</td><td class="qty-strong" style="color:var(--primary)">${catTotalQty}</td><td colspan="7"></td></tr><tr class="summary-row summary-grand"><td colspan="2" style="font-weight:700;color:var(--primary)">${condLabel} Total (All Categories)</td><td class="qty-strong" style="color:var(--primary)">${grandTotalQty}</td><td colspan="7"></td></tr>`
-        : `<tr class="summary-row summary-grand"><td colspan="2" style="font-weight:700;color:var(--primary)">${condLabel} Total (All Categories)</td><td class="qty-strong" style="color:var(--primary)">${grandTotalQty}</td><td colspan="7"></td></tr>`;
+        ? `<tr class="summary-row"><td colspan="2" style="font-weight:700;color:var(--primary)">${condLabel} Total (${esc(catName)})</td><td class="qty-strong" style="color:var(--primary)">${catTotalQty}</td><td colspan="6"></td></tr><tr class="summary-row summary-grand"><td colspan="2" style="font-weight:700;color:var(--primary)">${condLabel} Total (All Categories)</td><td class="qty-strong" style="color:var(--primary)">${grandTotalQty}</td><td colspan="6"></td></tr>`
+        : `<tr class="summary-row summary-grand"><td colspan="2" style="font-weight:700;color:var(--primary)">${condLabel} Total (All Categories)</td><td class="qty-strong" style="color:var(--primary)">${grandTotalQty}</td><td colspan="6"></td></tr>`;
       tbody.innerHTML += summaryHtml;
     }
 
     tbody.innerHTML += condFilter
- ? `<tr class="rpt-total-row"><td>Total</td><td></td><td class="qty-strong">${totalQty}</td><td colspan="7"></td></tr>`
- : `<tr class="rpt-total-row"><td>Total</td><td></td><td class="qty-strong"><span class="muted">&mdash;</span></td><td colspan="7"></td></tr>`;
+ ? `<tr class="rpt-total-row"><td>Total</td><td></td><td class="qty-strong">${totalQty}</td><td colspan="6"></td></tr>`
+ : `<tr class="rpt-total-row"><td>Total</td><td></td><td class="qty-strong"><span class="muted">&mdash;</span></td><td colspan="6"></td></tr>`;
 } else {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="10">No items found. Try adjusting the filters.</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="9">No items found. Try adjusting the filters.</td></tr>`;
   }
   renderPager("inv", filtered.length, renderInventory);
 const __invTbl = document.querySelector("#inventoryBody") ? document.querySelector("#inventoryBody").closest("table") : null;
