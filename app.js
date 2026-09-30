@@ -319,8 +319,6 @@ const __SORT_DEFS = {
       i => i.name,
       (i, c) => (c.cats.get(i.categoryId) || {}).name || "",
       (i, c) => { if (c.cond) { const cc = i.conditionCounts || { good: i.quantity, poor: 0, damaged: 0 }; return cc[c.cond] || 0; } const h = i.history || []; const last = h[h.length - 1]; return last ? (Number(last.qty) || 0) : null; },
-      i => i.unit,
-      i => i.minStock,
       (i, c) => (c.locs.get(i.locationId) || {}).name || "",
       i => (i.conditionCounts || {}).good || 0,
 
@@ -2563,7 +2561,7 @@ const __chgCell = condFilter ? `<td class="qty-strong">${displayQty}</td>` : (__
           { label: "View", attrs: `data-action="view" data-id="${i.id}"` },
         ]);
       }
-      return `<tr data-item-id="${i.id}"><td class="item-name">${__ipLink(i)}</td><td><span class="cat-badge">${esc(cat ? cat.name : "")}</span></td>${__chgCell}<td>${esc(i.unit)}</td><td>${i.minStock}</td><td>${esc(loc ? loc.name : "")}</td><td>${buildCondBar(cc)}</td><td>${__chg ? esc(__chg.nice) : (i.updatedAt ? fmtDate(i.updatedAt) : "<span style='color:var(--muted)'>\u2014</span>")}</td><td class="actions-cell">${btns}</td></tr>`;
+      return `<tr data-item-id="${i.id}"><td class="item-name">${__ipLink(i)}</td><td><span class="cat-badge">${esc(cat ? cat.name : "")}</span></td>${__chgCell}<td>${esc(loc ? loc.name : "")}</td><td>${buildCondBar(cc)}</td><td>${__chg ? esc(__chg.nice) : (i.updatedAt ? fmtDate(i.updatedAt) : "<span style='color:var(--muted)'>\u2014</span>")}</td><td class="actions-cell">${btns}</td></tr>`;
     }).join("");
 
     if (condFilter) {
@@ -2583,16 +2581,16 @@ const __chgCell = condFilter ? `<td class="qty-strong">${displayQty}</td>` : (__
       });
       const catName = catFilter ? (cats.find(c => c.id === catFilter) || {}).name : "";
       const summaryHtml = catFilter
-        ? `<tr class="summary-row"><td colspan="2" style="font-weight:700;color:var(--primary)">${condLabel} Total (${esc(catName)})</td><td class="qty-strong" style="color:var(--primary)">${catTotalQty}</td><td colspan="6"></td></tr><tr class="summary-row summary-grand"><td colspan="2" style="font-weight:700;color:var(--primary)">${condLabel} Total (All Categories)</td><td class="qty-strong" style="color:var(--primary)">${grandTotalQty}</td><td colspan="6"></td></tr>`
-        : `<tr class="summary-row summary-grand"><td colspan="2" style="font-weight:700;color:var(--primary)">${condLabel} Total (All Categories)</td><td class="qty-strong" style="color:var(--primary)">${grandTotalQty}</td><td colspan="6"></td></tr>`;
+        ? `<tr class="summary-row"><td colspan="2" style="font-weight:700;color:var(--primary)">${condLabel} Total (${esc(catName)})</td><td class="qty-strong" style="color:var(--primary)">${catTotalQty}</td><td colspan="4"></td></tr><tr class="summary-row summary-grand"><td colspan="2" style="font-weight:700;color:var(--primary)">${condLabel} Total (All Categories)</td><td class="qty-strong" style="color:var(--primary)">${grandTotalQty}</td><td colspan="4"></td></tr>`
+        : `<tr class="summary-row summary-grand"><td colspan="2" style="font-weight:700;color:var(--primary)">${condLabel} Total (All Categories)</td><td class="qty-strong" style="color:var(--primary)">${grandTotalQty}</td><td colspan="4"></td></tr>`;
       tbody.innerHTML += summaryHtml;
     }
 
     tbody.innerHTML += condFilter
- ? `<tr class="rpt-total-row"><td>Total</td><td></td><td class="qty-strong">${totalQty}</td><td colspan="6"></td></tr>`
- : `<tr class="rpt-total-row"><td>Total</td><td></td><td class="qty-strong"><span class="muted">&mdash;</span></td><td colspan="6"></td></tr>`;
+ ? `<tr class="rpt-total-row"><td>Total</td><td></td><td class="qty-strong">${totalQty}</td><td colspan="4"></td></tr>`
+ : `<tr class="rpt-total-row"><td>Total</td><td></td><td class="qty-strong"><span class="muted">&mdash;</span></td><td colspan="4"></td></tr>`;
 } else {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="9">No items found. Try adjusting the filters.</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="7">No items found. Try adjusting the filters.</td></tr>`;
   }
   renderPager("inv", filtered.length, renderInventory);
 const __invTbl = document.querySelector("#inventoryBody") ? document.querySelector("#inventoryBody").closest("table") : null;
