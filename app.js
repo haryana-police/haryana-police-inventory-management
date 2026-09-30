@@ -3000,6 +3000,267 @@ let __asPhotos = {}; // rowKey -> [{ id, name, mime, size, dataUrl }]
 // passes the row's own item, so "Add Stock" beside a short item opens with that
 // item already chosen and the user only has to type how many arrived - instead
 // of re-picking the category and name on a form that is about stock generally.
+/* ==================== SEARCHABLE ROW COMBOBOX ====================
+   Provides a searchable input alongside a dropdown list for Add Stock
+   and Add Consumable Item rows.
+   - User can type to search / filter options.
+   - Typing DOES NOT auto-select; matching text is highlighted in the dropdown.
+   - Selection only occurs upon clicking an option (or pressing Enter on it).
+   ================================================================== */
+function __makeRowCombo(selectEl, placeholder, onSelect) {
+  if (!selectEl || selectEl.dataset.comboBound) return selectEl.__comboApi || null;
+  selectEl.dataset.comboBound = "1";
+  selectEl.style.display = "none";
+
+  const wrap = document.createElement("div");
+  wrap.className = "row-combo-wrap";
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "row-combo-input";
+  input.placeholder = placeholder || selectEl.getAttribute("placeholder") || "Select...";
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.disabled = !!selectEl.disabled;
+
+  const arrow = document.createElement("button");
+  arrow.type = "button";
+  arrow.className = "row-combo-arrow";
+  arrow.tabIndex = -1;
+  arrow.setAttribute("aria-label", "Toggle dropdown");
+  arrow.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>';
+
+  const menu = document.createElement("div");
+  menu.className = "row-combo-menu hidden";
+
+  wrap.appendChild(input);
+  wrap.appendChild(arrow);
+  wrap.appendChild(menu);
+  selectEl.parentNode.insertBefore(wrap, selectEl);
+
+  let highlightedIdx = -1;
+  let lastCommittedText = "";
+  let lastTyped = "";
+
+  function getOptions() {
+    return Array.from(selectEl.options).filter(o => o.value !== "");
+  }
+
+  function sync() {
+    input.disabled = !!selectEl.disabled;
+    if (selectEl.disabled) {
+      input.value = "";
+      input.placeholder = "Select a category first...";
+      lastCommittedText = "";
+      lastTyped = "";
+      closeMenu();
+      return;
+    }
+    input.placeholder = placeholder || "Select...";
+    const selOpt = selectEl.options[selectEl.selectedIndex];
+    if (selOpt && selOpt.value !== "") {
+      input.value = selOpt.textContent;
+      lastCommittedText = selOpt.textContent;
+    } else {
+      input.value = "";
+      lastCommittedText = "";
+    }
+  }
+
+  function openMenu(filterQuery) {
+    if (input.disabled) return;
+    closeAllRowCombos();
+
+    const row = wrap.closest(".as-item-row");
+    if (row) { row.style.zIndex = "100"; row.style.position = "relative"; }
+
+    const rect = wrap.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    if (spaceBelow < 230 && rect.top > 230) {
+      menu.style.bottom = "calc(100% + 4px)";
+      menu.style.top = "auto";
+    } else {
+      menu.style.top = "calc(100% + 4px)";
+      menu.style.bottom = "auto";
+    }
+
+    renderMenu(filterQuery || "");
+    menu.classList.remove("hidden");
+    wrap.classList.add("is-open");
+  }
+
+  function closeMenu() {
+    menu.classList.add("hidden");
+    wrap.classList.remove("is-open");
+    highlightedIdx = -1;
+    const row = wrap.closest(".as-item-row");
+    if (row && !row.querySelector(".row-combo-wrap.is-open")) {
+      row.style.zIndex = "";
+      row.style.position = "";
+    }
+  }
+
+  function renderMenu(filterQuery) {
+    const opts = getOptions();
+    const q = (filterQuery || "").trim().toLowerCase();
+    menu.innerHTML = "";
+    highlightedIdx = -1;
+
+    let visibleCount = 0;
+    opts.forEach((o) => {
+      const text = o.textContent;
+      const lower = text.toLowerCase();
+      const isNew = o.value === "__new__";
+      const matches = !q || lower.includes(q) || isNew;
+
+      if (!matches) return;
+
+      const optEl = document.createElement("div");
+      optEl.className = "row-combo-opt" + (isNew ? " is-new" : "") + (o.value === selectEl.value ? " is-selected" : "");
+      optEl.dataset.val = o.value;
+
+      optEl.textContent = text;
+      if (q && lower.includes(q) && !isNew) {
+        optEl.classList.add("is-match");
+      }
+
+      if (visibleCount === 0 && q) {
+        optEl.classList.add("is-highlighted");
+        highlightedIdx = 0;
+      }
+
+      optEl.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        selectOption(o.value, text);
+      });
+
+      menu.appendChild(optEl);
+      visibleCount++;
+    });
+
+    if (visibleCount === 0) {
+      const empty = document.createElement("div");
+      empty.className = "row-combo-empty";
+      empty.textContent = "No matches found";
+      menu.appendChild(empty);
+    }
+  }
+
+  function selectOption(val, label) {
+    selectEl.value = val;
+    input.value = label;
+    lastCommittedText = label;
+    closeMenu();
+    selectEl.dispatchEvent(new Event("change", { bubbles: true }));
+    if (onSelect) onSelect(val, label);
+  }
+
+  function updateHighlight(items, newIdx) {
+    if (!items.length) return;
+    items.forEach(el => el.classList.remove("is-highlighted"));
+    if (newIdx >= 0 && newIdx < items.length) {
+      highlightedIdx = newIdx;
+      items[newIdx].classList.add("is-highlighted");
+      items[newIdx].scrollIntoView({ block: "nearest" });
+    } else {
+      highlightedIdx = -1;
+    }
+  }
+
+  input.addEventListener("focus", () => {
+    if (input.disabled) return;
+    openMenu("");
+  });
+
+  input.addEventListener("input", () => {
+    if (input.disabled) return;
+    lastTyped = input.value.trim();
+    openMenu(input.value);
+  });
+
+  arrow.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (input.disabled) return;
+    if (menu.classList.contains("hidden")) {
+      input.focus();
+      openMenu("");
+    } else {
+      closeMenu();
+    }
+  });
+
+  input.addEventListener("keydown", (e) => {
+    const items = Array.from(menu.querySelectorAll(".row-combo-opt"));
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (menu.classList.contains("hidden")) {
+        openMenu(input.value);
+      } else {
+        const next = highlightedIdx + 1 < items.length ? highlightedIdx + 1 : 0;
+        updateHighlight(items, next);
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!menu.classList.contains("hidden")) {
+        const prev = highlightedIdx - 1 >= 0 ? highlightedIdx - 1 : items.length - 1;
+        updateHighlight(items, prev);
+      }
+    } else if (e.key === "Enter") {
+      if (!menu.classList.contains("hidden") && highlightedIdx >= 0 && items[highlightedIdx]) {
+        e.preventDefault();
+        const item = items[highlightedIdx];
+        selectOption(item.dataset.val, item.textContent.trim());
+      }
+    } else if (e.key === "Escape") {
+      closeMenu();
+      input.value = lastCommittedText;
+    }
+  });
+
+  input.addEventListener("blur", () => {
+    setTimeout(() => {
+      closeMenu();
+      const selOpt = selectEl.options[selectEl.selectedIndex];
+      if (selOpt && selOpt.value !== "") {
+        input.value = selOpt.textContent;
+      } else {
+        input.value = "";
+      }
+    }, 180);
+  });
+
+  const api = { wrap, input, sync, closeMenu, get lastTyped() { return lastTyped; } };
+  selectEl.__comboApi = api;
+  sync();
+  return api;
+}
+
+function closeAllRowCombos() {
+  document.querySelectorAll(".row-combo-menu:not(.hidden)").forEach(m => {
+    m.classList.add("hidden");
+    const p = m.closest(".row-combo-wrap");
+    if (p) p.classList.remove("is-open");
+  });
+  document.querySelectorAll(".as-item-row").forEach(r => {
+    if (!r.querySelector(".row-combo-wrap.is-open")) {
+      r.style.zIndex = "";
+      r.style.position = "";
+    }
+  });
+}
+
+function __initRowCombos(row) {
+  if (!row) return;
+  const catSel = row.querySelector(".as-row-cat, .cons-row-cat");
+  const itemSel = row.querySelector(".as-row-item, .cons-row-item");
+  if (catSel && !row.__catCombo) {
+    row.__catCombo = __makeRowCombo(catSel, "Category *");
+  }
+  if (itemSel && !row.__itemCombo) {
+    row.__itemCombo = __makeRowCombo(itemSel, "Select item");
+  }
+}
+
 function openAddStockModal(preset) {
   // devadmin may open to VIEW; saving is blocked inside saveAddStock.
   if (isDevAdmin()) { /* view-only open allowed */ }
@@ -3022,6 +3283,8 @@ function openAddStockModal(preset) {
         const hit = Array.from(itemSel.options).find(o => o.value === preset.name);
         if (hit) itemSel.value = preset.name;
       }
+      if (row.__catCombo) row.__catCombo.sync();
+      if (row.__itemCombo) row.__itemCombo.sync();
     }
   }
   $("#asDate").value = todayStr();
@@ -3031,7 +3294,10 @@ function openAddStockModal(preset) {
 }
 function addAsRow() {
   const box = $("#asRows"); if (!box) return;
-  box.insertAdjacentHTML("beforeend", __asRowHtml("k" + (++__asSeq)));
+  const key = "k" + (++__asSeq);
+  box.insertAdjacentHTML("beforeend", __asRowHtml(key));
+  const row = box.querySelector(`.as-item-row[data-key="${key}"]`);
+  if (row) __initRowCombos(row);
 }
 function __asRowHtml(key) {
   const cats = getCategories();
@@ -3069,11 +3335,13 @@ function __asPopulateRowItems(row) {
   if (!cid) {
     itemSel.disabled = true;
     itemSel.innerHTML = `<option value="">Select a category first...</option>`;
+    if (row.__itemCombo) row.__itemCombo.sync();
     return;
   }
   const names = __byName([...new Set(getItems().filter(i => i.locationId === currentUser.locationId && i.categoryId === cid).map(i => i.name))].filter(Boolean), x => x);
   itemSel.disabled = false;
   itemSel.innerHTML = `<option value="">Select item</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("") + `<option value="__new__">&#10133; New item...</option>`;
+  if (row.__itemCombo) row.__itemCombo.sync();
 }
 function __asRenderThumbs(row) {
   const key = row.dataset.key;
@@ -3114,7 +3382,13 @@ function __asRowsChange(e) {
   if (e.target.classList.contains("as-row-cat")) { __asPopulateRowItems(row); return; }
   if (e.target.classList.contains("as-row-item")) {
     const newName = row.querySelector(".as-row-newname");
-    if ((e.target.value || "") === "__new__") { newName.classList.remove("hidden"); newName.focus(); }
+    if ((e.target.value || "") === "__new__") {
+      newName.classList.remove("hidden");
+      if (row.__itemCombo && row.__itemCombo.lastTyped && row.__itemCombo.lastTyped !== "➕ New item...") {
+        newName.value = row.__itemCombo.lastTyped;
+      }
+      newName.focus();
+    }
     else { newName.classList.add("hidden"); newName.value = ""; }
     return;
   }
@@ -12488,6 +12762,7 @@ function __applyLanguage() {
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
     for (const n of nodes) {
+      if (n.parentElement && n.parentElement.closest("#langToggleBtn")) continue;
       const key = n.nodeValue.trim();
       if (hi) {
         const hit = __I18N[key];
@@ -12522,11 +12797,23 @@ function __applyLanguage() {
     });
   } catch (e) {}
 }
+function __updateLangBtn(l) {
+  const b = document.getElementById("langToggleBtn");
+  if (!b) return;
+  const isEn = l === "en";
+  const badge = b.querySelector(".lang-badge") || document.getElementById("langBadge");
+  if (badge) {
+    badge.textContent = isEn ? "HI" : "EN";
+  } else if (!b.querySelector("svg")) {
+    b.textContent = isEn ? "हिंदी" : "English";
+  }
+  b.title = isEn ? "Switch to Hindi / भाषा बदलें" : "Switch to English / अंग्रेज़ी में बदलें";
+  b.setAttribute("aria-label", isEn ? "Switch to Hindi" : "Switch to English");
+}
 function __setLang(l) {
   window.__LANG = l;
   try { localStorage.setItem("hp_lang", l); } catch (e) {}
-  const b = document.getElementById("langToggleBtn");
-  if (b) b.textContent = l === "en" ? "\u0939\u093f\u0902\u0926\u0940" : "English";
+  __updateLangBtn(l);
   __applyLanguage();
 }
 const __langMO = new MutationObserver(() => {
@@ -12540,7 +12827,7 @@ function __initLanguage() {
     b.dataset.langBound = "1";
     b.addEventListener("click", () => __setLang(window.__LANG === "en" ? "hi" : "en"));
   }
-  if (b) b.textContent = window.__LANG === "en" ? "\u0939\u093f\u0902\u0926\u0940" : "English";
+  __updateLangBtn(window.__LANG);
   if (!__langMO.__obs) { __langMO.__obs = true; __langMO.observe(document.body, { childList: true, subtree: true }); }
   if (window.__LANG === "hi") __applyLanguage();
 }
@@ -13340,7 +13627,10 @@ function __consRowOf(el) { return el ? el.closest(".cons-item-row") : null; }
 function addConsRow() {
   const box = $("#consRows");
   if (!box) return;
-  box.insertAdjacentHTML("beforeend", __consRowHtml("k" + (++__consRowSeq)));
+  const key = "k" + (++__consRowSeq);
+  box.insertAdjacentHTML("beforeend", __consRowHtml(key));
+  const row = box.querySelector(`.cons-item-row[data-key="${key}"]`);
+  if (row) __initRowCombos(row);
 }
 function __consPopulateRowItems(row) {
   if (!row) return;
@@ -13352,11 +13642,13 @@ function __consPopulateRowItems(row) {
   if (!cid) {
     itemSel.disabled = true;
     itemSel.innerHTML = `<option value="">Select a category first...</option>`;
+    if (row.__itemCombo) row.__itemCombo.sync();
     return;
   }
   const names = __byName([...new Set(getConsItems().filter(i => i.categoryId === cid).map(i => i.name))].filter(Boolean), x => x);
   itemSel.disabled = false;
   itemSel.innerHTML = `<option value="">Select item</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("") + `<option value="__new__">&#10133; New item...</option>`;
+  if (row.__itemCombo) row.__itemCombo.sync();
 }
 function __consRenderThumbs(row) {
   const key = row.dataset.key;
@@ -13399,7 +13691,13 @@ function __consRowsChange(e) {
   if (e.target.classList.contains("cons-row-cat")) { __consPopulateRowItems(row); return; }
   if (e.target.classList.contains("cons-row-item")) {
     const newName = row.querySelector(".as-row-newname");
-    if ((e.target.value || "") === "__new__") { newName.classList.remove("hidden"); newName.focus(); }
+    if ((e.target.value || "") === "__new__") {
+      newName.classList.remove("hidden");
+      if (row.__itemCombo && row.__itemCombo.lastTyped && row.__itemCombo.lastTyped !== "➕ New item...") {
+        newName.value = row.__itemCombo.lastTyped;
+      }
+      newName.focus();
+    }
     else { newName.classList.add("hidden"); newName.value = ""; }
     return;
   }
@@ -15357,3 +15655,9 @@ document.addEventListener("DOMContentLoaded", init);
 
 
 
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".row-combo-wrap")) {
+    closeAllRowCombos();
+  }
+});
