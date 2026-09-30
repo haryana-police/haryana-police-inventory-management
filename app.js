@@ -1796,11 +1796,15 @@ function __updateRowCount(tbody) {
     // ever - which is what hung the page. The previous value is kept on the
     // element, as an attribute, so the check itself changes nothing the
     // observer is watching (it only watches added and removed children).
-    if (old.dataset.rowcountText !== key || old.dataset.rowcountSpan !== String(span)) {
+    const hasSNo = table.querySelector("thead th:first-child") && /s\.?no/i.test((table.querySelector("thead th:first-child").textContent || "").trim());
+    const rowMarkup = hasSNo
+      ? `<td></td><td class="rowcount-cell">${esc(text)}</td>` + (span > 2 ? `<td class="rowcount-pad" colspan="${span - 2}"></td>` : "")
+      : `<td class="rowcount-cell">${esc(text)}</td>` + (span > 1 ? `<td class="rowcount-pad" colspan="${span - 1}"></td>` : "");
+    if (old.dataset.rowcountText !== key || old.dataset.rowcountSpan !== String(span) || old.dataset.rowcountSno !== (hasSNo ? "1" : "0")) {
       old.dataset.rowcountText = key;
       old.dataset.rowcountSpan = String(span);
-      old.innerHTML = `<td class="rowcount-cell">${esc(text)}</td>`
-        + (span > 1 ? `<td class="rowcount-pad" colspan="${span - 1}"></td>` : "");
+      old.dataset.rowcountSno = hasSNo ? "1" : "0";
+      old.innerHTML = rowMarkup;
     }
     // A table that has no rows at all is saying "nothing here"; a footer count of
     // "0 rows" under it is noise, so it is hidden rather than removed.
@@ -13039,7 +13043,7 @@ function renderConsStock() {
   let ttotal = 0, tavail = 0, tdist = 0, tlost = 0;
   rows.forEach(x => { ttotal += x.q.total; tavail += x.q.available; tdist += x.q.distributed; tlost += x.q.lost; });
   const baseNo = __pgPage("consStock", rows.length) * PAGE_SIZE;
-  body.innerHTML = rows.length === 0
+  const rowsHtml = rows.length === 0
     ? `<tr class="empty-row"><td colspan="8">No consume items found.</td></tr>`
     : __pgRows("consStock", rows).map((x, idx) => {
         const st = x.q.status;
@@ -13049,8 +13053,9 @@ function renderConsStock() {
           ...((!isAdmin || !locF) && x.q.availForNew > 0 ? [{ label: "Mark Lost", attrs: `data-cons-loss="${x.i.id}"` }] : [])
         ]) : `<button type="button" class="btn btn-sm btn-outline" data-cons-view="${x.i.id}">View</button>`;
         return `<tr><td>${baseNo + idx + 1}</td><td class="item-name"><button type="button" class="linklike" data-cons-view="${x.i.id}" title="Open item details">${nameCell(x.i.name)}</button></td><td class="qty-strong">${x.q.total}</td><td class="qty-strong">${x.q.available}</td><td>${x.q.distributed}</td><td>${x.q.lost}</td><td><span class="status-badge">${esc(st)}</span></td><td>${acts}</td></tr>`;
-      }).join("") +
-      `<tr class="rpt-total-row"><td></td><td class="rpt-total-label">Total</td><td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavail}</td><td>${tdist}</td><td>${tlost}</td><td></td><td></td></tr>`;
+      }).join("");
+  body.innerHTML = rowsHtml +
+    `<tr class="rpt-total-row"><td></td><td class="rpt-total-label">Total</td><td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavail}</td><td>${tdist}</td><td>${tlost}</td><td></td><td></td></tr>`;
   const note = $("#consStockNote");
   if (note) {
     let name = "All Locations";
