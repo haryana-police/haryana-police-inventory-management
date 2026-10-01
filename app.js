@@ -1410,22 +1410,52 @@ function toast(msg, type) {
     toast._t = setTimeout(() => el.classList.add("hidden"), 2800);
   }
 }
-function openModal(id) { $(id).classList.remove("hidden"); }
-function closeModals() { $$(".modal-backdrop").forEach(m => m.classList.add("hidden")); }
+function __resetElementScrollToTop(el) {
+  if (!el) return;
+  try {
+    el.scrollTop = 0;
+    el.scrollLeft = 0;
+    if (el.querySelectorAll) {
+      el.querySelectorAll(".modal, .modal-body, .modal-content, .modal-scroll, form, .table-wrap, .table-responsive, .dev-table-wrap, [class*='body'], [class*='dialog']").forEach(child => {
+        child.scrollTop = 0;
+        child.scrollLeft = 0;
+      });
+    }
+  } catch (e) {}
+}
 
-/* Keep the page behind a dialog from scrolling.
-   A dialog is shown in well over a hundred places, and plenty of them toggle
-   the `hidden` class directly instead of going through openModal/closeModals,
-   so patching those two functions would still have missed a path or two. The
-   lock is therefore derived from what is actually on screen: the observer
-   fires on every class change anywhere under <body>, and the state is just
-   "is any backdrop visible right now". That is also why the check is a scan
-   and not a counter - one dialog closing must not unlock the page while
-   another is still open, and only the scan can know that.
+function __resetPageScrollToTop() {
+  try {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  } catch (e) {
+    try { window.scrollTo(0, 0); } catch (_) {}
+  }
+  try {
+    if (document.documentElement) { document.documentElement.scrollTop = 0; document.documentElement.scrollLeft = 0; }
+    if (document.body) { document.body.scrollTop = 0; document.body.scrollLeft = 0; }
+    const scrollers = document.querySelectorAll(".main-content, .app-layout, #appRoot, .view, .view:not(.hidden)");
+    scrollers.forEach(s => { s.scrollTop = 0; s.scrollLeft = 0; });
+  } catch (e) {}
+}
 
-   The page is only ever made overflow:hidden. It is never re-laid-out, never
-   reset and never given position:fixed, so it cannot lose its scroll position
-   while the dialog is up, and there is nothing to restore on close. */
+function openModal(id) {
+  const el = $(id);
+  if (!el) return;
+  el.classList.remove("hidden");
+  __resetElementScrollToTop(el);
+  setTimeout(() => __resetElementScrollToTop(el), 10);
+}
+
+function closeModals() {
+  $$(".modal-backdrop").forEach(m => {
+    m.classList.add("hidden");
+    __resetElementScrollToTop(m);
+  });
+  __resetPageScrollToTop();
+  setTimeout(__resetPageScrollToTop, 10);
+}
+
+/* Keep the page behind a dialog from scrolling and guarantee top scroll on open/close */
 function __syncModalScrollLock() {
   try {
     const anyOpen = $$(".modal-backdrop").some(function (m) {
@@ -1436,7 +1466,28 @@ function __syncModalScrollLock() {
 }
 if (typeof MutationObserver === "function" && document.body) {
   try {
-    new MutationObserver(__syncModalScrollLock).observe(document.body, {
+    new MutationObserver(function(mutations) {
+      __syncModalScrollLock();
+      for (let i = 0; i < mutations.length; i++) {
+        const mut = mutations[i];
+        if (mut.type === "attributes" && mut.attributeName === "class" && mut.target) {
+          const target = mut.target;
+          if (target.classList && target.classList.contains("modal-backdrop")) {
+            if (!target.classList.contains("hidden")) {
+              __resetElementScrollToTop(target);
+            } else {
+              __resetElementScrollToTop(target);
+              __resetPageScrollToTop();
+            }
+          } else if (target.classList && target.classList.contains("view")) {
+            if (!target.classList.contains("hidden")) {
+              __resetPageScrollToTop();
+              __resetElementScrollToTop(target);
+            }
+          }
+        }
+      }
+    }).observe(document.body, {
       subtree: true,
       attributes: true,
       attributeFilter: ["class"],
@@ -1446,14 +1497,38 @@ if (typeof MutationObserver === "function" && document.body) {
 }
 __syncModalScrollLock();
 /* Bulletproof modal dismissal (2026.09.90): delegated at document level so close/cancel/
-   cross buttons work even if some other init code fails. */
+   cross buttons work even if some other init code fails. Always resets scroll to top. */
 document.addEventListener("click", function (e) {
   const c = e.target.closest && e.target.closest("[data-close]");
   if (c) { closeModals(); return; }
   const b = e.target.closest && e.target.closest(".modal-backdrop");
-  if (b && !b.classList.contains("hidden") && e.target === b) closeModals();
+  if (b && !b.classList.contains("hidden") && e.target === b) { closeModals(); return; }
+
+  // Always reset page to top when closing or going back
+  const isBackOrClose = e.target.closest && (
+    e.target.closest("[id$='Back']") ||
+    e.target.closest("[id*='-back']") ||
+    e.target.closest(".btn-back") ||
+    e.target.closest("[data-back]") ||
+    e.target.closest(".modal-close") ||
+    e.target.closest("[data-action='close']") ||
+    (e.target.closest(".btn") && (e.target.closest(".btn").textContent || "").trim().toLowerCase().includes("back"))
+  );
+  if (isBackOrClose) {
+    __resetPageScrollToTop();
+    setTimeout(__resetPageScrollToTop, 10);
+    setTimeout(__resetPageScrollToTop, 60);
+  }
 });
 document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeModals(); });
+window.addEventListener("popstate", () => {
+  __resetPageScrollToTop();
+  setTimeout(__resetPageScrollToTop, 20);
+});
+window.addEventListener("hashchange", () => {
+  __resetPageScrollToTop();
+  setTimeout(__resetPageScrollToTop, 20);
+});
 
 /* ==================== REQUEST ACCESS ==================== */
 function getAccessRequests() { return loadData("accessRequests") || []; }
@@ -1566,9 +1641,15 @@ function switchTab(name) {
   $$(".sidebar-link").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
   $$(".view").forEach(v => v.classList.add("hidden"));
   const view = $("#view-" + name);
-  if (view) view.classList.remove("hidden");
+  if (view) {
+    view.classList.remove("hidden");
+    __resetElementScrollToTop(view);
+  }
+  __resetPageScrollToTop();
   if (name === "dashboard") __rtRenderFeed();
   try { render(); } catch (e) { console.error("render failed:", e); }
+  setTimeout(__resetPageScrollToTop, 10);
+  setTimeout(__resetPageScrollToTop, 50);
 }
 
 function render() {
@@ -3435,8 +3516,8 @@ function __asRowHtml(key) {
         <input type="text" class="as-row-newname hidden" placeholder="New item name..." autocomplete="off">
       </div>
       <div class="as-cond-qtys">
-        <span class="as-cq"><input type="number" class="as-row-qty-good" placeholder="Good" min="0" value="0"></span>
-        <span class="as-cq"><input type="number" class="as-row-qty-poor" placeholder="Damaged" min="0" value="0"></span>
+        <span class="as-cq"><input type="number" class="as-row-qty-good" placeholder="Good" min="0" value=""></span>
+        <span class="as-cq"><input type="number" class="as-row-qty-poor" placeholder="Damaged" min="0" value=""></span>
               </div>
       <button type="button" class="as-row-remove" data-action="as-row-remove" title="Remove item">&times;</button>
     </div>
