@@ -350,7 +350,7 @@ body {
 .district-select option { background: var(--primary); color: #fff; }
 .district-select:hover { background-color: rgba(255,255,255,.14); }
 .district-select:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(212,168,67,.2); }
-.district-badge { font-size: .64rem; font-weight: 600; padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.12); color: rgba(255,255,255,.9); }
+.district-badge { display: none !important; }
 .user-section { display: flex; align-items: center; gap: 10px; }
 .user-id-block { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; text-align: right; }
 .user-id-name { font-size: .84rem; font-weight: 600; color: rgba(255,255,255,.96); }
