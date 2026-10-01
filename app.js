@@ -3205,28 +3205,51 @@ function openViewItem(item) {
   openModal("#viewItemModal");
 }
 
-function __saveItemProfilePhotos(itemId, photos) {
+function __saveItemProfilePhotos(itemId, photos, meta) {
   if (!itemId || !Array.isArray(photos) || !photos.length) return;
   const map = (typeof loadData === "function" ? loadData("itemPhotos") : null) || {};
   const list = map[itemId] || (map[itemId] = []);
   let changed = false;
+
+  let uploadTs = Date.now();
+  if (meta && meta.date) {
+    try {
+      const parsed = new Date(meta.date + "T" + (meta.time || "00:00") + ":00").getTime();
+      if (!isNaN(parsed) && parsed > 0) uploadTs = parsed;
+    } catch (e) {}
+  }
+
   for (const ph of photos) {
     if (!ph || !ph.dataUrl) continue;
     const isImg = String(ph.mime || "").toLowerCase().startsWith("image/") || String(ph.dataUrl).startsWith("data:image/");
     if (!isImg) continue;
     if (!list.some(x => (x.name === ph.name && x.size === ph.size) || x.data === ph.dataUrl)) {
+      let photoName = ph.name || "photo.jpg";
+      if (meta && meta.label && (!ph.name || ph.name.startsWith("camera-"))) {
+        photoName = meta.label + (meta.date ? (" (" + meta.date + ")") : "");
+      }
       list.push({
         id: ph.id || uid(),
         data: ph.dataUrl,
-        name: ph.name || "photo.jpg",
+        name: photoName,
         size: ph.size || 0,
         uploadedBy: currentUser ? (currentUser.name || currentUser.username) : "",
-        uploadedAt: Date.now(),
-        isProfile: list.length === 0
+        uploadedAt: uploadTs,
+        isProfile: list.length === 0,
+        source: meta && meta.source ? meta.source : undefined,
+        sourceDetails: meta ? { date: meta.date || todayStr(), time: meta.time || nowTimeStr(), label: meta.label || "" } : undefined
       });
       changed = true;
     }
   }
+
+  if (list.length > 30) {
+    const prof = list.find(x => x.isProfile);
+    const rest = list.filter(x => !x.isProfile).slice(-29);
+    map[itemId] = prof ? [prof, ...rest] : rest;
+    changed = true;
+  }
+
   if (changed) {
     if (typeof saveData === "function") saveData("itemPhotos", map);
     if (window.__ipRefresh) { try { window.__ipRefresh(); } catch (e) {} }
@@ -3295,7 +3318,7 @@ async function saveItem(e) {
       Object.assign(item, { name, categoryId, unit, quantity, minStock, locationId, conditionCounts, updatedAt: Date.now() });
 
       if (editPhotos.length) {
-        __saveItemProfilePhotos(item.id, editPhotos);
+        __saveItemProfilePhotos(item.id, editPhotos, { date: histDate, time: histTime, source: "item_update", label: "Item Updated" });
       }
 
       if (__delta !== 0) {
@@ -3312,7 +3335,7 @@ async function saveItem(e) {
     const newItem = { id: uid(), name, categoryId, unit, quantity, minStock, locationId, conditionCounts, createdAt: Date.now(), updatedAt: Date.now() };
     items.push(newItem);
     if (editPhotos.length) {
-      __saveItemProfilePhotos(newItem.id, editPhotos);
+      __saveItemProfilePhotos(newItem.id, editPhotos, { date: histDate, time: histTime, source: "item_created", label: "Item Created" });
     }
     itemHistoryPush(newItem, {
       type: "STOCK_IN",
@@ -3821,7 +3844,7 @@ async function saveAddStock(e) {
     }
     const rowPhotos = __asPhotos[p.row.dataset.key] || [];
     if (rowPhotos.length) {
-      __saveItemProfilePhotos(item.id, rowPhotos);
+      __saveItemProfilePhotos(item.id, rowPhotos, { date, time, source: "add_stock", label: "Stock Added" });
     }
     __audit("Stock Added", '"' + item.name + '" +' + p.qty + __asBreakdown(p) + ", total " + item.quantity, { entity: "Item" });
   }
@@ -5286,6 +5309,14 @@ async function saveDistribution(e) {
       distributionId: d.id,
       targetUserId: d.toUserId || null,
       targetLocId: d.toLocationId || null,
+    });
+  }
+  if ((__attStore.dist || []).length) {
+    planned.forEach(p => {
+      const itId = p.fromItem ? p.fromItem.id : (p.fromItemId || "");
+      if (itId) {
+        __saveItemProfilePhotos(itId, __attStore.dist, { source: "distribution", label: "Distribution Photo" });
+      }
     });
   }
   saveDistributions(list);
@@ -7065,6 +7096,21 @@ async function saveDemand(e) {
   const demands = getDemands();
   demands.push(d);
   saveDemands(demands);
+  if ((__attStore.demand || []).length) {
+    const allStk = getItems();
+    const allCns = getConsItems();
+    demandItems.forEach(di => {
+      let matched = null;
+      if (di.itemType === "cons") {
+        matched = allCns.find(x => (x.name || "").toLowerCase() === (di.itemName || "").toLowerCase() && !x.isDeleted);
+      } else {
+        matched = allStk.find(x => (x.name || "").toLowerCase() === (di.itemName || "").toLowerCase());
+      }
+      if (matched && matched.id) {
+        __saveItemProfilePhotos(matched.id, __attStore.demand, { source: "demand", label: "Demand Raised: " + (d.demandNo || "") });
+      }
+    });
+  }
   __attStore.demand = []; __attRender("demand");
   __audit("Demand Raised", `${demandItems.length} item(s) — ${toLoc ? toLoc.name : toDist ? toDist.name : "another district"}`, { entity: "Demand" });
 
@@ -8881,6 +8927,13 @@ async function saveAllotment(e) {
     }
     saveConsTxns(txns);
     __saveIssuePhotosToPerson(person2, date, time, remarks, consRows.map(x => x.ci.name + " (" + x.qty + ")").join(", "));
+    if ((__attStore.issue || []).length) {
+      for (const cr of consRows) {
+        if (cr.ci && cr.ci.id) {
+          __saveItemProfilePhotos(cr.ci.id, __attStore.issue, { date, time, source: "issue", label: "Issued to " + name });
+        }
+      }
+    }
     __attStore.issue = []; __attRender("issue");
     closeModals(); __alItemRows = []; render();
     __audit("Consumable Items Issued", consRows.length + " consume item(s) to " + __alTo.name + " (BELT: " + belt + ")", { entity: "Consumable" });
@@ -8932,6 +8985,14 @@ async function saveAllotment(e) {
   });
 
   __saveIssuePhotosToPerson(person, date, time, remarks, rows.map(r => { const it = items.find(i => i.id === r.itemId); return (it ? it.name : "Item") + " (" + r.qty + ")"; }).join(", "));
+  if ((__attStore.issue || []).length) {
+    rows.forEach(r => {
+      const it = items.find(i => i.id === r.itemId);
+      if (it && it.id) {
+        __saveItemProfilePhotos(it.id, __attStore.issue, { date, time, source: "issue", label: "Issued to " + name + " (BELT: " + belt + ")" });
+      }
+    });
+  }
   persistAlloc(items, allotments, persons);
   __attStore.issue = []; __attRender("issue");
   closeModals();
@@ -14305,7 +14366,7 @@ function saveConsAdd(e) {
     if (photo) { item.photoUrl = photo.dataUrl; item.updatedAt = Date.now(); }
     if (remarks) { item.remarks = remarks; item.updatedAt = Date.now(); }
     if (photos.length) {
-      __saveItemProfilePhotos(item.id, photos);
+      __saveItemProfilePhotos(item.id, photos, { date, time, source: "cons_add_stock", label: "Consumable Stock Added" });
     }
     saveConsItems(items);
     const txn = __consCommit("ADD", item, p.qty, null, null, remarks, photo ? photo.dataUrl : "");
@@ -14400,6 +14461,9 @@ function saveConsDist(e) {
   const txns = getConsTxns();
   txns.unshift(t);
   saveConsTxns(txns);
+  if ((__attStore.consDist || []).length) {
+    __saveItemProfilePhotos(item.id, __attStore.consDist, { date: t.date, time: t.time, source: "cons_distribution", label: "Consumable Distributed" });
+  }
   const catName = __consItemCat(item.categoryId);
   const msg = "Category: " + catName + " | Item: " + item.name + " | Quantity: " + qty + " | Distributed By: " + currentUser.name + " | Date: " + t.date + ". Please Approve or Reject this distribution request.";
   addNotification(activeDistrictId, {
