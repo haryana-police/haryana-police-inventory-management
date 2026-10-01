@@ -3739,8 +3739,8 @@ function renderUsers() {
   const users = isDevAdmin()
     ? allUsers
     : isIg()
-      ? allUsers.filter(u => inDistrictScope(u.districtId))
-      : allUsers.filter(u => u.districtId === activeDistrictId);
+      ? allUsers.filter(u => inDistrictScope(u.districtId) && u.role !== "devadmin")
+      : allUsers.filter(u => u.districtId === activeDistrictId && u.role !== "ig" && u.role !== "devadmin");
   const districts = getDistricts();
   const box = $("#usersList");
   box.innerHTML = users.map(u => {
@@ -13679,7 +13679,7 @@ function __consWireCombos() {
   __consToCombo = __consComboInit("consToCombo", {
     options: () => __consIsAdminView() ? [].concat(
       getLocations().map(l => ({ value: "unit:" + l.id, label: l.name, badge: "UNIT" })),
-      getUsers().filter(u => u.districtId === activeDistrictId && u.role !== "devadmin").map(u => ({ value: "staff:" + u.id, label: u.name, badge: "STAFF" }))
+      getUsers().filter(u => u.districtId === activeDistrictId && u.role !== "devadmin" && u.role !== "ig").map(u => ({ value: "staff:" + u.id, label: u.name, badge: "STAFF" }))
     ) : getUsers().filter(u => u.locationId === currentUser.locationId && u.id !== currentUser.id).map(u => ({ value: "staff:" + u.id, label: u.name, badge: "STAFF" })),
     extra: null,
   });
@@ -13892,7 +13892,7 @@ function openConsDist(itemId) {
   __consToCombo = __consComboInit("consToCombo", {
     options: () => __consIsAdminView() ? [].concat(
       getLocations().map(l => ({ value: "unit:" + l.id, label: l.name, badge: "UNIT" })),
-      getUsers().filter(u => u.districtId === activeDistrictId && u.role !== "devadmin").map(u => ({ value: "staff:" + u.id, label: u.name, badge: "STAFF" }))
+      getUsers().filter(u => u.districtId === activeDistrictId && u.role !== "devadmin" && u.role !== "ig").map(u => ({ value: "staff:" + u.id, label: u.name, badge: "STAFF" }))
     ) : getUsers().filter(u => u.locationId === currentUser.locationId && u.id !== currentUser.id).map(u => ({ value: "staff:" + u.id, label: u.name, badge: "STAFF" })),
     extra: null,
   });
@@ -14268,7 +14268,7 @@ function __consRefreshFilterOptions() {
     const v = locSel.value;
     locSel.innerHTML = `<option value="">All Locations</option>`
       + __byName(getLocations()).map(l => `<option value="unit:${l.id}">${esc(l.name)}</option>`).join("")
-      + __byName(getUsers().filter(u => u.districtId === activeDistrictId && u.role !== "devadmin")).map(u => `<option value="staff:${u.id}">${esc(u.name)} (Staff)</option>`).join("");
+      + __byName(getUsers().filter(u => u.districtId === activeDistrictId && u.role !== "devadmin" && u.role !== "ig")).map(u => `<option value="staff:${u.id}">${esc(u.name)} (Staff)</option>`).join("");
     locSel.value = v;
   }
   const dLocSel = $("#consdLoc");
@@ -14276,7 +14276,7 @@ function __consRefreshFilterOptions() {
     const v = dLocSel.value;
     dLocSel.innerHTML = `<option value="">All Locations</option>`
       + __byName(getLocations()).map(l => `<option value="unit:${l.id}">${esc(l.name)}</option>`).join("")
-      + __byName(getUsers().filter(u => u.districtId === activeDistrictId && u.role !== "devadmin")).map(u => `<option value="staff:${u.id}">${esc(u.name)} (Staff)</option>`).join("");
+      + __byName(getUsers().filter(u => u.districtId === activeDistrictId && u.role !== "devadmin" && u.role !== "ig")).map(u => `<option value="staff:${u.id}">${esc(u.name)} (Staff)</option>`).join("");
     dLocSel.value = v;
   }
   const sLocSel = $("#consStockLoc");
@@ -14412,7 +14412,7 @@ const __devLocTypes = [
 function __devLocLabel(t) { const x = __devLocTypes.find(y => y.v === t); return x ? x.label : (t || "—"); }
 function __devDistName(id) { const d = getDistricts().find(x => x.id === id); return d ? d.name : "—"; }
 function __devLocName(districtId, locId) { const l = getLocationsForDistrict(districtId).find(x => x.id === locId); return l ? l.name : "—"; }
-function __devDistUsers(districtId) { return getUsers().filter(u => u.districtId === districtId && u.role !== "admin" && u.role !== "devadmin"); }
+function __devDistUsers(districtId) { return getUsers().filter(u => u.districtId === districtId && u.role !== "admin" && u.role !== "devadmin" && u.role !== "ig"); }
 function __devBtnLoading(btn, on) { if (!btn) return; btn.disabled = !!on; btn.classList.toggle("loading", !!on); }
 
 function __devApplyRoute() {
@@ -15190,6 +15190,7 @@ function renderDevUsers() {
 function devDeleteUser(id) {
   if (!isAdmin()) return toast("Only District or Developer Admin can perform this action.", "error");
   const __tu = getUsers().find(u => u.id === id);
+  if (!isDevAdmin() && __tu && (__tu.role === "ig" || __tu.role === "devadmin")) return toast("You cannot delete higher authority accounts.", "error");
   // inDistrictScope, not an equality test on districtId: an Inspector General
   // answers for every district of their range, so one of the other districts
   // they hold is as much theirs to manage as their home district. Comparing
@@ -15318,10 +15319,15 @@ function openDevUserModal(editId, presetDistrictId) {
   if (!isAdmin()) return toast("Only District or Developer Admin can manage users.", "error");
   $("#devUserErr").textContent = "";
   $("#devUserForm").reset();
+  const rSel = $("#duRole");
+  if (rSel && isDevAdmin()) {
+    Array.from(rSel.options).forEach(opt => { opt.hidden = false; opt.disabled = false; });
+  }
   $("#duEditId").value = editId || "";
   if (editId) {
     const user = getUsers().find(u => u.id === editId);
     if (!user) return toast("User not found.", "error");
+    if (!isDevAdmin() && (user.role === "ig" || user.role === "devadmin")) return toast("You cannot manage higher authority accounts.", "error");
     $("#devUserTitle").textContent = "Edit User";
     $("#devUserSubmit").textContent = "Update User";
     $("#duUsername").value = user.username;
@@ -15397,7 +15403,7 @@ function renderAdminUsers() {
   const tbody = $('#adminUsersBody'); if (!tbody) return;
   const aq = (__devPg.adminUsers && __devPg.adminUsers.q || '').trim();
   const type = __devPg.adminUsers.type || '';
-  let users = getUsers().filter(u => u.districtId === currentUser.districtId);
+  let users = getUsers().filter(u => u.districtId === currentUser.districtId && u.role !== 'ig' && u.role !== 'devadmin');
   users = users.filter(u => __devUserMatches(u, aq)).filter(u => !type || u.role === type);
   const cnt = $('#adminUsersCount'); if (cnt) cnt.textContent = users.length + ' user' + (users.length === 1 ? '' : 's');
   if (!users.length) { tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">No users found.</td></tr>'; return; }
@@ -15406,8 +15412,27 @@ function renderAdminUsers() {
 }
 function openAdminUserModal(editId) {
   if (!isAdmin()) return toast('Only District or Developer Admin can manage users.', 'error');
+  if (editId) {
+    const target = getUsers().find(u => u.id === editId);
+    if (target && (target.role === 'ig' || target.role === 'devadmin')) return toast('You cannot manage higher authority accounts.', 'error');
+  }
   openDevUserModal(editId || null);
-  if (!isDevAdmin()) { $('#duDistrict').value = currentUser.districtId; __fillDevUserLocations(); }
+  if (!isDevAdmin()) {
+    $('#duDistrict').value = currentUser.districtId;
+    __fillDevUserLocations();
+    const rSel = $('#duRole');
+    if (rSel) {
+      Array.from(rSel.options).forEach(opt => {
+        const higher = (opt.value === 'admin' || opt.value === 'devadmin' || opt.value === 'ig');
+        opt.hidden = higher;
+        opt.disabled = higher;
+      });
+      if (rSel.value === 'admin' || rSel.value === 'devadmin' || rSel.value === 'ig') {
+        rSel.value = 'user';
+        duSyncRole();
+      }
+    }
+  }
 }
 /* ==================== END DISTRICT ADMIN PAGES ==================== */
 
