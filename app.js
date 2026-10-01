@@ -696,18 +696,19 @@ function districtsInRange(rangeId) {
 }
 function rangeNameOf(rangeId) { const r = getRangeById(rangeId); return r ? r.name : (rangeId || ""); }
 /* Synchronizes all IG Admin users' district scopes with their IG Ranges */
-function syncAllIgScopes() {
+function syncAllIgScopes(explicitDistricts) {
   const users = getUsers();
-  const districts = getDistricts();
+  const districts = explicitDistricts || getDistricts();
   let changed = false;
   users.forEach(u => {
     if (u.role === "ig" && u.rangeId) {
       const inRange = districts.filter(d => d.rangeId === u.rangeId).map(d => d.id);
       const cur = Array.isArray(u.districtIds) ? u.districtIds.filter(Boolean) : [];
       const same = cur.length === inRange.length && cur.every((id, i) => id === inRange[i]);
-      if (!same) {
+      const targetHome = inRange.length ? inRange[0] : "";
+      if (!same || u.districtId !== targetHome) {
         u.districtIds = inRange.slice();
-        u.districtId = inRange.length ? inRange[0] : "";
+        u.districtId = targetHome;
         changed = true;
       }
     }
@@ -14504,7 +14505,10 @@ function igLoggedInDistricts() {
    for sit side by side instead of in one long list. Only the Developer Admin
    reaches this page: an IG account is theirs to create, change and remove. */
 function igDistrictsOf(u) {
-  const list = Array.isArray(u.districtIds) && u.districtIds.length ? u.districtIds : [u.districtId];
+  if (u && u.role === "ig" && u.rangeId) {
+    return districtsInRange(u.rangeId).map(function(d) { return d.id; });
+  }
+  const list = Array.isArray(u.districtIds) && u.districtIds.length ? u.districtIds : (u && u.districtId ? [u.districtId] : []);
   return list.filter(Boolean);
 }
 function renderDevIgs() {
@@ -14642,7 +14646,7 @@ function devDeleteRange(rangeId) {
   if (igUser) {
     saveUsers(getUsers().filter(u => u.id !== igUser.id));
   } else {
-    syncAllIgScopes();
+    syncAllIgScopes(ds);
   }
 
   // 3. Remove IG Range from state locations
@@ -14709,9 +14713,7 @@ function openIgForm(editId, presetRangeId) {
     || (getRangeById(districtRangeId(u ? u.districtId : activeDistrictId)) || {}).id
     || (ranges[0] && ranges[0].id) || "";
   if (home) rangeSel.value = home;
-  const currentAssigned = u && Array.isArray(u.districtIds) && u.districtIds.length
-    ? u.districtIds
-    : districtsInRange(home).map(function(d) { return d.id; });
+  const currentAssigned = districtsInRange(home).map(function(d) { return d.id; });
   buildIgFormDistricts(currentAssigned);
   __igDdOpen("igf", false);
   $("#igModalTitle").textContent = u ? "Edit IG Admin" : "Add New IG Admin";
@@ -14801,7 +14803,7 @@ function submitIgForm(e) {
     toast("IG Admin added.", "success");
   }
   saveUsers(users);
-  syncAllIgScopes();
+  syncAllIgScopes(allDistricts);
   __audit(editId ? "IG Admin Updated" : "IG Admin Created", name + " (" + districtIds.length + " district(s))", { entity: "User" });
   closeModal("#igModal");
   renderDevIgs();
@@ -15075,7 +15077,7 @@ function saveDevDistrict(e) {
         __audit("District Created", name + " (" + code + ")", { entity: "District" });
       }
       saveDistricts(ds);
-      syncAllIgScopes();
+      syncAllIgScopes(ds);
       closeModals();
       renderDevDistricts();
       renderDistricts();
@@ -15095,7 +15097,7 @@ function devDetachDistrictRange(id) {
   if (!confirm('Remove district "' + d.name + '" from ' + curRangeName + '?')) return;
   d.rangeId = "";
   saveDistricts(ds);
-  syncAllIgScopes();
+  syncAllIgScopes(ds);
   toast('District "' + d.name + '" removed from ' + curRangeName + '.', "success");
   __audit("District Range Cleared", d.name + " (" + curRangeName + ")", { entity: "District" });
   renderDevDistricts();
