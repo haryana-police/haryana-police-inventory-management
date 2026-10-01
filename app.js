@@ -15019,7 +15019,7 @@ function renderDevLocList() {
   box.innerHTML = locs.map(l => { const t = __devLocLabel(l.type); const isHQ = l.type === 'district'; const del = isHQ ? '' : '<button type="button" class="btn btn-sm btn-red" data-devloc-del=\'' + l.id + '\'>Delete</button>'; return '<div class="dev-loc-row"><div class="dlr-info"><span class="dlr-name">' + esc(l.name) + '</span><span class="cons-badge ' + (isHQ ? "cons-b-blue" : l.type === "mhc" ? "cons-b-amber" : "cons-b-gray") + '">>' + esc(t) + '</span></div><div class="dlr-actions"><button type="button" class="btn btn-sm btn-loc" data-devloc-edit=\'' + l.id + '\'>Edit</button>' + del + '</div></div>'; }).join('');
 }
 function openDevLocAdd() {
-  const distId = $("#devLocModal").dataset.distId;
+  const distId = ($("#devLocModal") && $("#devLocModal").dataset.distId) || (currentUser && currentUser.districtId);
   if (!distId) return toast("Select a district first.", "error");
   $("#devLocAddErr").textContent = "";
   $("#devLocAddForm").reset();
@@ -15030,7 +15030,7 @@ function openDevLocAdd() {
 }
 
 function openDevLocEdit(locId) {
-  const distId = $("#devLocModal").dataset.distId;
+  const distId = ($("#devLocModal") && $("#devLocModal").dataset.distId) || (currentUser && currentUser.districtId);
   const loc = (getAllLocations()[distId] || []).find(l => l.id === locId);
   if (!loc) return toast("Location not found.", "error");
   $("#devLocAddErr").textContent = "";
@@ -15044,7 +15044,7 @@ function openDevLocEdit(locId) {
 }
 
 function devDeleteLoc(locId) {
-  const distId = $("#devLocModal").dataset.distId;
+  const distId = ($("#devLocModal") && $("#devLocModal").dataset.distId) || (currentUser && currentUser.districtId);
   const loc = (getAllLocations()[distId] || []).find(l => l.id === locId);
   if (!loc) return;
   if (loc.type === 'district') { toast('District HQ cannot be deleted.', 'error'); return; }
@@ -15080,7 +15080,7 @@ function saveDevLocAdd(e) {
   // scope instead of whichever district the form was opened from.
   const isHq = isHqType(type);
   if (isHq && !isDevAdmin()) { errEl.textContent = "Only the Developer Admin can manage the PHQ and IG Ranges."; return; }
-  const distId = isHq ? HQ_SCOPE_KEY : $("#devLocModal").dataset.distId;
+  const distId = isHq ? HQ_SCOPE_KEY : (($("#devLocModal") && $("#devLocModal").dataset.distId) || (currentUser && currentUser.districtId));
   const allLocations = getAllLocations();
   const locs = allLocations[distId] || [];
   const editId = ($("#dlEditId") ? $("#dlEditId").value : "");
