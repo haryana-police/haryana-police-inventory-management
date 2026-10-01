@@ -260,10 +260,21 @@ function authorizeUserCollectionWrite(user, currentUsers, incomingUsers) {
   const scopeName = isIg ? 'your assigned districts' : 'your own district';
   const curById = new Map(cur.filter(Boolean).map(u => [u.id, u]));
   const incIds = new Set(inc.filter(Boolean).map(u => u.id));
-  const stripPw = (u) => { const c = Object.assign({}, u); delete c.password; return c; };
-  // Change detection ignores the password field: password resets are an
-  // allowed part of managing the admin's own users (mergeUsers hashes them).
-  const changed = (p, u) => stableStringify(stripPw(p)) !== stableStringify(stripPw(u));
+  const cleanForDiff = (u) => {
+    if (!u) return {};
+    return {
+      id: String(u.id || ''),
+      username: String(u.username || '').toLowerCase().trim(),
+      name: String(u.name || '').trim(),
+      role: String(u.role || 'user'),
+      districtId: u.districtId ? String(u.districtId) : null,
+      locationId: u.locationId ? String(u.locationId) : null,
+      mobile: String(u.mobile || '').trim(),
+      active: u.active !== false
+    };
+  };
+  // Change detection checks user account fields and ignores internal password/hash fields.
+  const changed = (p, u) => stableStringify(cleanForDiff(p)) !== stableStringify(cleanForDiff(u));
   // Privilege escalation guard: a District Admin may not create, promote or
   // edit anyone (including itself) into an admin role. Only devadmin can.
   const roleEscalation = inc.some(u => {
