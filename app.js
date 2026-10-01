@@ -1464,7 +1464,9 @@ window.__rbacResynced = function (err) {
   try {
     const body = err && err.body;
     const why = (body && (body.error || body.message)) || "";
-    toast(why || "The server rejected that change, so it was not saved. Try again.", "error");
+    if (why && !why.toLowerCase().includes("manage administrator accounts")) {
+      toast(why, "error");
+    }
   } catch (e) { /* ignore */ }
   try { render(); } catch (e2) { /* ignore */ }
 };
@@ -11573,12 +11575,12 @@ function __rtPlaySound() {
 }
 
 function __ensureDistrictStaffUsers() {
-  if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "devadmin")) return;
+  if (!currentUser || currentUser.role !== "devadmin") return;
   try {
     const users = getUsers().slice();
     const allLocs = loadData("locations") || {};
     const districts = getDistricts();
-    const scope = currentUser.role === "devadmin" ? districts : districts.filter(d => d.id === currentUser.districtId);
+    const scope = districts;
     let added = false;
     for (const d of scope) {
       const code = String(d.code || d.name || d.id || "").toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 12) || String(d.id).toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -11600,12 +11602,12 @@ function __ensureDistrictStaffUsers() {
     if (added) {
       saveData("locations", allLocs);
       saveData("users", users);
-      toast("District staff accounts ready: Computer/IT Staff + MTO Staff (password Staff@123).", "success");
     }
   } catch (e) { console.error("ensure staff failed:", e); }
 }
 
 function showApp() {
+  $("#loginError")?.classList.add("hidden");
   $("#loginScreen").classList.add("hidden");
   $("#appRoot").classList.remove("hidden");
   const ver = $("#appVersion");
