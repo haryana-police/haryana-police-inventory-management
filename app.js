@@ -11188,13 +11188,24 @@ if (e.target.closest("[data-ccat-edit]")) startEditConsCat(parseInt(e.target.clo
   try { watchTables(); } catch (e) { /* older browser without MutationObserver */ };
 
   document.addEventListener("click", (e) => {
-    const t = e.target && e.target.closest ? e.target.closest("#themeToggle") : null;
-    if (t) toggleTheme();
+    const t = e.target && e.target.closest ? e.target.closest("#themeToggle, #accThemeToggle, [data-action='toggle-theme']") : null;
+    if (t) {
+      e.stopPropagation();
+      toggleTheme();
+    }
   });
 
   $$("[data-close]").forEach(btn => { btn.type = "button"; btn.addEventListener("click", closeModals); });
   $$(".modal-backdrop").forEach(b => b.addEventListener("click", e => { if (e.target === b) closeModals(); }));
   $("#catInput")?.addEventListener("keydown", e => { if (e.key === "Enter") addCategory(); });
+}
+
+function __syncThemeUI() {
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  const txt = document.getElementById("accThemeModeText");
+  if (txt) {
+    txt.textContent = isDark ? (window.__LANG === "hi" ? "डार्क मोड" : "Dark Mode") : (window.__LANG === "hi" ? "लाइट मोड" : "Light Mode");
+  }
 }
 
 function toggleTheme() {
@@ -11203,6 +11214,7 @@ function toggleTheme() {
   if (now === "dark") root.setAttribute("data-theme", "dark");
   else root.removeAttribute("data-theme");
   try { localStorage.setItem("hpi_theme", now); } catch (e) {}
+  __syncThemeUI();
 }
 
 /* ==================== REALTIME (LIVE) SYSTEM ==================== */
@@ -13015,6 +13027,9 @@ const __I18N_ITEMS = {
   "Manage Locations":"लोकेशन प्रबंधित करें",
   "Manage Districts":"जिले प्रबंधित करें",
   "Account Management":"खाता प्रबंधन",
+  "Theme":"थीम",
+  "Light Mode":"लाइट मोड",
+  "Dark Mode":"डार्क मोड",
   "Manage Users":"उपयोगकर्ता प्रबंधित करें",
   "Add New District":"नया जिला जोड़ें",
   "Add District":"जिला जोड़ें",
