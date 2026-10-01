@@ -51,11 +51,30 @@ function nameCell(name) {
 }
 window.nameCell = nameCell;
 window.nameEnHi = nameEnHi;
+
+function __ipLink(obj, hint) {
+  try {
+    if (!obj) return "";
+    var id = (obj && obj.id) || (hint && hint.id) || "";
+    var nm = (obj && (obj.name || obj.itemName)) || (typeof obj === "string" ? obj : "");
+    var escNm = window.nameCell ? window.nameCell(nm) : esc(nm);
+    var attrs = 'class="ip-item-link" title="Open Item Profile"';
+    if (id) attrs += ' data-ip-id="' + esc(id) + '"';
+    if (nm) attrs += ' data-ip-name="' + esc(nm) + '"';
+    if (hint && hint.districtId) attrs += ' data-ip-dist="' + esc(hint.districtId) + '"';
+    return '<a href="javascript:void(0)" ' + attrs + '>' + escNm + '</a>';
+  } catch (e) {
+    return esc((obj && (obj.name || obj.itemName)) || String(obj || ""));
+  }
+}
+window.__ipLink = __ipLink;
+window.__ipLinkByName = function (name, hint) { return __ipLink({ name: name }, hint); };
+
 /* Column-aware cell for the generic table renderers: an item-name column is drawn
    bilingual, every other column is escaped as before. */
 const ITEM_COL_RE = /^\s*(item|item\s*\/\s*asset|item name|asset|item code)\s*$/i;
 function isItemCol(header) { return ITEM_COL_RE.test(String(header == null ? "" : header)); }
-function colCell(header, value) { return isItemCol(header) ? (window.__ipLinkByName ? __ipLinkByName(value) : nameCell(value)) : esc(value); }
+function colCell(header, value) { return isItemCol(header) ? __ipLinkByName(value) : esc(value); }
 /* Same split, but styled inline. Print windows and the Word/PDF exports build their
    own stylesheet, so the .nm-en / .nm-hi classes are not available there. */
 function nameCellInline(name) {
@@ -1771,6 +1790,9 @@ function handleAccessApproval(notifId, requestId, status, distId) {
 
 /* ==================== NAVIGATION ==================== */
 function switchTab(name) {
+  if (name !== "itemprofile") {
+    window.currentTab = name;
+  }
   $$(".sidebar-link").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
   const manageTabs = ["account-management", "manage-districts", "manage-users", "manage-igs", "dausers", "admin-locs", "admin-users"];
   $("#accountMgmtNavBtn")?.classList.toggle("active", manageTabs.includes(name));
@@ -5532,7 +5554,7 @@ function renderDistribution() {
         btns = `<span style="font-size:.72rem;color:var(--amber)">Awaiting recipient</span>`;
       }
       btns += ` <button type="button" class="btn btn-sm btn-outline" data-action="dist-details" data-id="${d.id}">Details</button>`;
-      return `<tr data-dist-id="${d.id}"><td>${start + idx + 1}</td><td class="item-name">${window.__ipLinkByName ? __ipLinkByName(it.itemName, { id: it.fromItemId || it.itemId, categoryId: it.categoryId, districtId: d.fromDistrictId }) : nameCell(it.itemName)}</td><td>${esc(it.categoryName || "—")}</td><td class="qty-strong">${it.qty}</td><td>${sender}</td><td>${esc(receiver)}</td><td><span class="${meta.cls}">${meta.label}</span></td><td>${new Date(d.createdAt).toLocaleDateString("en-IN")}</td><td class="actions-cell">${btns}</td></tr>`;
+      return `<tr data-dist-id="${d.id}"><td>${start + idx + 1}</td><td class="item-name">${__ipLinkByName(it.itemName, { id: it.fromItemId || it.itemId, categoryId: it.categoryId, districtId: d.fromDistrictId })}</td><td>${esc(it.categoryName || "—")}</td><td class="qty-strong">${it.qty}</td><td>${sender}</td><td>${esc(receiver)}</td><td><span class="${meta.cls}">${meta.label}</span></td><td>${new Date(d.createdAt).toLocaleDateString("en-IN")}</td><td class="actions-cell">${btns}</td></tr>`;
     }).join("");
   } else {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="9">No distributions found. Click "+ Distribute Items" to distribute stock.</td></tr>`;
