@@ -8,7 +8,7 @@
 <!-- Both stylesheets are versioned: without the query the browser keeps
      serving the old file from its own cache, so a CSS fix appears to do
      nothing until a hard refresh. Bump these when either file changes. -->
-<link rel="stylesheet" href="styles.css?v=2026.09.268">
+<link rel="stylesheet" href="styles.css?v=2026.09.269">
   <script>
     (function () {
       try { if (localStorage.getItem("hpi_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
@@ -246,7 +246,7 @@
           </div>
         </div>
         <div class="user-section">
-          <span class="district-badge" id="districtBadge"></span>
+          <span class="district-badge hidden" id="districtBadge" style="display:none !important"></span>
           <div class="user-id-block">
             <span class="user-id-name" id="userDisplayName"></span>
             <span class="user-id-role" id="userRoleBadge"></span>
