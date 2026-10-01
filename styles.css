@@ -2890,17 +2890,48 @@ td .cat-badge { white-space: nowrap; }
 }
 .login-left .field-wrap input {
   width: 100%; padding: 12px 14px 12px 40px;
-  background: rgba(255,255,255,.07);
-  border: 1px solid rgba(255,255,255,.16);
+  background: #14243b !important;
+  border: 1px solid rgba(255,255,255,.22);
   border-radius: var(--radius-control);
-  color: #fff; font-size: .92rem; font-family: inherit;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: var(--gold, #d4a843) !important;
+  font-size: .95rem; font-family: inherit;
   transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
 }
-.login-left .field-wrap input::placeholder { color: rgba(255,255,255,.34); }
+.login-left .field-wrap input::placeholder { color: rgba(255,255,255,.45); }
 .login-left .field-wrap input:focus {
-  outline: none; background: rgba(255,255,255,.11);
-  border-color: var(--gold);
-  box-shadow: 0 0 0 3px rgba(212,168,67,.20);
+  outline: none;
+  background: #162a45 !important;
+  border-color: var(--gold, #d4a843) !important;
+  box-shadow: 0 0 0 3px rgba(212,168,67,.28) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Complete fix for autofill turning the input white and making filled text invisible */
+.login-left .field-wrap input:-webkit-autofill,
+.login-left .field-wrap input:-webkit-autofill:hover, 
+.login-left .field-wrap input:-webkit-autofill:focus, 
+.login-left .field-wrap input:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff !important;
+  color: #ffffff !important;
+  caret-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0 1000px #14243b inset !important;
+  box-shadow: 0 0 0 1000px #14243b inset !important;
+  border-color: var(--gold, #d4a843) !important;
+  transition: background-color 50000s ease-in-out 0s, color 50000s ease-in-out 0s;
+}
+
+.login-left .field-wrap input:autofill,
+.login-left .field-wrap input:-moz-autofill {
+  -webkit-text-fill-color: #ffffff !important;
+  color: #ffffff !important;
+  caret-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0 1000px #14243b inset !important;
+  box-shadow: 0 0 0 1000px #14243b inset !important;
+  border-color: var(--gold, #d4a843) !important;
+  background-color: #14243b !important;
 }
 .field-wrap:focus-within .field-icon { color: var(--gold); }
 .login-left .field-wrap .toggle-pass {
@@ -4234,6 +4265,12 @@ summary {
 /* ---- the sign in button ---- */
 .login-submit,
 .login-left .login-submit {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 2px 10px rgba(2, 6, 18, .35);
+}
+
 /* ---------- 22. TABLE WORD-BREAK (2026.09.241) --------------------------------
    A blanket `overflow-wrap:anywhere` was set on table/th/td further up the file
    to stop one long serial from widening the page. That value also lowers the
@@ -4267,11 +4304,6 @@ td a[href], td code, td pre { overflow-wrap: break-word; }
 
 /* The bilingual item name stacks English over Hindi; each stays a whole word. */
 td .nm-en, td .nm-hi { overflow-wrap: break-word; word-break: normal; }
-  background: #ffffff;
-  color: #0f172a;
-  border: 1px solid rgba(255, 255, 255, .9);
-  box-shadow: 0 2px 10px rgba(2, 6, 18, .35);
-}
 .login-submit:hover,
 .login-left .login-submit:hover {
   background: #eef2f8;
