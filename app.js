@@ -55,7 +55,7 @@ window.nameEnHi = nameEnHi;
    bilingual, every other column is escaped as before. */
 const ITEM_COL_RE = /^\s*(item|item\s*\/\s*asset|item name|asset|item code)\s*$/i;
 function isItemCol(header) { return ITEM_COL_RE.test(String(header == null ? "" : header)); }
-function colCell(header, value) { return isItemCol(header) ? (window.__ipLinkByName ? __ipLinkByName(value) : nameCell(value)) : esc(value); }
+function colCell(header, value) { return isItemCol(header) ? nameCell(value) : esc(value); }
 /* Same split, but styled inline. Print windows and the Word/PDF exports build their
    own stylesheet, so the .nm-en / .nm-hi classes are not available there. */
 function nameCellInline(name) {
@@ -3993,7 +3993,7 @@ function __renderCatItems(cid) {
         const acts = editable
           ? `<button class="btn btn-sm btn-outline" data-cit-edit="${i.id}">Edit</button> <button class="btn btn-sm btn-outline" data-cit-del="${i.id}">Delete</button>`
           : `<span class="muted" title="${esc(__rbacLockMsg())}">View only</span>`;
-        return `<tr data-cit-row="${i.id}"><td class="item-name"><span class="cit-name">${window.__ipLink ? __ipLink(i) : nameCell(i.name)}</span></td><td class="qty-strong">${i.quantity || 0}</td><td>${esc(i.unit || "")}</td><td class="actions-cell">${acts}</td></tr>`;
+        return `<tr data-cit-row="${i.id}"><td class="item-name"><span class="cit-name">${nameCell(i.name)}</span></td><td class="qty-strong">${i.quantity || 0}</td><td>${esc(i.unit || "")}</td><td class="actions-cell">${acts}</td></tr>`;
       }).join("")
     : `<tr class="empty-row"><td colspan="4">No items in this category yet.</td></tr>`;
 }
@@ -4547,7 +4547,7 @@ if (filtered.length) {
       const statusCls = { completed: "status-badge status-ok", pending: "status-badge status-low", overdue: "status-badge status-out" }[ins.status] || "cat-badge";
       const statusLabel = ins.status ? ins.status.charAt(0).toUpperCase() + ins.status.slice(1) : "Unknown";
       const typeLabel = ins.type ? ins.type.charAt(0).toUpperCase() + ins.type.slice(1) : "Unknown";
-      return `<tr><td>${esc(ins.date)}</td><td class="item-name">${window.__ipLinkByName ? __ipLinkByName(ins.itemName, { id: ins.itemId }) : nameCell(ins.itemName)}</td><td>${esc(ins.inspectedBy)}</td><td><span class="${typeCls}">${typeLabel}</span></td><td>${esc(loc ? loc.name : "")}</td><td><span class="${statusCls}">${statusLabel}</span></td><td><button type="button" class="btn btn-sm btn-loc" data-insp-view="${esc(ins.id)}">View</button></td></tr>`;
+      return `<tr><td>${esc(ins.date)}</td><td class="item-name">${nameCell(ins.itemName)}</td><td>${esc(ins.inspectedBy)}</td><td><span class="${typeCls}">${typeLabel}</span></td><td>${esc(loc ? loc.name : "")}</td><td><span class="${statusCls}">${statusLabel}</span></td><td><button type="button" class="btn btn-sm btn-loc" data-insp-view="${esc(ins.id)}">View</button></td></tr>`;
     }).join("");
 } else {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="6">No inspections found. Click "+ New Inspection" to add one.</td></tr>`;
@@ -5353,7 +5353,7 @@ function __distItemsSummaryHtml(d) {
   return `<div class="table-wrap" style="margin-top:4px">
     <table>
       <thead><tr><th>Item</th><th>Category</th><th>Qty</th><th>Condition</th></tr></thead>
-      <tbody>${(d.items || []).map(it => `<tr><td>${__ipLinkByName(it.itemName, { id: it.fromItemId || it.itemId, categoryId: it.categoryId, districtId: d.fromDistrictId })}</td><td>${esc(it.categoryName || "—")}</td><td>${it.qty}</td><td>${esc(it.condition)}</td></tr>`).join("")}</tbody>
+      <tbody>${(d.items || []).map(it => `<tr><td>${__ipLinkByName(it.itemName)}</td><td>${esc(it.categoryName || "—")}</td><td>${it.qty}</td><td>${esc(it.condition)}</td></tr>`).join("")}</tbody>
     </table>
   </div>`;
 }
@@ -5478,7 +5478,7 @@ function openDistributionDetail(id) {
   $("#distDetailTitle").textContent = "Distribution Details - " + (d.distNo || "DIST-");
   $("#distDetailInfo").innerHTML = __distSummaryHtml(d) + attachmentChipsHtml(d);
   $("#distDetailItems").innerHTML = (d.items || []).map(it =>
-    `<tr><td>${__ipLinkByName(it.itemName, { id: it.fromItemId || it.itemId, categoryId: it.categoryId, districtId: d.fromDistrictId })}</td><td>${esc(it.categoryName || "—")}</td><td>${it.qty}</td><td>${esc(it.condition)}</td><td>${it.fromLocationId ? esc((getLocations().find(l => l.id === it.fromLocationId) || {}).name || it.fromLocationId) : "—"}</td></tr>`
+    `<tr><td>${__ipLinkByName(it.itemName)}</td><td>${esc(it.categoryName || "—")}</td><td>${it.qty}</td><td>${esc(it.condition)}</td><td>${it.fromLocationId ? esc((getLocations().find(l => l.id === it.fromLocationId) || {}).name || it.fromLocationId) : "—"}</td></tr>`
   ).join("") || `<tr class="empty-row"><td colspan="5">No items.</td></tr>`;
   const dec = [];
   if (d.approvedAt) dec.push(`<div class="dd-item"><div class="dd-item-head">Approved by ${esc(d.approvedBy || "—")} on ${new Date(d.approvedAt).toLocaleString("en-IN")}</div>${d.approveRemark ? `<div class="dd-item-body">Note: ${esc(d.approveRemark)}</div>` : ""}</div>`);
@@ -5532,7 +5532,7 @@ function renderDistribution() {
         btns = `<span style="font-size:.72rem;color:var(--amber)">Awaiting recipient</span>`;
       }
       btns += ` <button type="button" class="btn btn-sm btn-outline" data-action="dist-details" data-id="${d.id}">Details</button>`;
-      return `<tr data-dist-id="${d.id}"><td>${start + idx + 1}</td><td class="item-name">${window.__ipLinkByName ? __ipLinkByName(it.itemName, { id: it.fromItemId || it.itemId, categoryId: it.categoryId, districtId: d.fromDistrictId }) : nameCell(it.itemName)}</td><td>${esc(it.categoryName || "—")}</td><td class="qty-strong">${it.qty}</td><td>${sender}</td><td>${esc(receiver)}</td><td><span class="${meta.cls}">${meta.label}</span></td><td>${new Date(d.createdAt).toLocaleDateString("en-IN")}</td><td class="actions-cell">${btns}</td></tr>`;
+      return `<tr data-dist-id="${d.id}"><td>${start + idx + 1}</td><td class="item-name">${nameCell(it.itemName)}</td><td>${esc(it.categoryName || "—")}</td><td class="qty-strong">${it.qty}</td><td>${sender}</td><td>${esc(receiver)}</td><td><span class="${meta.cls}">${meta.label}</span></td><td>${new Date(d.createdAt).toLocaleDateString("en-IN")}</td><td class="actions-cell">${btns}</td></tr>`;
     }).join("");
   } else {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="9">No distributions found. Click "+ Distribute Items" to distribute stock.</td></tr>`;
@@ -6832,7 +6832,7 @@ function renderDemands() {
       }
       btns += ` <button type="button" class="btn btn-sm btn-outline" data-action="view-demand" data-id="${d.id}">Details</button>`;
       const approvedNote = (Number(it.approvedQuantity) || 0) > 0 ? `<span style="display:block;color:var(--green);font-size:.72rem">${it.approvedQuantity} done${(Number(it.remainingQuantity) || 0) > 0 ? ", " + it.remainingQuantity + " left" : ""}</span>` : "";
-      return `<tr data-demand-id="${d.id}"><td class="demand-no">${esc(d.demandNo || "")}</td><td>${esc(d.requestedBy)}</td><td>${esc(rfName)}${reqTo && d.demandToLocationName ? `<span style="display:block;color:var(--muted);font-size:.72rem">${esc(reqTo)}</span>` : ""}</td><td class="item-name">${__ipLinkByName(it.itemName, { id: it.itemId, categoryId: it.categoryId, districtId: d.demandToDistrict || d.districtId })}${it.categoryName ? `<span style="display:block;color:var(--muted);font-size:.72rem">${esc(it.categoryName)}</span>` : ""}</td><td class="qty-strong">${it.quantity}${approvedNote}</td><td><span class="${meta.cls}">${meta.label}</span></td><td>${new Date(d.createdAt).toLocaleDateString("en-IN")}</td><td class="actions-cell">${btns}</td></tr>`;
+      return `<tr data-demand-id="${d.id}"><td class="demand-no">${esc(d.demandNo || "")}</td><td>${esc(d.requestedBy)}</td><td>${esc(rfName)}${reqTo && d.demandToLocationName ? `<span style="display:block;color:var(--muted);font-size:.72rem">${esc(reqTo)}</span>` : ""}</td><td class="item-name">${__ipLinkByName(it.itemName)}${it.categoryName ? `<span style="display:block;color:var(--muted);font-size:.72rem">${esc(it.categoryName)}</span>` : ""}</td><td class="qty-strong">${it.quantity}${approvedNote}</td><td><span class="${meta.cls}">${meta.label}</span></td><td>${new Date(d.createdAt).toLocaleDateString("en-IN")}</td><td class="actions-cell">${btns}</td></tr>`;
     }).join("");
   } else {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="8">No demands found. Click "+ Raise Demand" to submit one.</td></tr>`;
@@ -7190,7 +7190,7 @@ function openDemandAction(id) {
       } else {
         actionCell = `<span style="font-size:.72rem;color:var(--muted)">${meta.label}</span>`;
       }
-      return `<tr><td class="item-name">${__ipLinkByName(it.itemName, { id: it.itemId, categoryId: it.categoryId, districtId: d.demandToDistrict || d.districtId })}${it.categoryName ? `<span style="display:block;color:var(--muted);font-size:.72rem">${esc(it.categoryName)}</span>` : ""}</td><td class="qty-strong">${it.quantity}</td><td>${completed}</td><td class="qty-strong">${remaining}</td><td>${avail}</td><td><span class="${meta.cls}">${meta.label}</span></td><td class="actions-cell">${actionCell}</td></tr>`;
+      return `<tr><td class="item-name">${__ipLinkByName(it.itemName)}${it.categoryName ? `<span style="display:block;color:var(--muted);font-size:.72rem">${esc(it.categoryName)}</span>` : ""}</td><td class="qty-strong">${it.quantity}</td><td>${completed}</td><td class="qty-strong">${remaining}</td><td>${avail}</td><td><span class="${meta.cls}">${meta.label}</span></td><td class="actions-cell">${actionCell}</td></tr>`;
     }).join("");
     openModal("#demandActionModal");
   } catch (err) {
@@ -7454,7 +7454,7 @@ function openDemandReview(id, itemKey) {
     const supplied = Number(it.approvedQuantity) || 0;
     const remaining = Number(it.remainingQuantity) || 0;
     $("#demandReviewSummary").innerHTML = `<div class="demand-detail-grid">
-      <div class="demand-detail-item"><span class="dd-label">Item</span><span class="dd-value">${window.__ipLinkByName ? __ipLinkByName(it.itemName, { id: it.itemId, categoryId: it.categoryId, districtId: d.demandToDistrict || d.districtId }) : esc(it.itemName)}${it.categoryName ? ` <span style="color:var(--muted);font-size:.75rem">(${esc(it.categoryName)})</span>` : ""}</span></div>
+      <div class="demand-detail-item"><span class="dd-label">Item</span><span class="dd-value">${esc(it.itemName)}${it.categoryName ? ` <span style="color:var(--muted);font-size:.75rem">(${esc(it.categoryName)})</span>` : ""}</span></div>
       <div class="demand-detail-item"><span class="dd-label">Requested</span><span class="dd-value">${it.quantity}</span></div>
       <div class="demand-detail-item"><span class="dd-label">Supplied</span><span class="dd-value" style="color:var(--green);font-weight:600">${supplied}</span></div>
       <div class="demand-detail-item"><span class="dd-label">Remaining</span><span class="dd-value">${remaining}</span></div>
@@ -7572,7 +7572,7 @@ function openDemandDetails(id) {
   itBody.innerHTML = items.map(it => {
     const meta = __itemDisplayMeta(it);
     const remark = it.status === "rejected" ? it.rejectionReason : it.remark;
-    return `<tr><td class="item-name">${__ipLinkByName(it.itemName, { id: it.itemId, categoryId: it.categoryId, districtId: d.demandToDistrict || d.districtId })}${it.categoryName ? `<span style="display:block;color:var(--muted);font-size:.72rem">${esc(it.categoryName)}</span>` : ""}</td><td class="qty-strong">${it.quantity}</td><td>${Number(it.approvedQuantity) || 0}</td><td>${Number(it.remainingQuantity) || 0}</td><td><span class="${meta.cls}">${meta.label}</span></td><td>${esc(it.processedBy || "\u2014")}</td><td>${it.processedAt ? new Date(it.processedAt).toLocaleString("en-IN") : "\u2014"}</td><td style="max-width:220px">${esc(remark || "\u2014")}</td></tr>`;
+    return `<tr><td class="item-name">${__ipLinkByName(it.itemName)}${it.categoryName ? `<span style="display:block;color:var(--muted);font-size:.72rem">${esc(it.categoryName)}</span>` : ""}</td><td class="qty-strong">${it.quantity}</td><td>${Number(it.approvedQuantity) || 0}</td><td>${Number(it.remainingQuantity) || 0}</td><td><span class="${meta.cls}">${meta.label}</span></td><td>${esc(it.processedBy || "\u2014")}</td><td>${it.processedAt ? new Date(it.processedAt).toLocaleString("en-IN") : "\u2014"}</td><td style="max-width:220px">${esc(remark || "\u2014")}</td></tr>`;
   }).join("");
   const hist = Array.isArray(d.processing) ? d.processing : [];
   const histEl = $("#demandDetailsHistory");
@@ -9407,7 +9407,7 @@ function openAllocPersonDetail(beltNo) {
   const active = mine.filter(a => allocOutstanding(a) > 0);
   const aBody = $("#apdAllottedBody");
   aBody.innerHTML = active.length
-    ? active.map(a => `<tr><td class="item-name">${window.__ipLink ? __ipLink({ id: a.itemId, name: a.itemName }) : nameCell(a.itemName)}</td><td><span class="cat-badge">${esc(a.categoryName)}</span></td><td class="qty-strong">${allocRemaining(a)}</td><td class="qty-strong" style="color:var(--red)">${allocLost(a)}</td><td>${a.createdAt ? fmtDate(a.createdAt) : "&mdash;"}</td><td>${allocStatusBadge(allocStatusOf(a))}</td></tr>`).join("")
+    ? active.map(a => `<tr><td class="item-name">${nameCell(a.itemName)}</td><td><span class="cat-badge">${esc(a.categoryName)}</span></td><td class="qty-strong">${allocRemaining(a)}</td><td class="qty-strong" style="color:var(--red)">${allocLost(a)}</td><td>${a.createdAt ? fmtDate(a.createdAt) : "&mdash;"}</td><td>${allocStatusBadge(allocStatusOf(a))}</td></tr>`).join("")
     : `<tr class="empty-row"><td colspan="6">No active issues.</td></tr>`;
 
   const done = mine.filter(a => allocOutstanding(a) <= 0);
@@ -9418,7 +9418,7 @@ function openAllocPersonDetail(beltNo) {
         const lastReturn = (a.returns && a.returns.length) ? a.returns[a.returns.length - 1] : null;
         const condTxt = lastReturn ? (condLabels[lastReturn.condition] || lastReturn.condition) : "&mdash;";
         const retDate = lastReturn ? (lastReturn.date || fmtDate(lastReturn.at)) : "&mdash;";
-        return `<tr><td class="item-name">${window.__ipLink ? __ipLink({ id: a.itemId, name: a.itemName }) : nameCell(a.itemName)}</td><td class="qty-strong">${a.qtyReturned || 0}</td><td>${esc(condTxt)}</td><td>${a.createdAt ? fmtDate(a.createdAt) : "&mdash;"}</td><td>${esc(retDate)}</td><td>${allocStatusBadge(allocStatusOf(a))}</td></tr>`;
+        return `<tr><td class="item-name">${nameCell(a.itemName)}</td><td class="qty-strong">${a.qtyReturned || 0}</td><td>${esc(condTxt)}</td><td>${a.createdAt ? fmtDate(a.createdAt) : "&mdash;"}</td><td>${esc(retDate)}</td><td>${allocStatusBadge(allocStatusOf(a))}</td></tr>`;
       }).join("")
     : `<tr class="empty-row"><td colspan="6">No settled issues.</td></tr>`;
 
@@ -10232,7 +10232,7 @@ function renderDocuments() {
       <td>${date}</td><td>${time}</td>
       <td><span class="status-badge status-neutral">${fmt}</span></td>
       <td>${esc(type)}</td>
-      <td class="item-name">${window.__ipLinkByName ? __ipLinkByName(item) : nameCell(item)}</td>
+      <td class="item-name">${nameCell(item)}</td>
       <td>${esc(by)}</td>
       <td class="item-name">${esc(r.fileName || "Untitled")}</td>
       <td class="actions-cell">${viewBtn} ${delBtn}</td>
@@ -13526,7 +13526,7 @@ function __renderConsCatItems(cid) {
         const acts = editable
           ? `<button class="btn btn-sm btn-outline" data-ccit-edit="${i.id}">Edit</button> <button class="btn btn-sm btn-outline act-dd-del" data-ccit-del="${i.id}">Delete</button>`
           : `<span class="muted">View only</span>`;
-        return `<tr data-ccit-row="${i.id}"><td class="item-name"><span class="cit-name">${window.__ipLink ? __ipLink(i, { kind: "cons" }) : nameCell(i.name)}</span></td><td>${q.total}</td><td>${q.available}</td><td class="actions-cell">${acts}</td></tr>`;
+        return `<tr data-ccit-row="${i.id}"><td class="item-name"><span class="cit-name">${nameCell(i.name)}</span></td><td>${q.total}</td><td>${q.available}</td><td class="actions-cell">${acts}</td></tr>`;
       }).join("")
     : `<tr class="empty-row"><td colspan="4">No items in this category yet.</td></tr>`;
 }
@@ -14696,7 +14696,7 @@ function openConsRecipient(toType, toId, name) {
       const pend = st === "Pending Approval";
       const mine = __consIsRecipient(r2);
       const act = pend && mine ? `<button type="button" class="btn btn-sm btn-green" data-cons-approve="${r2.id}">Approve</button> <button type="button" class="btn btn-sm btn-red" data-cons-reject="${r2.id}">Reject</button>` : "";
-      return `<tr><td>${esc(fmtDate(r2.date ? new Date(r2.date) : r2.createdAt))}</td><td>${esc(cat)}</td><td>${window.__ipLink ? __ipLink({ id: it.id, name: it.name }, { kind: "cons" }) : nameCell(it.name || "(unknown)")}</td><td>${r2.qty}</td><td>${esc(r2.byName || "")}</td><td>${__consStatusBadge(st)}${act ? " " + act : ""}</td></tr>`;
+      return `<tr><td>${esc(fmtDate(r2.date ? new Date(r2.date) : r2.createdAt))}</td><td>${esc(cat)}</td><td>${nameCell(it.name || "(unknown)")}</td><td>${r2.qty}</td><td>${esc(r2.byName || "")}</td><td>${__consStatusBadge(st)}${act ? " " + act : ""}</td></tr>`;
     }).join("");
   };
   box.innerHTML =
