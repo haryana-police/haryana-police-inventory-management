@@ -5,9 +5,8 @@
    ============================================================ */
 "use strict";
 (function () {
-  var VERSION = "2026.09.196";
+  var VERSION = "2026.09.197";
   var VIEW_ID = "view-itemprofile";
-  var PHOTOS_CAP = 20;
   var state = {
     itemId: null, item: null, districtId: null,
     txs: [], view: [], page: 0, pageSize: 25,
@@ -302,7 +301,6 @@
     return validateAndCompress(file).then(function (img) {
       var map = photosMap();
       var list = map[item.id] || (map[item.id] = []);
-      if (list.length >= PHOTOS_CAP) return Promise.reject("Photo limit reached (" + PHOTOS_CAP + " per item). Delete old photos to add more.");
       list.forEach(function (p) { p.isProfile = false; });
       var rec = { id: (window.uid ? uid() : Date.now().toString(36)), data: img.data, name: img.name, size: img.size,
         uploadedBy: user() ? (user().name || user().username) : "", uploadedAt: Date.now(), isProfile: true };

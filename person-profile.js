@@ -6,9 +6,8 @@
    ============================================================ */
 "use strict";
 (function () {
-  var VERSION = "2026.09.196";
+  var VERSION = "2026.09.197";
   var VIEW_ID = "view-personprofile";
-  var PHOTOS_CAP = 20;
   var state = {
     personId: null, person: null, pseudo: false, districtId: null,
     allots: [], txs: [], view: [], page: 0, pageSize: 25,
@@ -272,7 +271,6 @@
     return validateAndCompress(file).then(function (img) {
       var map = photosMap();
       var list = map[p.id] || (map[p.id] = []);
-      if (list.length >= PHOTOS_CAP) return Promise.reject("Photo limit reached (" + PHOTOS_CAP + " per person). Delete old photos to add more.");
       list.forEach(function (x) { x.isProfile = false; });
       var rec = { id: (window.uid ? uid() : Date.now().toString(36)), data: img.data, name: img.name, size: img.size,
         uploadedBy: user() ? (user().name || user().username) : "", uploadedAt: Date.now(), isProfile: true };
