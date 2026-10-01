@@ -1856,6 +1856,38 @@ th[data-sort-col]:focus-visible { outline: 2px solid var(--primary); outline-off
 #reportContent thead th.rpt-drag-over { outline: 2px dashed var(--primary, #2563eb); outline-offset: -2px; }
 #reportContent thead th.rpt-dragging { opacity: .5; }
 
+/* Reports: horizontally reduced size for Item and Category columns */
+#reportContent thead th[data-rpt-col="Item"],
+#reportContent tbody td.rpt-cell-item,
+#reportContent tbody td.item-name {
+  width: 160px;
+  max-width: 180px;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+#reportContent thead th[data-rpt-col="Category"],
+#reportContent tbody td.rpt-cell-cat {
+  width: 125px;
+  max-width: 140px;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+#reportContent tbody td.rpt-cell-cat .cat-badge {
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.25;
+  padding: 3px 8px;
+  font-size: .7rem;
+}
+#reportContent table th,
+#reportContent table td {
+  padding: 10px 9px;
+}
+
 /* Computer/IT + MTO staff roles: hide admin/dev tools */
 .role-itstaff [data-admin-only],
 .role-mtostaff [data-admin-only],
