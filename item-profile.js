@@ -946,6 +946,17 @@
     });
   }
   window.__ipOpenCamera = function (onFile) { openIpCamera(onFile); };
+  window.__ipRefresh = function () {
+    if (state.itemId) {
+      var it = (window.getItems ? getItems() : []).find(function (x) { return x.id === state.itemId; }) ||
+               (window.getConsItems ? getConsItems() : []).find(function (x) { return x.id === state.itemId; }) ||
+               state.item;
+      if (it) {
+        state.item = it;
+        renderAll();
+      }
+    }
+  };
   function closeIpCamera() {
     var overlay = document.getElementById("ipCameraModal");
     var video = overlay ? overlay.querySelector("#ipCamVideo") : null;

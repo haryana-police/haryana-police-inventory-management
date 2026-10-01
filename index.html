@@ -1454,6 +1454,17 @@
         <small id="fQtyHint" style="display:block;margin-top:6px;font-size:.72rem;font-weight:600"></small>
       </div>
       <input type="hidden" id="fItemId" value="">
+      <div class="att-bar" style="margin-top:14px">
+        <div class="att-bar-head">
+          <label>Photos / Attachments</label>
+          <span class="att-count" id="attCount_itemEdit">0 files</span>
+        </div>
+        <div class="att-bar-actions">
+          <button type="button" class="att-btn att-btn-upload" data-att-add="itemEdit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> Upload Photo</button>
+          <button type="button" class="att-btn att-btn-cam" data-att-cam="itemEdit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Camera</button>
+        </div>
+        <div class="att-grid" id="attPreview_itemEdit"></div>
+      </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline" data-close>Cancel</button>
         <button type="submit" class="btn btn-primary" id="itemSaveBtn">Save Item</button>
@@ -3010,9 +3021,9 @@
 <script src="api-client.js?v=2026.09.211"></script>
   <script src="enter-to-submit.js?v=2026.09.253"></script>
   <script src="cat-multiselect.js?v=2026.09.253"></script>
-  <script src="app.js?v=2026.09.266"></script>
+  <script src="app.js?v=2026.09.267"></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
-<script src="item-profile.js?v=2026.09.259"></script>
+<script src="item-profile.js?v=2026.09.260"></script>
 <script src="person-profile.js?v=2026.09.211"></script>
 <input type="file" id="attFileInput" multiple hidden>
 <div class="modal-backdrop hidden" id="camModal">

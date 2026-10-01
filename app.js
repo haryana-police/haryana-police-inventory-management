@@ -2931,6 +2931,9 @@ const cc = item ? (item.conditionCounts || { good: 0, poor: 0, damaged: 0 }) : {
     locSel.innerHTML = `<option value="">Select location</option>` + __byName(locs).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
     locSel.value = item ? item.locationId : (currentUser && currentUser.locationId ? currentUser.locationId : "");
   }
+  if (!window.__attStore) window.__attStore = {};
+  __attStore.itemEdit = [];
+  __attRender("itemEdit");
   openModal("#itemModal");
   setTimeout(() => { const focusEl = item ? $("#fItemName") : $("#fCategory"); if (focusEl) focusEl.focus(); }, 50);
 }
@@ -2984,16 +2987,45 @@ function openViewItem(item) {
   openModal("#viewItemModal");
 }
 
-function saveItem(e) {
+function __saveItemProfilePhotos(itemId, photos) {
+  if (!itemId || !Array.isArray(photos) || !photos.length) return;
+  const map = (typeof loadData === "function" ? loadData("itemPhotos") : null) || {};
+  const list = map[itemId] || (map[itemId] = []);
+  let changed = false;
+  for (const ph of photos) {
+    if (!ph || !ph.dataUrl) continue;
+    const isImg = String(ph.mime || "").toLowerCase().startsWith("image/") || String(ph.dataUrl).startsWith("data:image/");
+    if (!isImg) continue;
+    if (!list.some(x => (x.name === ph.name && x.size === ph.size) || x.data === ph.dataUrl)) {
+      list.push({
+        id: ph.id || uid(),
+        data: ph.dataUrl,
+        name: ph.name || "photo.jpg",
+        size: ph.size || 0,
+        uploadedBy: currentUser ? (currentUser.name || currentUser.username) : "",
+        uploadedAt: Date.now(),
+        isProfile: list.length === 0
+      });
+      changed = true;
+    }
+  }
+  if (changed) {
+    if (typeof saveData === "function") saveData("itemPhotos", map);
+    if (window.__ipRefresh) { try { window.__ipRefresh(); } catch (e) {} }
+  }
+}
+window.__saveItemProfilePhotos = __saveItemProfilePhotos;
+
+async function saveItem(e) {
   e.preventDefault();
   const id = $("#fItemId").value;
-  // RBAC: ownership & role are re-checked here (UI convenience only ? the
+  // RBAC: ownership & role are re-checked here (UI convenience only — the
   // server independently enforces the same rules on every write).
   if (id) {
     if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
     const existing = getItems().find(i => i.id === id);
     if (!canManageItem(existing)) return toast(__rbacLockMsg(), "error");
-} else if (isDevAdmin()) {
+  } else if (isDevAdmin()) {
     return toast(__devRbacLockMsg(), "error");
   } else if (!canManageItems()) {
     return toast("You do not have permission to add items.", "error");
@@ -3005,19 +3037,32 @@ function saveItem(e) {
   const locationId = (!isAdmin() && currentUser && currentUser.locationId)
     ? currentUser.locationId
     : ($("#fLocation") ? $("#fLocation").value : "");
-const good = parseInt($("#fCondGood").value, 10) || 0;
+  const good = parseInt($("#fCondGood").value, 10) || 0;
   const poor = parseInt($("#fCondPoor").value, 10) || 0;
   const damaged = parseInt($("#fCondDamaged").value, 10) || 0;
   const quantity = good + poor + damaged;
   const conditionCounts = { good, poor, damaged };
-if (!name || !categoryId || !locationId) return toast("Please fill all required fields.", "error");
+  if (!name || !categoryId || !locationId) return toast("Please fill all required fields.", "error");
   if (quantity === 0) return toast("Total quantity cannot be 0. Enter at least one condition count.", "error");
   if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (currentUser && !isAdmin() && locationId !== currentUser.locationId) {
     return toast("You can only assign items to your own unit.", "error");
   }
 
+  const editPhotos = __attStore.itemEdit || [];
+  let photoRefs = [];
+  if (editPhotos.length) {
+    try {
+      photoRefs = await __attUploadAll("itemEdit");
+    } catch (err) {
+      return toast("Photo upload failed. Please try again.", "error");
+    }
+  }
+
   const items = getItems();
+  const histDate = ($("#fDate") && $("#fDate").value) || todayStr();
+  const histTime = ($("#fTime") && $("#fTime").value) || nowTimeStr();
+
   if (id) {
     const item = items.find(i => i.id === id);
     if (item) {
@@ -3027,16 +3072,45 @@ if (!name || !categoryId || !locationId) return toast("Please fill all required 
       if (quantity < held) return toast(`Total quantity cannot be less than currently issued/damaged/lost units (${held}).`, "error");
       const __prevQty = item.quantity || 0;
       const __delta = quantity - __prevQty;
+      const prevCc = item.conditionCounts || { good: __prevQty, poor: 0, damaged: 0 };
+      const ccChanged = prevCc.good !== good || prevCc.poor !== poor || prevCc.damaged !== damaged;
       Object.assign(item, { name, categoryId, unit, quantity, minStock, locationId, conditionCounts, updatedAt: Date.now() });
-      if (__delta !== 0) itemHistoryPush(item, { type: __delta > 0 ? "STOCK_IN" : "ADJUST", qty: __delta, person: "", ref: "", date: ($("#fDate") && $("#fDate").value) || todayStr(), time: ($("#fTime") && $("#fTime").value) || nowTimeStr(), remarks: "Stock updated from " + __prevQty + " to " + quantity + " (" + (__delta > 0 ? "+" : "") + __delta + " added/reduced)" });
-      __audit("Item Updated", `"${name}" ? qty ${quantity} (${good}G/${poor}P/${damaged}D)`, { entity: "Item" });
+
+      if (editPhotos.length) {
+        __saveItemProfilePhotos(item.id, editPhotos);
+      }
+
+      if (__delta !== 0) {
+        itemHistoryPush(item, { type: __delta > 0 ? "STOCK_IN" : "ADJUST", qty: __delta, person: "", ref: "", date: histDate, time: histTime, remarks: "Stock updated from " + __prevQty + " to " + quantity + " (" + (__delta > 0 ? "+" : "") + __delta + " added/reduced)", photos: photoRefs.length ? photoRefs : undefined });
+      } else if (ccChanged) {
+        itemHistoryPush(item, { type: "ADJUST", qty: 0, person: "", ref: "", date: histDate, time: histTime, remarks: "Condition breakdown updated: Good: " + good + ", Damaged: " + poor + ", Scrap: " + damaged, photos: photoRefs.length ? photoRefs : undefined });
+      } else if (photoRefs.length) {
+        itemHistoryPush(item, { type: "ADJUST", qty: 0, person: "", ref: "", date: histDate, time: histTime, remarks: "Item photos uploaded (" + photoRefs.length + " file" + (photoRefs.length === 1 ? "" : "s") + ")", photos: photoRefs });
+      }
+      __audit("Item Updated", `"${name}" — qty ${quantity} (${good}G/${poor}P/${damaged}D)`, { entity: "Item" });
     }
     toast("Item updated.", "success");
   } else {
-    items.push({ id: uid(), name, categoryId, unit, quantity, minStock, locationId, conditionCounts, createdAt: Date.now(), updatedAt: Date.now() });
-    __audit("Item Added", `"${name}" ? qty ${quantity} (${good}G/${poor}P/${damaged}D)`, { entity: "Item" });
+    const newItem = { id: uid(), name, categoryId, unit, quantity, minStock, locationId, conditionCounts, createdAt: Date.now(), updatedAt: Date.now() };
+    items.push(newItem);
+    if (editPhotos.length) {
+      __saveItemProfilePhotos(newItem.id, editPhotos);
+    }
+    itemHistoryPush(newItem, {
+      type: "STOCK_IN",
+      qty: quantity,
+      person: "",
+      ref: "",
+      date: histDate,
+      time: histTime,
+      remarks: "New item created with opening stock +" + quantity + (photoRefs.length ? " (" + photoRefs.length + " photo(s))" : ""),
+      photos: photoRefs.length ? photoRefs : undefined
+    });
+    __audit("Item Added", `"${name}" — qty ${quantity} (${good}G/${poor}P/${damaged}D)`, { entity: "Item" });
     toast("Item added.", "success");
   }
+  __attStore.itemEdit = [];
+  __attRender("itemEdit");
   saveItems(items);
   closeModals();
   render();
@@ -3526,6 +3600,10 @@ async function saveAddStock(e) {
       items.push(item);
       itemHistoryPush(item, { type: "STOCK_IN", qty: p.qty, person: "", ref: "", date, time, remarks: remarks || ("New item created with opening stock +" + p.qty + __asBreakdown(p)), photos: histPhotos });
       created++;
+    }
+    const rowPhotos = __asPhotos[p.row.dataset.key] || [];
+    if (rowPhotos.length) {
+      __saveItemProfilePhotos(item.id, rowPhotos);
     }
     __audit("Stock Added", '"' + item.name + '" +' + p.qty + __asBreakdown(p) + ", total " + item.quantity, { entity: "Item" });
   }
@@ -13902,6 +13980,9 @@ function saveConsAdd(e) {
     const photo = photos[0];
     if (photo) { item.photoUrl = photo.dataUrl; item.updatedAt = Date.now(); }
     if (remarks) { item.remarks = remarks; item.updatedAt = Date.now(); }
+    if (photos.length) {
+      __saveItemProfilePhotos(item.id, photos);
+    }
     saveConsItems(items);
     const txn = __consCommit("ADD", item, p.qty, null, null, remarks, photo ? photo.dataUrl : "");
     if (date) txn.date = date;
