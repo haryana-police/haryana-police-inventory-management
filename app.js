@@ -7693,9 +7693,9 @@ function renderMergedReport() {
   pageRows.forEach(r => {
     const cls = r.Status === "Out" ? "status-out" : r.Status === "Low" ? "status-low" : "status-ok";
     const cells = {
-      "Item": `<td class="item-name">${__ipLink ? __ipLink(r._item) : esc(r.Item)}</td>`,
+      "Item": `<td class="item-name rpt-cell-item">${__ipLink ? __ipLink(r._item) : esc(r.Item)}</td>`,
       "Item Code": `<td>${esc(r["Item Code"])}</td>`,
-      "Category": `<td><span class="cat-badge">${esc(r.Category)}</span></td>`,
+      "Category": `<td class="rpt-cell-cat"><span class="cat-badge">${esc(r.Category)}</span></td>`,
       "Location": `<td>${esc(r.Location)}</td>`,
       "Unit": `<td>${esc(r.Unit)}</td>`,
       "Total Qty": `<td class="qty-strong">${r["Total Qty"]}</td>`,
