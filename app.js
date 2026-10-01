@@ -8740,6 +8740,77 @@ function openAllotModal() {
   setTimeout(() => $("#alPerson").focus(), 50);
 }
 
+function __saveIssuePhotosToPerson(targetPerson, issueDate, issueTime, remarks, itemSummary) {
+  if (!targetPerson) return;
+  const issuePhotos = (__attStore.issue || []).filter(p => p && p.dataUrl && (String(p.mime || "").startsWith("image/") || String(p.dataUrl).startsWith("data:image/")));
+  if (!issuePhotos.length) return;
+
+  const map = loadData("personPhotos") || {};
+  const pid = targetPerson.id;
+  const list = map[pid] || (map[pid] = []);
+  const uName = currentUser ? (currentUser.name || currentUser.username || "") : "";
+
+  let uploadTs = Date.now();
+  if (issueDate) {
+    try {
+      const parsed = new Date(issueDate + "T" + (issueTime || "00:00") + ":00").getTime();
+      if (!isNaN(parsed) && parsed > 0) uploadTs = parsed;
+    } catch (e) {}
+  }
+
+  issuePhotos.forEach(p => {
+    const already = list.some(x => x.id === p.id || (x.size === p.size && x.name === p.name));
+    if (already) return;
+
+    const hasProfile = list.some(x => x.isProfile);
+    let photoName = "Issue Photo";
+    if (p.name && !p.name.startsWith("camera-")) {
+      photoName = p.name;
+    } else if (itemSummary) {
+      photoName = "Issue: " + (itemSummary.length > 30 ? (itemSummary.slice(0, 27) + "…") : itemSummary);
+    } else {
+      photoName = "Issue Photo (" + (issueDate || todayStr()) + ")";
+    }
+
+    const rec = {
+      id: p.id || uid(),
+      data: p.dataUrl,
+      name: photoName,
+      size: p.size || 0,
+      uploadedBy: uName,
+      uploadedAt: uploadTs,
+      isProfile: !hasProfile && list.length === 0,
+      source: "issue",
+      sourceDetails: {
+        date: issueDate || todayStr(),
+        time: issueTime || nowTimeStr(),
+        remarks: remarks || "",
+        items: itemSummary || ""
+      }
+    };
+    list.push(rec);
+  });
+
+  if (list.length > 30) {
+    const prof = list.find(x => x.isProfile);
+    const rest = list.filter(x => !x.isProfile).slice(-29);
+    map[pid] = prof ? [prof, ...rest] : rest;
+  }
+
+  if (targetPerson.beltNo) {
+    const beltKey = "belt:" + String(targetPerson.beltNo).toUpperCase();
+    map[beltKey] = map[pid];
+  }
+
+  saveData("personPhotos", map);
+  if (typeof window.__ppReload === "function") {
+    try { window.__ppReload(); } catch (e) {}
+  }
+  try {
+    __audit("Person Photos Updated from Issue", issuePhotos.length + " photo(s) saved for " + targetPerson.name + " (BELT: " + (targetPerson.beltNo || "") + ")", { entity: "Person" });
+  } catch (e) {}
+}
+
 async function saveAllotment(e) {
   e.preventDefault();
   if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
@@ -8809,6 +8880,7 @@ async function saveAllotment(e) {
       txns.unshift(t1);
     }
     saveConsTxns(txns);
+    __saveIssuePhotosToPerson(person2, date, time, remarks, consRows.map(x => x.ci.name + " (" + x.qty + ")").join(", "));
     __attStore.issue = []; __attRender("issue");
     closeModals(); __alItemRows = []; render();
     __audit("Consumable Items Issued", consRows.length + " consume item(s) to " + __alTo.name + " (BELT: " + belt + ")", { entity: "Consumable" });
@@ -8859,6 +8931,7 @@ async function saveAllotment(e) {
 });
   });
 
+  __saveIssuePhotosToPerson(person, date, time, remarks, rows.map(r => { const it = items.find(i => i.id === r.itemId); return (it ? it.name : "Item") + " (" + r.qty + ")"; }).join(", "));
   persistAlloc(items, allotments, persons);
   __attStore.issue = []; __attRender("issue");
   closeModals();
