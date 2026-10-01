@@ -4643,3 +4643,6 @@ body.modal-open #appRoot {
 [data-theme="dark"] .row-combo-empty {
   color: #94a3b8;
 }
+
+/* Connection status hidden */
+.rt-status, #rtStatus, #rtStatusLabel, #rtStatusLabel2 { display: none !important; }

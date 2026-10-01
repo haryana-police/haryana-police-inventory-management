@@ -7,7 +7,28 @@ const APP_VERSION = "2026.09.211";
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
-const esc = (s) => { const d = document.createElement("div"); d.textContent = String(s); return d.innerHTML; };
+function __cleanMojibakeStr(s) {
+  if (typeof s !== "string" || !s) return s;
+  let out = s;
+  if (out.includes("â€“")) out = out.split("â€“").join("–");
+  if (out.includes("â€”")) out = out.split("â€”").join("—");
+  if (out.includes("â€™")) out = out.split("â€™").join("’");
+  if (out.includes("â€˜")) out = out.split("â€˜").join("‘");
+  if (out.includes("â€œ")) out = out.split("â€œ").join("“");
+  if (out.includes("â€")) out = out.split("â€").join("”");
+  if (out.includes("â€ ")) out = out.split("â€ ").join("”");
+  if (out.includes("â€¦")) out = out.split("â€¦").join("…");
+  if (out.includes("â€¢")) out = out.split("â€¢").join("•");
+  if (out.includes("ðŸ””")) out = out.split("ðŸ””").join("🔔");
+  if (out.includes("ðŸ”«")) out = out.split("ðŸ”«").join("🔫");
+  return out;
+}
+const esc = (s) => {
+  const clean = __cleanMojibakeStr(String(s == null ? "" : s));
+  const d = document.createElement("div");
+  d.textContent = clean;
+  return d.innerHTML;
+};
 
 /* --- Bilingual item names ---------------------------------------------------
    Item names are stored as one bilingual string, e.g. "Cooler Iron कूलर लोहा".
@@ -210,7 +231,7 @@ function renderPager(key, totalRows, renderFn) {
   if (!totalRows) { el.innerHTML = ""; return; }
   el.innerHTML =
     `<div class="pager">` +
-      `<span class="pager-info">Showing ${from}–${to} of ${totalRows} ${totalRows === 1 ? "row" : "rows"}</span>` +
+      `<span class="pager-info">Showing ${from}-${to} of ${totalRows} ${totalRows === 1 ? "row" : "rows"}</span>` +
       `<div class="pager-btns">` +
         `<button type="button" class="pager-btn" data-pg="prev" ${page === 0 ? "disabled" : ""}>&#9664; Prev</button>` +
         __pgButtons(page, totalPages) +
@@ -613,24 +634,76 @@ function __fixMojibakeStr(s) {
 function __isMojibake(s) { return typeof s === "string" && /[\u00C3\u00C2\u00E2\u20AC\u0192\u0160\u0161\u2039\u203A\u0152\u0153\u0178\u201A\u201E\u2020\u2021\u02C6\u2030\u02DC\u2122\u201C\u201D]/.test(s) && !/^[\u0000-\u007F]*$/.test(s) && /[\u0080-\u00FF\u20AC\u0192\u0160\u0161\u201A\u201C\u201D\u2026]/.test(s); }
 function __healCatListInPlace(list) {
   let changed = false;
-  list.forEach(c => { if (c && __isMojibake(c.icon)) { c.icon = __fixMojibakeStr(c.icon); changed = true; } if (c && __isMojibake(c.name)) { c.name = __fixMojibakeStr(c.name); changed = true; } });
+  list.forEach(c => {
+    if (c && __isMojibake(c.icon)) { c.icon = __fixMojibakeStr(c.icon); changed = true; }
+    if (c && __isMojibake(c.name)) { c.name = __fixMojibakeStr(c.name); changed = true; }
+    if (c && typeof c.name === "string" && c.name.includes("â")) { c.name = __cleanMojibakeStr(c.name); changed = true; }
+  });
   return changed;
 }
+
+function __healObjInPlace(obj) {
+  if (!obj) return false;
+  let changed = false;
+  if (Array.isArray(obj)) {
+    for (let i = 0; i < obj.length; i++) {
+      if (typeof obj[i] === "string") {
+        const cleaned = __cleanMojibakeStr(obj[i]);
+        if (cleaned !== obj[i]) { obj[i] = cleaned; changed = true; }
+      } else if (obj[i] && typeof obj[i] === "object") {
+        if (__healObjInPlace(obj[i])) changed = true;
+      }
+    }
+  } else if (typeof obj === "object") {
+    for (const k of Object.keys(obj)) {
+      if (typeof obj[k] === "string") {
+        const cleaned = __cleanMojibakeStr(obj[k]);
+        if (cleaned !== obj[k]) { obj[k] = cleaned; changed = true; }
+      } else if (obj[k] && typeof obj[k] === "object") {
+        if (__healObjInPlace(obj[k])) changed = true;
+      }
+    }
+  }
+  return changed;
+}
+
 function __healStoredMojibake() {
   try {
-    // Works for both the legacy shared array and the per-district map.
-    const healKey = (key) => {
+    const keys = ["categories", "cons_categories", "items", "districts", "locations", "allotments", "history", "auditLog", "users"];
+    for (const key of keys) {
       const data = loadData(key);
-      if (Array.isArray(data)) { if (__healCatListInPlace(data)) saveData(key, data); }
-      else if (data && typeof data === "object") {
-        let changed = false;
-        Object.keys(data).forEach(dk => { if (Array.isArray(data[dk]) && __healCatListInPlace(data[dk])) changed = true; });
-        if (changed) saveData(key, data);
+      if (data && typeof data === "object") {
+        if (__healObjInPlace(data)) saveData(key, data);
       }
-    };
-    healKey("categories");
-    healKey("cons_categories");
+    }
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const lk = localStorage.key(i);
+        if (!lk) continue;
+        if (lk.startsWith(STORAGE_PREFIX)) {
+          const raw = localStorage.getItem(lk);
+          if (raw && (raw.includes("â€“") || raw.includes("â€”") || raw.includes("ðŸ””"))) {
+            const clean = __cleanMojibakeStr(raw);
+            if (clean !== raw) localStorage.setItem(lk, clean);
+          }
+        }
+      }
+    } catch (_) {}
   } catch (e) { /* non-fatal */ }
+}
+
+function __cleanDOMMojibake(root = document.body) {
+  if (!root) return;
+  try {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (n.nodeValue && /(â€|â€“|â€”|â€˜|â€™|â€œ|â€¦|â€¢|ðŸ)/.test(n.nodeValue)) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+    });
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (let i = 0; i < nodes.length; i++) {
+      nodes[i].nodeValue = __cleanMojibakeStr(nodes[i].nodeValue);
+    }
+  } catch (e) {}
 }
 /* District-scoped category store (2026.09.211):
    "categories" is a map { [districtId]: [category...] } — same shape as
@@ -1673,6 +1746,7 @@ function render() {
   try { renderConsumables(); } catch (e) { console.error("renderConsumables failed:", e); }
   try { renderDevPagesTick(); } catch (e) { }
   try { applyTableHeaders(); } catch (e) { }
+  try { __cleanDOMMojibake(); } catch (e) { }
   const badge = $("#notifBadge");
   if (badge) {
     const count = getUnreadCount();
@@ -11149,15 +11223,9 @@ function __rtMarkReadFromItem(nId, distId) {
 
 function __rtSetStatus(s) {
   const el = $("#rtStatus");
-  if (el) {
-    el.style.display = currentUser ? "inline-flex" : "none";
-    el.classList.remove("rt-live", "rt-reconnect", "rt-off");
-    el.classList.add("rt-" + s);
-  }
-  const lbl = $("#rtStatusLabel");
-  if (lbl) lbl.textContent = s === "live" ? "Live" : s === "reconnect" ? "Connecting?" : "Offline";
+  if (el) el.style.display = "none";
   const lbl2 = $("#rtStatusLabel2");
-  if (lbl2) lbl2.textContent = s === "live" ? "Live" : s === "reconnect" ? "Connecting?" : "Offline";
+  if (lbl2 && lbl2.parentElement) lbl2.parentElement.style.display = "none";
 }
 
 function __rtStart() {

@@ -1,5 +1,5 @@
 /* ============================================================
-   mobile.css â€” Mobile-first responsive & premium UI layer
+   mobile.css - Mobile-first responsive & premium UI layer
    Additive only: no business logic, no DOM removal.
    Loaded AFTER styles.css so it wins without !important wars.
    Breakpoints: 1440 / 1024 / 768 / 640 / 480 / 430 / 390 / 360 / 320
@@ -20,7 +20,7 @@ h1, h2, h3, h4, p, span, td, th, label, .item-name, .cat-badge, .dr-name {
   overflow-wrap: anywhere; word-break: break-word;
 }
 
-/* ---------- 2. TOUCH TARGETS (44â€“48px min) ---------- */
+/* ---------- 2. TOUCH TARGETS (44-48px min) ---------- */
 .btn, button:not(.sort-arrow), .tab, .nav-item, select, .chip, .pill {
   min-height: 44px;
 }
@@ -255,7 +255,7 @@ button, .btn, a.btn, .linklike { touch-action: manipulation; }
   .table-wrap table td .item-name, .table-wrap table td .linklike { white-space: normal; }
 } /* end @media (max-width: 1024px) — tables scroll sideways only when narrow */
 @media (max-width: 768px) {
-  /* Keep first 1â€“2 columns pinned & readable while the rest scrolls */
+  /* Keep first 1-2 columns pinned & readable while the rest scrolls */
 .table-wrap table thead th { position: sticky; top: var(--sticky-top, 0px); z-index: 2; }
   .table-wrap table thead th { position: sticky; top: 0; z-index: 2; }
   .item-name { max-width: 220px; }
