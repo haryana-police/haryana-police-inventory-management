@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Haryana Police â€“ Inventory Management System</title>
+  <title>Haryana Police &ndash; Inventory Management System</title>
     <link href="vendor/fonts/inter.css" rel="stylesheet">
 <!-- Both stylesheets are versioned: without the query the browser keeps
      serving the old file from its own cache, so a CSS fix appears to do
      nothing until a hard refresh. Bump these when either file changes. -->
-<link rel="stylesheet" href="styles.css?v=2026.09.260">
+<link rel="stylesheet" href="styles.css?v=2026.09.261">
   <script>
     (function () {
       try { if (localStorage.getItem("hpi_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
@@ -21,7 +21,7 @@
   <script src="vendor/pdfjs/pdf.min.js" defer></script>
   <script src="vendor/mammoth/mammoth.browser.min.js" defer></script>
   <script src="vendor/xlsx/xlsx.full.min.js" defer></script>
-<link rel="stylesheet" href="mobile.css?v=2026.09.232" media="all">
+<link rel="stylesheet" href="mobile.css?v=2026.09.233" media="all">
 </head>
 <body>
 
@@ -227,9 +227,7 @@
           </svg>
           <span class="lang-badge" id="langBadge">HI</span>
         </button>
-        <div class="rt-status" id="rtStatus" title="Live connection status" style="display:none">
-          <span class="rt-dot"></span><span class="rt-label" id="rtStatusLabel">Live</span>
-        </div>
+        <div class="rt-status hidden" id="rtStatus" style="display:none !important"></div>
         <div class="notif-wrapper">
           <button class="notif-bell" id="notifBell" title="Notifications">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
@@ -239,7 +237,7 @@
 <div class="notif-panel-header">
               <span>Notifications</span>
               <span class="notif-panel-actions">
-                <button class="btn btn-sm btn-outline" id="notifSoundToggle" title="Toggle notification sound">ðŸ””</button>
+                <button class="btn btn-sm btn-outline" id="notifSoundToggle" title="Toggle notification sound">&#128276;</button>
                 <button class="btn btn-sm btn-outline" id="viewNotifAllBtn">View all</button>
                 <button class="btn btn-sm btn-outline" id="markAllReadBtn">Mark all read</button>
               </span>
@@ -373,7 +371,7 @@
       <div class="card rt-feed-card">
         <div class="card-header">
           <h3>Recent Activity</h3>
-          <span class="rt-pill-mini"><span class="rt-dot"></span><span id="rtStatusLabel2">Live</span></span>
+          
         </div>
         <div class="feed-list" id="rtFeed"></div>
       </div>
@@ -397,7 +395,7 @@
         <button class="report-tab" data-invt="history">Stock History</button>
       </div>
 
-      <!-- inventory tab: item stock (moved from Item Issued page â€” same functions, columns, buttons) -->
+      <!-- inventory tab: item stock (moved from Item Issued page &mdash; same functions, columns, buttons) -->
       <div class="inv-tab" data-inv-tab="stock">
         <div class="toolbar">
           <span class="loc-seg hidden" id="allocStockLocToggle" style="display:inline-flex;gap:4px;align-items:center"><select id="locAllSel" class="btn btn-sm btn-outline" style="min-width:160px;padding:6px 10px"><option value="all">All Locations</option></select></span>
@@ -1183,7 +1181,7 @@
   </main>
 
   <footer class="site-footer">
-    <p>&copy; 2026 Haryana Police â€“ Inventory Management System. All rights reserved.</p>
+    <p>&copy; 2026 Haryana Police &ndash; Inventory Management System. All rights reserved.</p>
   </footer>
   </div><!-- end content-area -->
 </div>
@@ -1297,7 +1295,7 @@
     </div>
     <div class="card">
       <div class="doc-toolbar">
-        <span class="muted">Photos, videos &amp; any file (PDF / Excel / Word) â€” date, time, format, item details, type &amp; uploaded by are recorded.</span>
+        <span class="muted">Photos, videos &amp; any file (PDF / Excel / Word) &mdash; date, time, format, item details, type &amp; uploaded by are recorded.</span>
         <button type="button" class="btn btn-primary" id="documentsUploadBtn">Upload Document</button>
       </div>
       <div class="table-wrap">
@@ -1321,7 +1319,7 @@
     </div>
     <form id="itemDocForm">
       <div class="form-group">
-        <label for="docFileInput">Choose File â€” any format: Photo, Video, PDF, Excel, Word, ...</label>
+        <label for="docFileInput">Choose File &mdash; any format: Photo, Video, PDF, Excel, Word, ...</label>
         <label class="btn btn-primary file-btn">Choose File<input type="file" id="docFileInput" accept="*/*" class="hidden-file-input"></label>
         <div id="docChosen" class="scan-chosen hidden">
           <b id="docFileName"></b>
@@ -1760,7 +1758,7 @@
         </div>
         <div class="form-group hidden">
           <label>Notification Recipient</label>
-          <div id="fdAssigneeInfo" class="dd-info-line">â€”</div>
+          <div id="fdAssigneeInfo" class="dd-info-line">&mdash;</div>
         </div>
       </div>
       <div class="form-group">
@@ -1938,7 +1936,7 @@
     </div>
     <form id="distributionForm">
       <div class="form-group">
-        <label>Distributed To * <span style="color:var(--muted);font-weight:400">(tick one or more â€” use All for everyone)</span></label>
+        <label>Distributed To * <span style="color:var(--muted);font-weight:400">(tick one or more &mdash; use All for everyone)</span></label>
         <div class="dist-dd">
           <button type="button" class="btn btn-outline" id="distToDropBtn" style="width:100%;justify-content:flex-start;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Select recipients...</button>
           <div class="dist-check-list hidden" id="distToChecks">
@@ -2681,7 +2679,7 @@
           <label class="dist-type-opt" for="alTypeCons"><input type="checkbox" id="alTypeCons"> <span>Consume</span></label>
         </div>
       </div>
-      <h4 class="modal-sec-title">ITEM DETAILS <span class="modal-sec-hint">(add one or more items â€“ different categories &amp; quantities)</span></h4>
+      <h4 class="modal-sec-title">ITEM DETAILS <span class="modal-sec-hint">(add one or more items &ndash; different categories &amp; quantities)</span></h4>
       <div id="alItems" class="alloc-items"></div>
       <div class="alloc-items-actions">
         <button type="button" class="btn btn-sm btn-outline" id="alAddItemRow">+ Add Item</button>
@@ -3021,7 +3019,7 @@
 <script src="api-client.js?v=2026.09.211"></script>
   <script src="enter-to-submit.js?v=2026.09.253"></script>
   <script src="cat-multiselect.js?v=2026.09.253"></script>
-  <script src="app.js?v=2026.09.268"></script>
+  <script src="app.js?v=2026.09.269"></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
 <script src="item-profile.js?v=2026.09.260"></script>
 <script src="person-profile.js?v=2026.09.211"></script>
@@ -3034,7 +3032,7 @@
     </div>
     <div class="cam-body">
       <video id="camVideo" autoplay playsinline muted></video>
-      <div class="cam-hint" id="camHint">Starting cameraâ€¦</div>
+      <div class="cam-hint" id="camHint">Starting camera&hellip;</div>
       <div class="cam-flash" id="camFlash"></div>
     </div>
     <div class="modal-footer">

@@ -1,4 +1,4 @@
-﻿// reset-passwords.js â€” set ALL users' password to a given value (bcrypt hashed)
+﻿// reset-passwords.js - set ALL users' password to a given value (bcrypt hashed)
 // Usage: node reset-passwords.js <newPassword>
 // Safe: reads db.json, rewrites only the password field of every user, writes atomically.
 const fs = require('fs');

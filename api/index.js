@@ -13,7 +13,7 @@
 //    server-side (api/_rbac.js) against the session user and the record's
 //    stored ownership (locationId / district). Developer Admin is read-only
 //    for inventory; everyone else may only modify their OWN unit's records.
-//    Unauthorised writes are rejected with 401/403 â€” the UI can be bypassed,
+//    Unauthorised writes are rejected with 401/403 - the UI can be bypassed,
 //    this gate cannot.
 const { Pool } = require('./_filepool');
 const bcrypt = require('bcryptjs');
@@ -206,7 +206,7 @@ function publicUser(u) {
 }
 
 // Self-healing: every district always has its fixed staff accounts and
-// default staff locations (Computer/IT Staff + MTO Staff). Idempotent â€”
+// default staff locations (Computer/IT Staff + MTO Staff). Idempotent -
 // returns true when anything was created or linked.
 function provisionDistrictStaff(state) {
   const dists = Array.isArray(state['hp_inventory.districts']) ? state['hp_inventory.districts'] : [];
@@ -876,7 +876,7 @@ function validateAllocState(state) {
     }
     // RBAC GATE (inventory): the client sends its whole state blob, so the
     // server diffs the stored items against the incoming ones and authorises
-    // every add/edit/delete against the SESSION user â€” never the payload.
+    // every add/edit/delete against the SESSION user - never the payload.
     // Identity, role and unit all come from the token; ownership comes from
     // the previously stored record. 403 on any violation.
     const { user: rbacUser } = await authFromRequest(req);
@@ -940,7 +940,7 @@ function validateAllocState(state) {
     );
     // Category-store shape guard (2026.09.213): once "categories" /
     // "cons_categories" have migrated to per-district maps, a stale client
-    // (old cached bundle) must never overwrite them with a flat array â€” that
+    // (old cached bundle) must never overwrite them with a flat array - that
     // would re-trigger the client-side legacy migration and leak one
     // district's categories into every other district.
     for (const ck of ['hp_inventory.categories', 'hp_inventory.cons_categories']) {
@@ -1036,7 +1036,7 @@ function validateAllocState(state) {
         const prevAll = (stateNow[ITEM_STORE_KEY] && typeof stateNow[ITEM_STORE_KEY] === 'object') ? stateNow[ITEM_STORE_KEY] : {};
         nextAll = body.value;
         if (Array.isArray(body.value)) {
-          // Legacy array form: the array replaces ONE district's items â€”
+          // Legacy array form: the array replaces ONE district's items -
           // merge it over the stored map so other districts are untouched
           // (otherwise they would look deleted and be wrongly denied).
           const distId = body.districtId || user.districtId || 'dist_1';
