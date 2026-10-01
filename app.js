@@ -761,7 +761,14 @@ function getAllDistrictItems() { return activeDistrictId ? getItemsForDistrict(a
 function saveItems(items) {
   if (!activeDistrictId) return;
   const all = getAllItems();
-  all[activeDistrictId] = items;
+  const locId = getVisibleLocationId();
+  if (locId) {
+    const existing = all[activeDistrictId] || [];
+    const others = existing.filter(i => i.locationId !== locId);
+    all[activeDistrictId] = others.concat(items);
+  } else {
+    all[activeDistrictId] = items;
+  }
   saveAllItems(all);
 }
 
@@ -1288,8 +1295,15 @@ let currentUser = null;
 
 function isAdmin() { return currentUser && (currentUser.role === "admin" || currentUser.role === "devadmin" || currentUser.role === "ig"); }
 function isDevAdmin() { return currentUser && currentUser.role === "devadmin"; }
-function canEdit() { return currentUser && ["admin", "devadmin", "ig", "mhc", "station", "staff"].includes(currentUser.role); }
-function canManageItems() { return isAdmin(); }
+function canEdit() {
+  if (!currentUser) return false;
+  return ["admin", "devadmin", "ig", "mhc", "station", "staff", "post", "tsi", "user", "itstaff", "mtostaff"].includes(currentUser.role);
+}
+function canManageItems() {
+  if (!currentUser || isDevAdmin()) return false;
+  if (isAdmin()) return true;
+  return !!(currentUser.locationId && ["mhc", "station", "staff", "post", "tsi", "user", "itstaff", "mtostaff"].includes(currentUser.role));
+}
 /* ---- INVENTORY RBAC (record level) ----
    Visibility is driven by the district hierarchy; Edit/Delete is driven
    strictly by OWNERSHIP of the record: record.locationId must equal the
@@ -2591,6 +2605,10 @@ const __chgCell = condFilter ? `<td class="qty-strong">${displayQty}</td>` : (is
       } else if (itemOwnedByCurrentUser(i)) {
         btns = actDD([
           { label: "View", attrs: `data-action="view" data-id="${i.id}"` },
+          ...(canEditItem(i) ? [
+            { label: "Edit", attrs: `data-action="edit" data-id="${i.id}"` },
+            { label: "Delete", attrs: `data-action="delete" data-id="${i.id}"` }
+          ] : [])
         ]);
       } else {
         const lockTitle = __rbacLockMsg();
@@ -2859,14 +2877,16 @@ function __populateItemNameList() {
   if (!input || !menu) return;
   const categoryId = ($("#fCategory") || {}).value || "";
   input.disabled = !categoryId;
-  const allNames = [...new Set(getItems().filter(i => i.categoryId === categoryId).map(i => i.name.trim()).filter(Boolean))];
+  const ownNames = getItems().filter(i => i.categoryId === categoryId).map(i => (i.name || "").trim());
+  const distNames = getAllDistrictItems().filter(i => i.categoryId === categoryId && !i.isDeleted).map(i => (i.name || "").trim());
+  const allNames = [...new Set([...ownNames, ...distNames].filter(Boolean))];
   const q = input.value.trim().toLowerCase();
   const filtered = allNames.filter(n => !q || n.toLowerCase().includes(q)).sort((a, b) => a.localeCompare(b));
   const current = input.value.trim();
   if (current && !allNames.includes(current)) filtered.unshift(current);
   menu.innerHTML = filtered.length
     ? filtered.map(n => `<button type="button" class="cb-opt${n === current ? " cb-opt-sel" : ""}" data-name="${esc(n)}">${esc(n)}</button>`).join("")
-    : `<div class="cb-empty">No items in this category yet ? type a new name</div>`;
+    : `<div class="cb-empty">No items in this category yet — type a new name</div>`;
   Array.prototype.forEach.call(menu.querySelectorAll(".cb-opt"), b => b.addEventListener("mousedown", ev => {
     ev.preventDefault();
     input.value = b.dataset.name;
@@ -2900,15 +2920,17 @@ const cc = item ? (item.conditionCounts || { good: 0, poor: 0, damaged: 0 }) : {
   __updateItemQtyHint((cc.good || 0) + (cc.poor || 0) + (cc.damaged || 0));
 
   const locSel = $("#fLocation");
-  if (!canSeeAllLocations()) {
-    locSel.innerHTML = `<option value="${currentUser.locationId}">${esc(getLocations().find(l => l.id === currentUser.locationId)?.name || "")}</option>`;
+  if (!isAdmin()) {
+    const myLoc = getLocations().find(l => l.id === currentUser.locationId);
+    locSel.innerHTML = `<option value="${currentUser.locationId}">${esc(myLoc ? myLoc.name : (currentUser.locationId || "Your Unit"))}</option>`;
     locSel.disabled = true;
+    locSel.value = currentUser.locationId;
   } else {
     locSel.disabled = false;
     const locs = getLocations();
     locSel.innerHTML = `<option value="">Select location</option>` + __byName(locs).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
+    locSel.value = item ? item.locationId : (currentUser && currentUser.locationId ? currentUser.locationId : "");
   }
-  locSel.value = item ? item.locationId : (canSeeAllLocations() ? "" : currentUser.locationId);
   openModal("#itemModal");
   setTimeout(() => { const focusEl = item ? $("#fItemName") : $("#fCategory"); if (focusEl) focusEl.focus(); }, 50);
 }
@@ -2980,7 +3002,9 @@ function saveItem(e) {
   const categoryId = $("#fCategory").value;
   const unit = $("#fUnit").value;
   const minStock = parseInt($("#fMinStock").value, 10);
-  const locationId = $("#fLocation").value;
+  const locationId = (!isAdmin() && currentUser && currentUser.locationId)
+    ? currentUser.locationId
+    : ($("#fLocation") ? $("#fLocation").value : "");
 const good = parseInt($("#fCondGood").value, 10) || 0;
   const poor = parseInt($("#fCondPoor").value, 10) || 0;
   const damaged = parseInt($("#fCondDamaged").value, 10) || 0;
@@ -2989,7 +3013,7 @@ const good = parseInt($("#fCondGood").value, 10) || 0;
 if (!name || !categoryId || !locationId) return toast("Please fill all required fields.", "error");
   if (quantity === 0) return toast("Total quantity cannot be 0. Enter at least one condition count.", "error");
   if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
-  if (currentUser && locationId !== currentUser.locationId) {
+  if (currentUser && !isAdmin() && locationId !== currentUser.locationId) {
     return toast("You can only assign items to your own unit.", "error");
   }
 
@@ -3366,7 +3390,10 @@ function __asPopulateRowItems(row) {
     if (row.__itemCombo) row.__itemCombo.sync();
     return;
   }
-  const names = __byName([...new Set(getItems().filter(i => i.locationId === currentUser.locationId && i.categoryId === cid && !i.isDeleted).map(i => i.name))].filter(Boolean), x => x);
+  const ownItems = getItems().filter(i => (!currentUser.locationId || i.locationId === currentUser.locationId) && i.categoryId === cid && !i.isDeleted);
+  const distItems = getAllDistrictItems().filter(i => i.categoryId === cid && !i.isDeleted);
+  const combined = [...new Set([...ownItems.map(i => i.name), ...distItems.map(i => i.name)].filter(Boolean))];
+  const names = __byName(combined, x => x);
   itemSel.disabled = false;
   itemSel.innerHTML = `<option value="">Select item</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("") + `<option value="__new__">&#10133; New item...</option>`;
   if (row.__itemCombo) row.__itemCombo.sync();
@@ -3482,7 +3509,20 @@ async function saveAddStock(e) {
       updated++;
     } else {
       const cc = { good: p.qg, poor: p.qp, damaged: p.qd };
-      item = { id: uid(), name: p.name, categoryId: p.categoryId, unit: "pcs", quantity: p.qty, minStock: 5, locationId: currentUser.locationId, conditionCounts: cc, createdAt: Date.now(), updatedAt: Date.now(), history: [] };
+      const distProto = getAllDistrictItems().find(i => (i.name || "").toLowerCase() === p.name.toLowerCase() && i.categoryId === p.categoryId);
+      item = {
+        id: uid(),
+        name: p.name,
+        categoryId: p.categoryId,
+        unit: (distProto && distProto.unit) ? distProto.unit : "pcs",
+        quantity: p.qty,
+        minStock: (distProto && typeof distProto.minStock === "number") ? distProto.minStock : 5,
+        locationId: currentUser.locationId,
+        conditionCounts: cc,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        history: []
+      };
       items.push(item);
       itemHistoryPush(item, { type: "STOCK_IN", qty: p.qty, person: "", ref: "", date, time, remarks: remarks || ("New item created with opening stock +" + p.qty + __asBreakdown(p)), photos: histPhotos });
       created++;
@@ -13415,6 +13455,7 @@ function __consStockFilteredRows() {
     if (q && !((x.i.name || "").toLowerCase().includes(q) || ((cat && cat.name) || "").toLowerCase().includes(q))) return false;
     if (typeF === "distributed" && x.q.total <= 0) return false;
     if (typeF === "available" && x.q.available <= 0) return false;
+    if (!isAdmin && x.q.total <= 0) return false;
     return true;
   });
   rows.sort((a, b) => (a.i.name || "").localeCompare(b.i.name || ""));
@@ -13753,7 +13794,10 @@ function __consPopulateRowItems(row) {
     if (row.__itemCombo) row.__itemCombo.sync();
     return;
   }
-  const names = __byName([...new Set(getConsItems().filter(i => i.categoryId === cid && !i.isDeleted).map(i => i.name))].filter(Boolean), x => x);
+  const consNames = getConsItems().filter(i => i.categoryId === cid && !i.isDeleted).map(i => i.name);
+  const distNames = getAllDistrictItems().filter(i => i.categoryId === cid && !i.isDeleted).map(i => i.name);
+  const combined = [...new Set([...consNames, ...distNames].filter(Boolean))];
+  const names = __byName(combined, x => x);
   itemSel.disabled = false;
   itemSel.innerHTML = `<option value="">Select item</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("") + `<option value="__new__">&#10133; New item...</option>`;
   if (row.__itemCombo) row.__itemCombo.sync();
