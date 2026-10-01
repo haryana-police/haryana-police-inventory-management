@@ -1571,13 +1571,63 @@ if (typeof MutationObserver === "function" && document.body) {
   } catch (e) { /* fall through to the direct calls below */ }
 }
 __syncModalScrollLock();
+function returnToCatModal() {
+  const m = $("#catItemsModal");
+  if (m) {
+    m.classList.add("hidden");
+    __resetElementScrollToTop(m);
+  }
+  openCatModal();
+}
+
+function returnToConsCatModal() {
+  const m = $("#consCitModal");
+  if (m) {
+    m.classList.add("hidden");
+    __resetElementScrollToTop(m);
+  }
+  openConsCatModal();
+}
+
 /* Bulletproof modal dismissal (2026.09.90): delegated at document level so close/cancel/
    cross buttons work even if some other init code fails. Always resets scroll to top. */
 document.addEventListener("click", function (e) {
+  const citReturn = e.target.closest && (
+    e.target.closest("#citBackBtn") ||
+    e.target.closest("#citDoneBtn") ||
+    e.target.closest("#citCloseBtn") ||
+    e.target.closest("#citCloseBtnBottom")
+  );
+  if (citReturn) {
+    returnToCatModal();
+    return;
+  }
+
+  const ccitReturn = e.target.closest && (
+    e.target.closest("#ccitBackBtn") ||
+    e.target.closest("#ccitDoneBtn") ||
+    e.target.closest("#ccitCloseBtn") ||
+    e.target.closest("#ccitCloseBtnBottom")
+  );
+  if (ccitReturn) {
+    returnToConsCatModal();
+    return;
+  }
+
   const c = e.target.closest && e.target.closest("[data-close]");
-  if (c) { closeModals(); return; }
+  if (c) {
+    if (c.closest("#catItemsModal")) { returnToCatModal(); return; }
+    if (c.closest("#consCitModal")) { returnToConsCatModal(); return; }
+    closeModals();
+    return;
+  }
   const b = e.target.closest && e.target.closest(".modal-backdrop");
-  if (b && !b.classList.contains("hidden") && e.target === b) { closeModals(); return; }
+  if (b && !b.classList.contains("hidden") && e.target === b) {
+    if (b.id === "catItemsModal") { returnToCatModal(); return; }
+    if (b.id === "consCitModal") { returnToConsCatModal(); return; }
+    closeModals();
+    return;
+  }
 
   // Always reset page to top when closing or going back
   const isBackOrClose = e.target.closest && (
@@ -1595,7 +1645,15 @@ document.addEventListener("click", function (e) {
     setTimeout(__resetPageScrollToTop, 60);
   }
 });
-document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeModals(); });
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape") {
+    const cim = $("#catItemsModal");
+    if (cim && !cim.classList.contains("hidden")) { returnToCatModal(); return; }
+    const ccim = $("#consCitModal");
+    if (ccim && !ccim.classList.contains("hidden")) { returnToConsCatModal(); return; }
+    closeModals();
+  }
+});
 window.addEventListener("popstate", () => {
   __resetPageScrollToTop();
   setTimeout(__resetPageScrollToTop, 20);
@@ -3905,6 +3963,7 @@ function openCatItems(idx) {
   const addRow = $("#citAddRow");
   if (addRow) addRow.style.display = (canManageItems() && !isDevAdmin()) ? "" : "none";
   __renderCatItems(c.id);
+  $("#catModal")?.classList.add("hidden");
   openModal("#catItemsModal");
 }
 let __citOpenCatId = null;
@@ -11183,8 +11242,30 @@ if (e.target.closest("[data-ccat-edit]")) startEditConsCat(parseInt(e.target.clo
     }
   });
 
-  $$("[data-close]").forEach(btn => { btn.type = "button"; btn.addEventListener("click", closeModals); });
-  $$(".modal-backdrop").forEach(b => b.addEventListener("click", e => { if (e.target === b) closeModals(); }));
+  $$("[data-close]").forEach(btn => {
+    btn.type = "button";
+    btn.addEventListener("click", () => {
+      if (btn.closest("#catItemsModal")) { returnToCatModal(); return; }
+      if (btn.closest("#consCitModal")) { returnToConsCatModal(); return; }
+      closeModals();
+    });
+  });
+  $$(".modal-backdrop").forEach(b => b.addEventListener("click", e => {
+    if (e.target === b) {
+      if (b.id === "catItemsModal") { returnToCatModal(); return; }
+      if (b.id === "consCitModal") { returnToConsCatModal(); return; }
+      closeModals();
+    }
+  }));
+  $("#citBackBtn")?.addEventListener("click", returnToCatModal);
+  $("#citDoneBtn")?.addEventListener("click", returnToCatModal);
+  $("#citCloseBtn")?.addEventListener("click", returnToCatModal);
+  $("#citCloseBtnBottom")?.addEventListener("click", returnToCatModal);
+
+  $("#ccitBackBtn")?.addEventListener("click", returnToConsCatModal);
+  $("#ccitDoneBtn")?.addEventListener("click", returnToConsCatModal);
+  $("#ccitCloseBtn")?.addEventListener("click", returnToConsCatModal);
+  $("#ccitCloseBtnBottom")?.addEventListener("click", returnToConsCatModal);
   $("#catInput")?.addEventListener("keydown", e => { if (e.key === "Enter") addCategory(); });
 }
 
@@ -13305,6 +13386,7 @@ function openConsCatItems(idx) {
   const inp0 = $("#ccitNewName");
   if (inp0) inp0.value = "";
   __renderConsCatItems(c.id);
+  $("#consCatModal")?.classList.add("hidden");
   openModal("#consCitModal");
 }
 function __renderConsCatItems(cid) {
