@@ -1670,7 +1670,7 @@
 <h2 id="ccitTitle">Category Items</h2>
 <p class="page-subtitle" id="ccitSubtitle" style="margin-top:4px;font-size:.78rem"></p>
 </div>
-<button class="modal-close" data-close>&times;</button>
+<button type="button" class="modal-close" id="ccitCloseBtn" title="Back to Categories">&times;</button>
 </div>
 <div class="cat-add-row" id="ccitAddRow">
 <input type="text" id="ccitNewName" placeholder="New item name...">
@@ -1683,8 +1683,12 @@
 <tbody id="ccitBody"></tbody>
 </table>
 </div>
-<div class="modal-footer">
-<button type="button" class="btn btn-outline" data-close>Close</button>
+<div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center">
+<button type="button" class="btn btn-outline" id="ccitBackBtn">← Back to Categories</button>
+<div style="display:flex;gap:8px">
+<button type="button" class="btn btn-outline" id="ccitCloseBtnBottom">Close</button>
+<button type="button" class="btn btn-primary" id="ccitDoneBtn">Done</button>
+</div>
 </div>
 </div>
 </div>
@@ -1696,7 +1700,7 @@
 <h2 id="citTitle">Category Items</h2>
 <p class="page-subtitle" id="citSubtitle" style="margin-top:4px;font-size:.78rem"></p>
 </div>
-<button class="modal-close" data-close>&times;</button>
+<button type="button" class="modal-close" id="citCloseBtn" title="Back to Categories">&times;</button>
 </div>
 <div class="cat-add-row" id="citAddRow">
 <input type="text" id="citNewName" placeholder="New item name...">
@@ -1708,8 +1712,12 @@
 <tbody id="citBody"></tbody>
 </table>
 </div>
-<div class="modal-footer">
-<button type="button" class="btn btn-outline" data-close>Close</button>
+<div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center">
+<button type="button" class="btn btn-outline" id="citBackBtn">← Back to Categories</button>
+<div style="display:flex;gap:8px">
+<button type="button" class="btn btn-outline" id="citCloseBtnBottom">Close</button>
+<button type="button" class="btn btn-primary" id="citDoneBtn">Done</button>
+</div>
 </div>
 </div>
 </div>
@@ -3095,7 +3103,7 @@
 <script src="api-client.js?v=2026.09.211"></script>
   <script src="enter-to-submit.js?v=2026.09.253"></script>
   <script src="cat-multiselect.js?v=2026.09.253"></script>
-  <script src="app.js?v=2026.09.273"></script>
+  <script src="app.js?v=2026.09.274"></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
 <script src="item-profile.js?v=2026.09.260"></script>
 <script src="person-profile.js?v=2026.09.211"></script>
