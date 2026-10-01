@@ -5,7 +5,7 @@
    ============================================================ */
 "use strict";
 (function () {
-  var VERSION = "2026.09.195";
+  var VERSION = "2026.09.196";
   var VIEW_ID = "view-itemprofile";
   var PHOTOS_CAP = 20;
   var state = {
@@ -860,7 +860,7 @@
       '<div class="ip-gallery">' + list.slice().reverse().map(function (p) {
       return '<div class="ip-gal-item">' + (p.isProfile ? '<span class="ip-gal-badge">Profile</span>' : "") +
         '<img src="' + p.data + '" data-gal-view alt="photo">' +
-        '<div class="ip-gal-meta"><b>' + esc(p.name || "photo") + "</b>" + fmtDT(p.uploadedAt) + "<br>by " + esc(p.uploadedBy || "\u2014") + "</div>" +
+        '<div class="ip-gal-meta"><b>' + esc(p.name || "photo") + '</b><br><span style="font-size:.78rem;color:var(--text-muted,#64748b)">&#128197; ' + fmtDT(p.uploadedAt) + '</span><br><span style="font-size:.74rem;color:var(--text-muted,#64748b)">by ' + esc(p.uploadedBy || "\u2014") + '</span></div>' +
         (manage ? '<div class="ip-gal-actions">' +
           (p.isProfile ? "" : '<button type="button" class="btn btn-outline" data-gal-act="profile" data-gal-id="' + p.id + '">Set Profile</button>') +
           '<button type="button" class="btn btn-outline act-dd-del" data-gal-act="del" data-gal-id="' + p.id + '">Delete</button></div>' : "") +
