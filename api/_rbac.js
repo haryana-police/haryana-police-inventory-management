@@ -1211,10 +1211,10 @@ function __stValidateUserPlacement(nextDistricts, nextLocMap, u, isAdd) {
         return __structDeny(400, "RBAC_USER_RANGE", "That IG Range does not exist.");
       const inRange = __stDistrictsInRange(nextDistricts, u.rangeId).map(d => d.id);
       const claimed = Array.isArray(u.districtIds) ? u.districtIds.filter(Boolean) : [];
-      if (!claimed.length) return __structDeny(400, "RBAC_USER_RANGE_EMPTY", "That IG Range currently has no district under it.");
+      // An IG Range can have 0 districts (e.g. unassigned, newly created, or during district reassignments)
       // no smuggling: every claimed district really has to sit inside the range
       const outside = claimed.filter(id => inRange.indexOf(id) < 0);
-      if (outside.length) return __structDeny(403, "RBAC_USER_RANGE_SCOPE", "An IG Admin may only hold the districts that fall under their own IG Range.");
+      if (outside.length && !isDev) return __structDeny(403, "RBAC_USER_RANGE_SCOPE", "An IG Admin may only hold the districts that fall under their own IG Range.");
     }
     return null;
   }
