@@ -1712,8 +1712,8 @@ function handleAccessApproval(notifId, requestId, status, distId) {
 /* ==================== NAVIGATION ==================== */
 function switchTab(name) {
   $$(".sidebar-link").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
-  const manageTabs = ["manage-districts", "manage-users", "manage-igs", "dausers", "admin-locs", "admin-users"];
-  $("#manageMenuBtn")?.classList.toggle("active", manageTabs.includes(name));
+  const manageTabs = ["account-management", "manage-districts", "manage-users", "manage-igs", "dausers", "admin-locs", "admin-users"];
+  $("#accountMgmtNavBtn")?.classList.toggle("active", manageTabs.includes(name));
   $$(".view").forEach(v => v.classList.add("hidden"));
   const view = $("#view-" + name);
   if (view) {
@@ -1730,6 +1730,7 @@ function switchTab(name) {
 function render() {
   if (!currentUser) return; /* never render before login (2026.09.89) */
   if (!render.__healed) { render.__healed = true; __healStoredMojibake(); }
+  try { __syncThemeUI(); } catch (e) {}
   renderDistrictSelector();
   renderDashboard();
   renderInventory();
@@ -10937,30 +10938,15 @@ if (e.target.closest("[data-ccat-edit]")) startEditConsCat(parseInt(e.target.clo
     else if (e.target.closest("[data-del-user]")) deleteUser(e.target.closest("[data-del-user]").dataset.delUser);
   });
 
-  $("#manageMenuBtn")?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const wrap = e.currentTarget.closest(".sidebar-acc-wrap, .nav-manage-wrap");
-    const menu = $("#manageMenu");
-    if (menu) {
-      menu.classList.toggle("hidden");
-      if (wrap) wrap.classList.toggle("is-open", !menu.classList.contains("hidden"));
-    }
-  });
   document.addEventListener("click", (e) => {
-    if (!e.target.closest(".sidebar-acc-wrap, .nav-manage-wrap")) {
-      $("#manageMenu")?.classList.add("hidden");
-      document.querySelectorAll(".sidebar-acc-wrap, .nav-manage-wrap").forEach(w => w.classList.remove("is-open"));
-    }
-  });
-  $$("#manageMenu .manage-menu-item").forEach(b => b.addEventListener("click", () => {
+    const b = e.target && e.target.closest ? e.target.closest(".manage-menu-item") : null;
+    if (!b) return;
     const act = b.getAttribute("data-maction");
-    $("#manageMenu")?.classList.add("hidden");
-    document.querySelectorAll(".sidebar-acc-wrap, .nav-manage-wrap").forEach(w => w.classList.remove("is-open"));
     if (act === "districts") { if (isIg()) openIgDistricts(); else openDevDistricts(); }
     else if (act === "users") { if (isDevAdmin()) openDevUsers(); else if (isAdmin()) openAdminUsers(); else openUsersModal(); }
     else if (act === "igs") openDevIgs();
     else if (act === "locations") openAdminLocs();
-  }));
+  });
   $("#addDistrictForm").addEventListener("submit", addDistrict);
   $("#cancelDistEdit").addEventListener("click", cancelDistEdit);
   $("#addLocationBtn").addEventListener("click", addLocation);
@@ -15152,12 +15138,11 @@ function devIgDistricts(id) {
 
 // Back from an IG's districts returns to the IG list, not to the dashboard.
 function devDistrictsBack() {
-  // A logged-in IG has no IG list to go back to, so it lands on the dashboard
-  // it came from instead of a page only the Developer Admin may open.
+  // A logged-in IG has no IG list to go back to, so it lands on account-management
   if (isIg()) {
     __devPg.igDists = null;
     history.replaceState(null, "", "");
-    return switchTab("dashboard");
+    return switchTab("account-management");
   }
   if (!isDevAdmin()) return;
   if (__devPg.igDists) {
@@ -15221,7 +15206,7 @@ function openDevDistUsers(districtId) {
 }
 function __devClosePage() {
   if (location.hash && location.hash.indexOf("#dev-") === 0) history.replaceState(null, "", location.pathname + location.search);
-  switchTab("dashboard");
+  switchTab("account-management");
 }
 
 /* ==================== MANAGE DISTRICTS PAGE ==================== */
@@ -16082,7 +16067,7 @@ function bindDevAdmin() {
       __devPg.dausers = { daId: null, districtId: null, q: "", type: "" };
       if (isIg()) { history.replaceState(null, "", "#dev-ig-dists"); return switchTab("manage-districts"); }
       if (isDevAdmin()) { history.replaceState(null, "", "#dev-districts"); return switchTab("manage-districts"); }
-      return switchTab("dashboard");
+      return switchTab("account-management");
     }
     openDevUsers();
   });

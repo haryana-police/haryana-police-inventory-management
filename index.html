@@ -8,7 +8,7 @@
 <!-- Both stylesheets are versioned: without the query the browser keeps
      serving the old file from its own cache, so a CSS fix appears to do
      nothing until a hard refresh. Bump these when either file changes. -->
-<link rel="stylesheet" href="styles.css?v=2026.09.263">
+<link rel="stylesheet" href="styles.css?v=2026.09.264">
   <script>
     (function () {
       try { if (localStorage.getItem("hpi_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
@@ -183,44 +183,10 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         <span>Reports</span>
       </button>
-      <div class="sidebar-acc-wrap nav-manage-wrap" data-admin-only>
-        <button class="sidebar-link sidebar-acc-btn" id="manageMenuBtn" type="button" title="Account Management">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          <span>Account Management</span>
-          <span class="manage-caret">&#9662;</span>
-        </button>
-        <div class="sidebar-acc-sub hidden" id="manageMenu">
-          <div class="acc-box-grid">
-            <button type="button" class="acc-box-item manage-menu-item" data-maction="districts" data-dev-only data-districts-entry title="Districts">
-              <span class="acc-box-ic">&#128204;</span>
-              <span class="acc-box-lbl">Districts</span>
-            </button>
-            <button type="button" class="acc-box-item manage-menu-item" data-maction="users" data-admin-only title="Users">
-              <span class="acc-box-ic">&#128101;</span>
-              <span class="acc-box-lbl">Users</span>
-            </button>
-            <button type="button" class="acc-box-item manage-menu-item" data-maction="igs" data-dev-only title="IG Admins">
-              <span class="acc-box-ic">&#128973;</span>
-              <span class="acc-box-lbl">IG Admins</span>
-            </button>
-            <button type="button" class="acc-box-item manage-menu-item" data-maction="locations" data-admin-only title="Locations">
-              <span class="acc-box-ic">&#128205;</span>
-              <span class="acc-box-lbl">Locations</span>
-            </button>
-          </div>
-          <div class="acc-theme-box" id="accThemeToggle" role="button" tabindex="0" title="Toggle dark / light theme">
-            <div class="acc-theme-info">
-              <span class="acc-theme-title">Theme</span>
-              <span class="acc-theme-sub" id="accThemeModeText">Light Mode</span>
-            </div>
-            <div class="acc-theme-toggle-btn">
-              <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-              <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-              <span class="acc-theme-switch-pill"><span class="acc-theme-switch-dot"></span></span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <button class="sidebar-link" data-tab="account-management" id="accountMgmtNavBtn" data-admin-only title="Account Management">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Account Management</span>
+      </button>
     </nav>
 
     <div class="sidebar-footer">
@@ -250,10 +216,6 @@
         </div>
       </div>
 <div class="topbar-right">
-        <button class="theme-toggle" id="themeToggle" title="Toggle dark / light theme" aria-label="Toggle theme">
-          <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-          <svg class="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-        </button>
         <button class="lang-toggle" id="langToggleBtn" title="Switch language / भाषा बदलें" aria-label="Switch language">
           <svg class="icon-lang" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="m5 8 6 6"/>
@@ -652,6 +614,91 @@
         <div class="pager" id="pager_consDist"></div>
       </div>
       </div><!-- /consume history pane -->
+    </section>
+
+    <!-- ========== ACCOUNT MANAGEMENT VIEW ========== -->
+    <section id="view-account-management" class="view hidden">
+      <div class="page-header">
+        <div>
+          <h2>Account Management</h2>
+          <p class="section-desc" style="margin-top:4px;color:var(--text-muted, #64748b);">Manage administrative districts, user accounts, IG ranges, station locations, and display preferences.</p>
+        </div>
+      </div>
+
+      <div class="acc-mgmt-hub-grid">
+        <!-- Districts Card -->
+        <div class="acc-hub-card manage-menu-item" data-maction="districts" data-dev-only data-districts-entry role="button" tabindex="0">
+          <div class="acc-hub-card-top">
+            <div class="acc-hub-icon-wrap acc-hub-dist">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <span class="acc-hub-arrow">&#8594;</span>
+          </div>
+          <div class="acc-hub-card-content">
+            <h3 class="acc-hub-title">Districts</h3>
+            <p class="acc-hub-desc">Manage police districts, codes, headquarters, and jurisdictional coverage.</p>
+          </div>
+        </div>
+
+        <!-- Users Card -->
+        <div class="acc-hub-card manage-menu-item" data-maction="users" data-admin-only role="button" tabindex="0">
+          <div class="acc-hub-card-top">
+            <div class="acc-hub-icon-wrap acc-hub-users">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <span class="acc-hub-arrow">&#8594;</span>
+          </div>
+          <div class="acc-hub-card-content">
+            <h3 class="acc-hub-title">Users</h3>
+            <p class="acc-hub-desc">Manage system logins, roles, contact numbers, and district user accounts.</p>
+          </div>
+        </div>
+
+        <!-- IG Admins Card -->
+        <div class="acc-hub-card manage-menu-item" data-maction="igs" data-dev-only role="button" tabindex="0">
+          <div class="acc-hub-card-top">
+            <div class="acc-hub-icon-wrap acc-hub-igs">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </div>
+            <span class="acc-hub-arrow">&#8594;</span>
+          </div>
+          <div class="acc-hub-card-content">
+            <h3 class="acc-hub-title">IG Admins</h3>
+            <p class="acc-hub-desc">Manage Inspector General ranges, assigned ranges, and regional admin accounts.</p>
+          </div>
+        </div>
+
+        <!-- Locations Card -->
+        <div class="acc-hub-card manage-menu-item" data-maction="locations" data-admin-only role="button" tabindex="0">
+          <div class="acc-hub-card-top">
+            <div class="acc-hub-icon-wrap acc-hub-locs">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M15 9h6"/><path d="M15 15h6"/></svg>
+            </div>
+            <span class="acc-hub-arrow">&#8594;</span>
+          </div>
+          <div class="acc-hub-card-content">
+            <h3 class="acc-hub-title">Locations</h3>
+            <p class="acc-hub-desc">Manage police stations, MHC storehouses, traffic branches, and police posts.</p>
+          </div>
+        </div>
+
+        <!-- Theme Card -->
+        <div class="acc-hub-card acc-hub-theme-card" id="accThemeToggle" role="button" tabindex="0">
+          <div class="acc-hub-card-top">
+            <div class="acc-hub-icon-wrap acc-hub-theme">
+              <svg class="icon-sun" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+              <svg class="icon-moon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+            </div>
+            <div class="acc-theme-toggle-btn">
+              <span class="acc-theme-switch-pill"><span class="acc-theme-switch-dot"></span></span>
+            </div>
+          </div>
+          <div class="acc-hub-card-content">
+            <h3 class="acc-hub-title">Theme</h3>
+            <p class="acc-hub-desc" id="accThemeModeText">Light Mode</p>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- ========== DEV ADMIN: MANAGE DISTRICTS VIEW ========== -->
@@ -3048,7 +3095,7 @@
 <script src="api-client.js?v=2026.09.211"></script>
   <script src="enter-to-submit.js?v=2026.09.253"></script>
   <script src="cat-multiselect.js?v=2026.09.253"></script>
-  <script src="app.js?v=2026.09.271"></script>
+  <script src="app.js?v=2026.09.272"></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
 <script src="item-profile.js?v=2026.09.260"></script>
 <script src="person-profile.js?v=2026.09.211"></script>
@@ -3459,7 +3506,7 @@
     </div>
   </div>
 </div>
-<script src="mobile.js?v=2026.09.232"></script>
+<script src="mobile.js?v=2026.09.235"></script>
 </body>
 </html>
 
