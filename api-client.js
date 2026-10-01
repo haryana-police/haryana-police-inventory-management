@@ -49,7 +49,9 @@ async function __apiLoadAll() {
   // state is a map: "hp_inventory.xxx" -> value
   Object.keys(state || {}).forEach(k => { __apiCache[k] = state[k]; });
   __apiReady = true;
+  return state;
 }
+window.__apiLoadAll = __apiLoadAll;
 
 // Debounced full-state write.
 function __apiPersist() {
