@@ -590,8 +590,12 @@ function dScope(user) {
 // A photo record names its owner with an item or person id, and that id is
 // built from the district it belongs to, so the owner is found by matching the
 // id rather than by trusting a field the record does not carry.
-function dPhotoOwnerIn(key, record) {
-  if (record && typeof record === 'object' && !Array.isArray(record)) {
+function dPhotoOwnerIn(key, record, state) {
+  if (Array.isArray(record)) {
+    for (const r of record) {
+      if (r && r.districtId) return r.districtId;
+    }
+  } else if (record && typeof record === 'object') {
     if (record.districtId) return record.districtId;
     if (record.itemId) return record.itemId;
     if (record.personId) return record.personId;
@@ -602,6 +606,17 @@ function dPhotoOwnerIn(key, record) {
     if (i > 0) return s.slice(0, i);
     const m = s.match(/^gg_([a-z0-9]+)/i);
     if (m) return 'dist_' + m[1];
+  }
+  if (state && typeof state === 'object') {
+    const persons = dArr(state[D_PERSONS_KEY]);
+    const p = persons.find(x => x && (x.id === key || ('belt:' + String(x.beltNo).toUpperCase()) === key));
+    if (p && p.districtId) return p.districtId;
+
+    const itemsMap = dObj(state[D_ITEMS_KEY]);
+    for (const distId of Object.keys(itemsMap)) {
+      const list = dArr(itemsMap[distId]);
+      if (list.some(it => it && it.id === key)) return distId;
+    }
   }
   return null;
 }
@@ -662,7 +677,10 @@ function projectStateFor(user, state) {
     if (key === D_ITEM_PHOTOS_KEY || key === D_PERSON_PHOTOS_KEY) {
       const src = dObj(value);
       const bucket = {};
-      for (const k of Object.keys(src)) if (inScope(dPhotoOwnerIn(k, src[k]))) bucket[k] = src[k];
+      for (const k of Object.keys(src)) {
+        const owner = dPhotoOwnerIn(k, src[k], state);
+        if (!owner || inScope(owner)) bucket[k] = src[k];
+      }
       out[key] = bucket;
       continue;
     }
@@ -770,8 +788,13 @@ function restoreScopeFor(user, current, incoming) {
       const src = dObj(cur);
       const bucket = Object.assign({}, dObj(out[key]));
       for (const k of Object.keys(src)) {
-        if (inScope(dPhotoOwnerIn(k, src[k]))) continue;
-        bucket[k] = src[k];
+        const owner = dPhotoOwnerIn(k, src[k], current);
+        if (owner && inScope(owner)) continue;
+        if (owner && !inScope(owner)) {
+          bucket[k] = src[k];
+        } else if (!bucket[k]) {
+          bucket[k] = src[k];
+        }
       }
       out[key] = bucket;
       continue;

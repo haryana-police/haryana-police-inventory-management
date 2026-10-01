@@ -3243,13 +3243,6 @@ function __saveItemProfilePhotos(itemId, photos, meta) {
     }
   }
 
-  if (list.length > 30) {
-    const prof = list.find(x => x.isProfile);
-    const rest = list.filter(x => !x.isProfile).slice(-29);
-    map[itemId] = prof ? [prof, ...rest] : rest;
-    changed = true;
-  }
-
   if (changed) {
     if (typeof saveData === "function") saveData("itemPhotos", map);
     if (window.__ipRefresh) { try { window.__ipRefresh(); } catch (e) {} }
@@ -8836,12 +8829,6 @@ function __saveIssuePhotosToPerson(targetPerson, issueDate, issueTime, remarks, 
     };
     list.push(rec);
   });
-
-  if (list.length > 30) {
-    const prof = list.find(x => x.isProfile);
-    const rest = list.filter(x => !x.isProfile).slice(-29);
-    map[pid] = prof ? [prof, ...rest] : rest;
-  }
 
   if (targetPerson.beltNo) {
     const beltKey = "belt:" + String(targetPerson.beltNo).toUpperCase();
