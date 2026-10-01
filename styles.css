@@ -4446,35 +4446,35 @@ body.modal-open #appRoot {
    deliberate shape for a small screen, not a narrow desktop dialog.
    ================================================================== */
 .modal {
-  max-width: 520px;
-  max-height: 90vh;
+  max-width: min(650px, calc(100vw - 32px));
+  max-height: 92vh;
 }
-.modal-lg { max-width: 660px; }
-.modal-xl { max-width: 1020px; }
+.modal-lg { max-width: min(880px, calc(100vw - 32px)); }
+.modal-xl { max-width: min(1200px, calc(100vw - 32px)); }
 
 #demandDetailsModal .modal,
 #distDetailModal .modal,
-#maintDetailModal .modal { max-width: 990px; }
+#maintDetailModal .modal { max-width: min(1140px, calc(100vw - 32px)); }
 
 #demandFulfillModal .modal,
-#demandReviewModal .modal { max-width: 1020px; width: calc(100vw - 40px); }
+#demandReviewModal .modal { max-width: min(1180px, calc(100vw - 32px)); width: calc(100vw - 32px); }
 
-#consTxnModal .modal { max-width: 800px; width: calc(100vw - 40px); }
+#consTxnModal .modal { max-width: min(940px, calc(100vw - 32px)); width: calc(100vw - 32px); }
 
-#demandModal.modal-lg { max-width: 1080px; width: calc(100vw - 32px); }
+#demandModal.modal-lg { max-width: min(1200px, calc(100vw - 32px)); width: calc(100vw - 32px); }
 
-#demandActionModal .modal { max-width: 1080px; width: calc(100vw - 32px); }
+#demandActionModal .modal { max-width: min(1200px, calc(100vw - 32px)); width: calc(100vw - 32px); }
 
-#viewItemModal .modal { max-width: 780px; }
+#viewItemModal .modal { max-width: min(940px, calc(100vw - 32px)); }
 
 /* The profile and camera dialogs are not .modal - they are their own boxes -
    so they are sized here too, otherwise they would keep the old width while
    every other dialog changed. */
-.ip-modal .ip-modal-box { max-width: 720px; }
+.ip-modal .ip-modal-box { max-width: min(880px, calc(100vw - 32px)); }
 #ipTxModal .ip-modal-box,
 #ppTxModal .ip-modal-box,
-#ppEditModal .ip-modal-box { max-width: 900px; }
-.cam-modal { max-width: 800px; }
+#ppEditModal .ip-modal-box { max-width: min(1080px, calc(100vw - 32px)); }
+.cam-modal { max-width: min(940px, calc(100vw - 32px)); }
 
 /* Row count line under every table/list (app.js __updateRowCount).
    Quieter than a totals row: it is a footnote, not a sum, so it is muted and
@@ -4534,15 +4534,11 @@ body.modal-open #appRoot {
 /* ---- 1. Tables in dialogs get the width they need, then scroll.
        These are the dialogs that hold a table, sized by how many columns
        each one actually has. */
-#allocItemDetailModal .modal { max-width: min(1180px, calc(100vw - 24px)); }
-#allocPersonDetailModal .modal { max-width: min(1100px, calc(100vw - 24px)); }
-#scanHistoryModal .modal,
-#demandDetailsModal .modal,
-#viewItemModal .modal,
-#demandActionModal .modal { max-width: min(900px, calc(100vw - 24px)); }
-#distDetailModal .modal,
+#allocItemDetailModal .modal { max-width: min(1280px, calc(100vw - 20px)); }
+#allocPersonDetailModal .modal { max-width: min(1240px, calc(100vw - 20px)); }
+#scanHistoryModal .modal { max-width: min(1100px, calc(100vw - 24px)); }
 #consCitModal .modal,
-#catItemsModal .modal { max-width: min(760px, calc(100vw - 24px)); }
+#catItemsModal .modal { max-width: min(940px, calc(100vw - 24px)); }
 
 /* A table inside a dialog is allowed to be wider than the dialog and to
    scroll with it. The wrapper is the scrollport; the dialog itself is not,
