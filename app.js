@@ -551,6 +551,7 @@ function saveData(key, data) {
 
 /* ==================== SEED ==================== */
 function seedAll() {
+  if (window.CONFIG && window.CONFIG.useRemote) return;
   const SEED_VERSION = 5;
   const currentVersion = loadData("seedVersion") || 0;
   if (currentVersion < SEED_VERSION) {
@@ -688,7 +689,9 @@ function __healObjInPlace(obj) {
 
 function __healStoredMojibake() {
   try {
-    const keys = ["categories", "cons_categories", "items", "districts", "locations", "allotments", "history", "auditLog", "users"];
+    const keys = currentUser && currentUser.role === "devadmin"
+      ? ["categories", "cons_categories", "items", "districts", "locations", "allotments", "history", "auditLog", "users"]
+      : ["categories", "cons_categories", "items", "districts", "locations", "allotments", "history", "auditLog"];
     for (const key of keys) {
       const data = loadData(key);
       if (data && typeof data === "object") {
@@ -1341,6 +1344,9 @@ async function __demoLogin(username, card) {
       const rememberMe = !!$("#rememberMe") && $("#rememberMe").checked;
       setAuth({ user: currentUser, token: res.token || null }, rememberMe);
       addQuickUser({ username: currentUser.username, name: currentUser.name }, rememberMe);
+      if (window.__apiLoadAll) {
+        try { await window.__apiLoadAll(); } catch (e) { console.error("load state on login failed:", e); }
+      }
       showApp();
       return;
     }
@@ -1483,7 +1489,7 @@ window.__rbacResynced = function (err) {
   try {
     const body = err && err.body;
     const why = (body && (body.error || body.message)) || "";
-    if (why && !why.toLowerCase().includes("manage administrator accounts")) {
+    if (why && !why.toLowerCase().includes("manage administrator accounts") && !why.toLowerCase().includes("administrator role") && !why.toLowerCase().includes("developer admin")) {
       toast(why, "error");
     }
   } catch (e) { /* ignore */ }
@@ -10501,6 +10507,9 @@ async function init() {
         setActiveDistrict(activeDistrictId);
         setAuth({ user: currentUser, token: res.token || null }, rememberMe);
         addQuickUser({ username: currentUser.username, name: currentUser.name, password: $("#loginPass").value }, rememberMe);
+        if (window.__apiLoadAll) {
+          try { await window.__apiLoadAll(); } catch (e) { console.error("load state on login failed:", e); }
+        }
         showApp();
       } else {
         $("#loginError").classList.remove("hidden");

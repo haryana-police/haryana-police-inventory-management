@@ -732,7 +732,15 @@ function restoreScopeFor(user, current, incoming) {
   for (const key of Object.keys(current)) {
     const cur = current[key];
     if (key === D_USER_KEY) {
-      const held = dArr(cur).filter((u) => !inScope(u && u.districtId) && !(selfId && u && u.id === selfId));
+      if (user && user.role !== 'admin' && user.role !== 'devadmin' && user.role !== 'ig') {
+        out[key] = cur;
+        continue;
+      }
+      const held = dArr(cur).filter((u) => {
+        if (!inScope(u && u.districtId)) return true;
+        if (user && user.role !== 'devadmin' && (u.role === 'admin' || u.role === 'devadmin' || u.role === 'ig')) return true;
+        return false;
+      });
       if (held.length) out[key] = __stitchUnique(held, dArr(out[key]));
       continue;
     }
