@@ -695,6 +695,26 @@ function districtsInRange(rangeId) {
   return getDistricts().filter(function(d) { return d.rangeId === rangeId; });
 }
 function rangeNameOf(rangeId) { const r = getRangeById(rangeId); return r ? r.name : (rangeId || ""); }
+/* Synchronizes all IG Admin users' district scopes with their IG Ranges */
+function syncAllIgScopes() {
+  const users = getUsers();
+  const districts = getDistricts();
+  let changed = false;
+  users.forEach(u => {
+    if (u.role === "ig" && u.rangeId) {
+      const inRange = districts.filter(d => d.rangeId === u.rangeId).map(d => d.id);
+      const cur = Array.isArray(u.districtIds) ? u.districtIds.filter(Boolean) : [];
+      const same = cur.length === inRange.length && cur.every((id, i) => id === inRange[i]);
+      if (!same) {
+        u.districtIds = inRange.slice();
+        u.districtId = inRange.length ? inRange[0] : "";
+        changed = true;
+      }
+    }
+  });
+  if (changed) saveUsers(users);
+}
+
 
 // A user's role decides which level of the hierarchy they belong at.
 function roleHomeType(role) {
@@ -14527,7 +14547,8 @@ function renderDevIgs() {
               '<span class="ig-gap-dists">' + (rd.length
                 ? esc(rd.map(function(d) { return d.name; }).join(', '))
                 : 'no district under it yet') + '</span>' +
-              '<button type="button" class="btn btn-sm btn-dark" data-devig-new-range="' + esc(r.id) + '">Add IG Admin</button>' +
+              '<div style="display:flex;gap:6px;"><button type="button" class="btn btn-sm btn-dark" data-devig-new-range="' + esc(r.id) + '">Add IG Admin</button>' +
+              '<button type="button" class="btn btn-sm btn-red" data-devig-del-range="' + esc(r.id) + '">Delete Range</button></div>' +
             '</div>';
           }).join("") +
         '</div>'
@@ -14548,12 +14569,7 @@ function renderDevIgs() {
     const nUsers = dIds.reduce(function(n, d) { return n + allUsers.filter(x => x.districtId === d).length; }, 0);
     // An IG that still answers for a district cannot be deleted: the district would
     // be left with nobody above it until the scope is cleared first.
-    const delBlock = dIds.length
-      ? "This IG Admin still handles " + dIds.length + " district(s). Remove the districts from their scope first."
-      : "";
-    const delBtn = delBlock
-      ? '<button type="button" class="btn btn-sm btn-red" disabled title="' + esc(delBlock) + '">Delete</button>'
-      : '<button type="button" class="btn btn-sm btn-red" data-devig-del="' + esc(u.id) + '">Delete</button>';
+    const delBtn = '<button type="button" class="btn btn-sm btn-red" data-devig-del="' + esc(u.id) + '">Delete</button>';
     // The districts are shown for reference only - the way into a district is the
     // Districts button, so a name in this column is plain text, not a second door
     // into the same place that would go stale the moment the range changes.
@@ -14590,14 +14606,59 @@ function devDeleteIg(id) {
   if (!isDevAdmin()) return toast("Only Developer Admin can delete an IG Admin.", "error");
   const u = getUsers().find(x => x.id === id);
   if (!u) return;
-  const dIds = igDistrictsOf(u);
-  if (dIds.length) return toast("This IG Admin still handles " + dIds.length + " district(s). Clear their districts first, then delete.", "error");
-  if (!confirm("Delete the IG Admin \"" + u.username + "\"?")) return;
+  if (!confirm("Delete the IG Admin \"" + u.username + "\"? (The IG Range will become unstaffed; districts remain untouched)")) return;
   saveUsers(getUsers().filter(x => x.id !== id));
   __audit("IG Admin Deleted", u.name + " (" + u.username + ")", { entity: "User" });
   toast("IG Admin deleted.", "success");
   renderDevIgs();
   renderUsers();
+}
+
+function devDeleteRange(rangeId) {
+  if (!isDevAdmin()) return toast("Only Developer Admin can delete an IG Range.", "error");
+  const r = getRangeById(rangeId);
+  if (!r) return toast("IG Range not found.", "error");
+  const assignedDistricts = getDistricts().filter(d => d.rangeId === rangeId);
+  const igUser = getUsers().find(u => u.role === "ig" && u.rangeId === rangeId);
+  let promptMsg = 'Delete IG Range "' + r.name + '"?';
+  if (assignedDistricts.length) {
+    promptMsg += '\nThere are ' + assignedDistricts.length + ' district(s) under this range (' + assignedDistricts.map(d => d.name).join(", ") + '). They will remain untouched and safe, detached from any IG range.';
+  }
+  if (igUser) {
+    promptMsg += '\nThe IG Admin account "' + igUser.username + '" will also be deleted.';
+  }
+  if (!confirm(promptMsg)) return;
+
+  // 1. Districts under this IG Range remain untouched and unchanged!
+  const ds = getDistricts();
+  ds.forEach(d => {
+    if (d.rangeId === rangeId) {
+      d.rangeId = "";
+    }
+  });
+  saveDistricts(ds);
+
+  // 2. Remove IG Admin if one existed
+  if (igUser) {
+    saveUsers(getUsers().filter(u => u.id !== igUser.id));
+  } else {
+    syncAllIgScopes();
+  }
+
+  // 3. Remove IG Range from state locations
+  const allLocations = getAllLocations();
+  const hqLocs = allLocations[HQ_SCOPE_KEY] || [];
+  allLocations[HQ_SCOPE_KEY] = hqLocs.filter(l => l.id !== rangeId);
+  saveAllLocations(allLocations);
+
+  toast('IG Range "' + r.name + '" deleted. Districts remain untouched.', "success");
+  __audit("IG Range Deleted", r.name, { entity: "Location" });
+
+  renderDevIgs();
+  renderDevDistricts();
+  renderDistricts();
+  renderDistrictSelector();
+  if (typeof renderAdminLocs === "function") renderAdminLocs();
 }
 
 /* ==================== IG ADMIN FORM (form only, no user list) ==================== */
@@ -14628,7 +14689,7 @@ function readIgFormDistricts() {
 }
 
 function openIgForm(editId, presetRangeId) {
-  if (!isDevAdmin()) return toast("Only the Developer Admin can create an IG Admin.", "error");
+  if (!isDevAdmin()) return toast("Only the Developer Admin can manage IG Admins.", "error");
   const u = editId ? getUsers().find(x => x.id === editId) : null;
   if (editId && !u) return;
   if (u && u.role !== "ig") return toast("That account is not an IG Admin.", "error");
@@ -14638,21 +14699,20 @@ function openIgForm(editId, presetRangeId) {
   $("#igfPassword").value = "";
   $("#igfName").value = u ? u.name : "";
   $("#igfMobile").value = u ? u.mobile : "";
-  // The IG Range decides everything: the account is attached to it, and the
-  // districts it reaches are the ones sitting under that range.
   const ranges = getIgRanges();
   const rangeSel = $("#igfHqLoc");
   rangeSel.innerHTML = ranges.length
     ? ranges.map(function(r) { return '<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>'; }).join("")
     : '<option value="">No IG Range yet - create one in Manage Locations</option>';
   if (u && u.rangeId) rangeSel.value = u.rangeId;
-  // a range passed in by the caller wins: the "Add IG Admin" button on an unstaffed
-  // range should land on that range, not on whatever district happens to be active
   const home = (u && u.rangeId) || presetRangeId
     || (getRangeById(districtRangeId(u ? u.districtId : activeDistrictId)) || {}).id
     || (ranges[0] && ranges[0].id) || "";
   if (home) rangeSel.value = home;
-  buildIgFormDistricts(districtsInRange(home).map(function(d) { return d.id; }));
+  const currentAssigned = u && Array.isArray(u.districtIds) && u.districtIds.length
+    ? u.districtIds
+    : districtsInRange(home).map(function(d) { return d.id; });
+  buildIgFormDistricts(currentAssigned);
   __igDdOpen("igf", false);
   $("#igModalTitle").textContent = u ? "Edit IG Admin" : "Add New IG Admin";
   $("#igfSubmit").textContent = u ? "Update IG Admin" : "Add IG Admin";
@@ -14672,12 +14732,47 @@ function submitIgForm(e) {
   if (!username || !name || !mobile) return toast("Fill all required fields.", "error");
   if (!/^\d{10}$/.test(mobile)) return toast("Mobile number must be exactly 10 digits.", "error");
   if (!rangeId) return toast("Choose the IG Range this Inspector General will hold.", "error");
-  const inRange = districtsInRange(rangeId);
-  if (!inRange.length) return toast("That IG Range has no district under it yet.", "error");
-  // the reach is the range, not a hand-picked list: derive it here so the form
-  // and the server can never disagree about what this IG holds
-  const districtIds = inRange.map(function(d) { return d.id; });
-  const home = districtIds[0];
+
+  const selectedDistIds = readIgFormDistricts();
+  const allDistricts = getDistricts();
+  const newRangeName = rangeNameOf(rangeId) || "selected IG Range";
+
+  // Check each selected district if it is already in another range
+  const finalDistIds = [];
+  let distsModified = false;
+  for (const did of selectedDistIds) {
+    const d = allDistricts.find(x => x.id === did);
+    if (!d) continue;
+    if (d.rangeId && d.rangeId !== rangeId) {
+      const curRangeName = rangeNameOf(d.rangeId) || "another IG Range";
+      const ok = confirm('District "' + d.name + '" is already in ' + curRangeName + '. Still want to send it to ' + newRangeName + '?');
+      if (!ok) {
+        continue;
+      }
+      d.rangeId = rangeId;
+      distsModified = true;
+    } else if (d.rangeId !== rangeId) {
+      d.rangeId = rangeId;
+      distsModified = true;
+    }
+    finalDistIds.push(did);
+  }
+
+  // Also check if any district previously in this range was unchecked
+  const previouslyInRange = allDistricts.filter(d => d.rangeId === rangeId);
+  for (const d of previouslyInRange) {
+    if (finalDistIds.indexOf(d.id) === -1) {
+      d.rangeId = "";
+      distsModified = true;
+    }
+  }
+
+  if (distsModified) {
+    saveDistricts(allDistricts);
+  }
+
+  const districtIds = finalDistIds;
+  const home = districtIds.length ? districtIds[0] : "";
   const users = getUsers();
   if (editId) {
     const u = users.find(x => x.id === editId);
@@ -14706,9 +14801,13 @@ function submitIgForm(e) {
     toast("IG Admin added.", "success");
   }
   saveUsers(users);
+  syncAllIgScopes();
   __audit(editId ? "IG Admin Updated" : "IG Admin Created", name + " (" + districtIds.length + " district(s))", { entity: "User" });
   closeModal("#igModal");
   renderDevIgs();
+  renderDevDistricts();
+  renderDistricts();
+  renderDistrictSelector();
   renderUsers();
 }
 // Both open the IG form on its own - the user list is not part of it.
@@ -14886,6 +14985,7 @@ function renderDevDistricts() {
         '<button type="button" class="btn btn-sm btn-dark" data-devdu-users="' + d.id + '">Users</button>' +
         '<button type="button" class="btn btn-sm btn-loc" data-devdd-locs="' + d.id + '">Locations</button>' +
         '<button type="button" class="btn btn-sm btn-outline" data-devdd-edit="' + d.id + '">Edit</button>' +
+        (d.rangeId ? '<button type="button" class="btn btn-sm btn-outline" style="border-color:#f59e0b;color:#d97706;" data-devdd-detach="' + d.id + '" title="Remove from ' + esc(rangeNameOf(d.rangeId)) + '">Remove from Range</button>' : '') +
         delBtn +
       '</td></tr>';
   }).join("");
@@ -14901,13 +15001,14 @@ function openDevDistModal(editId) {
   $("#ddEditId").value = editId || "";
   $("#devDistModalTitle").textContent = editId ? "Edit District" : "Add New District";
   $("#devDistSubmit").textContent = editId ? "Update District" : "Add District";
-  // the IG Range list is data, never a fixed set
   const ranges = getIgRanges();
   const rangeSel = $("#ddRange");
   if (rangeSel) {
-    rangeSel.innerHTML = ranges.length
-      ? ranges.map(function(r) { return '<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>'; }).join("")
-      : '<option value="">No IG Range yet - create one first</option>';
+    let opts = '<option value="">-- No IG Range (Unassigned) --</option>';
+    if (ranges.length) {
+      opts += ranges.map(function(r) { return '<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>'; }).join("");
+    }
+    rangeSel.innerHTML = opts;
   }
   if (editId) {
     const d = getDistricts().find(x => x.id === editId);
@@ -14915,7 +15016,7 @@ function openDevDistModal(editId) {
     $("#ddName").value = d.name;
     $("#ddCode").value = d.code;
     $("#ddHQ").value = d.headquarters;
-    if (rangeSel && d.rangeId) rangeSel.value = d.rangeId;
+    if (rangeSel) rangeSel.value = d.rangeId || "";
   }
   openModal("#devDistModal");
   setTimeout(() => { const f = $("#ddName"); if (f) f.focus(); }, 80);
@@ -14934,10 +15035,24 @@ function saveDevDistrict(e) {
   if (!name) { errEl.textContent = "District name is required."; return; }
   if (!code) { errEl.textContent = "District code is required."; return; }
   if (!hq) { errEl.textContent = "Headquarters is required."; return; }
-  if (!rangeId) { errEl.textContent = "Choose the IG Range this district falls under."; return; }
   const districts = getDistricts();
   if (districts.some(d => d.id !== editId && d.code.toUpperCase() === code)) { errEl.textContent = "District code already exists. Codes must be unique."; return; }
   if (districts.some(d => d.id !== editId && d.name.trim().toLowerCase() === name.toLowerCase())) { errEl.textContent = "A district with this name already exists."; return; }
+
+  if (editId) {
+    const existing = districts.find(x => x.id === editId);
+    if (existing && existing.rangeId && rangeId && existing.rangeId !== rangeId) {
+      const curRangeName = rangeNameOf(existing.rangeId) || "another IG Range";
+      const newRangeName = rangeNameOf(rangeId) || "new IG Range";
+      const ok = confirm('District "' + existing.name + '" is already in ' + curRangeName + '. Still want to send it to ' + newRangeName + '?');
+      if (!ok) return;
+    } else if (existing && existing.rangeId && !rangeId) {
+      const curRangeName = rangeNameOf(existing.rangeId) || "its IG Range";
+      const ok = confirm('District "' + existing.name + '" is currently in ' + curRangeName + '. Remove it from this IG Range?');
+      if (!ok) return;
+    }
+  }
+
   const btn = $("#devDistSubmit");
   __devBtnLoading(btn, true);
   setTimeout(() => {
@@ -14946,12 +15061,12 @@ function saveDevDistrict(e) {
       if (editId) {
         const d = ds.find(x => x.id === editId);
         if (!d) { errEl.textContent = "District not found."; return; }
-        d.name = name; d.code = code; d.headquarters = hq; d.rangeId = rangeId;
+        d.name = name; d.code = code; d.headquarters = hq; d.rangeId = rangeId || "";
         toast("District updated successfully.", "success");
         __audit("District Updated", name + " (" + code + ")", { entity: "District" });
       } else {
         const newId = "dist_" + uid();
-        ds.push({ id: newId, name, code, headquarters: hq, rangeId, createdAt: Date.now() });
+        ds.push({ id: newId, name, code, headquarters: hq, rangeId: rangeId || "", createdAt: Date.now() });
         const allLocations = getAllLocations();
         const allItems = getAllItems();
         allLocations[newId] = []; allItems[newId] = [];
@@ -14960,6 +15075,7 @@ function saveDevDistrict(e) {
         __audit("District Created", name + " (" + code + ")", { entity: "District" });
       }
       saveDistricts(ds);
+      syncAllIgScopes();
       closeModals();
       renderDevDistricts();
       renderDistricts();
@@ -14968,6 +15084,23 @@ function saveDevDistrict(e) {
       __devBtnLoading(btn, false);
     }
   }, 350);
+}
+
+function devDetachDistrictRange(id) {
+  if (!isDevAdmin()) return toast("Only Developer Admin can remove districts from an IG Range.", "error");
+  const ds = getDistricts();
+  const d = ds.find(x => x.id === id);
+  if (!d) return;
+  const curRangeName = rangeNameOf(d.rangeId) || "its IG Range";
+  if (!confirm('Remove district "' + d.name + '" from ' + curRangeName + '?')) return;
+  d.rangeId = "";
+  saveDistricts(ds);
+  syncAllIgScopes();
+  toast('District "' + d.name + '" removed from ' + curRangeName + '.', "success");
+  __audit("District Range Cleared", d.name + " (" + curRangeName + ")", { entity: "District" });
+  renderDevDistricts();
+  renderDistricts();
+  renderDistrictSelector();
 }
 
 function devDeleteDistrict(id) {
@@ -15048,6 +15181,7 @@ function devDeleteLoc(locId) {
   const loc = (getAllLocations()[distId] || []).find(l => l.id === locId);
   if (!loc) return;
   if (loc.type === 'district') { toast('District HQ cannot be deleted.', 'error'); return; }
+  if (loc.type === 'igRange') { devDeleteRange(locId); return; }
   __devConfirm("Delete Location", "Are you sure you want to delete location <b>" + esc(loc.name) + "</b>?", "Delete", () => {
     try {
       const all = getAllLocations();
@@ -15369,21 +15503,44 @@ function openDevUserModal(editId, presetDistrictId) {
 
 
 /* ==================== DISTRICT ADMIN: LOCATIONS & USERS (v2026.09.136) ==================== */
-function openAdminLocs() {
-  if (!isAdmin()) return toast('Only District or Developer Admin can manage locations.', 'error');
-  const d = getDistricts().find(x => x.id === currentUser.districtId);
+function openAdminLocs(distId) {
+  if (!isAdmin() && !isDevAdmin()) return toast('Only District or Developer Admin can manage locations.', 'error');
+  const targetId = distId || (currentUser && currentUser.districtId) || activeDistrictId || (getDistricts()[0] || {}).id;
+  const d = getDistricts().find(x => x.id === targetId);
   if (!d) return toast('District not found.', 'error');
   $('#devLocModal').dataset.distId = d.id;
   $('#devLocDistName').textContent = d.name;
   const s = $('#adminLocSearch'); if (s) s.value = '';
-  __devPg.adminLocs = { q: '' };
+  __devPg.adminLocs = { q: '', distId: d.id };
   renderAdminLocs();
   history.replaceState(null, '', '#admin-locs');
   switchTab('admin-locs');
 }
 function renderAdminLocs() {
   const box = $('#adminLocList'); if (!box) return;
-  const distId = currentUser.districtId;
+  const distId = (__devPg.adminLocs && __devPg.adminLocs.distId) || ($('#devLocModal') && $('#devLocModal').dataset.distId) || (currentUser && currentUser.districtId) || activeDistrictId || (getDistricts()[0] || {}).id;
+  let distSel = document.getElementById("adminLocDistSel");
+  if (isDevAdmin()) {
+    if (!distSel) {
+      const tb = document.querySelector("#view-admin-locs .dev-toolbar");
+      if (tb) {
+        distSel = document.createElement("select");
+        distSel.id = "adminLocDistSel";
+        distSel.className = "dev-type-sel";
+        distSel.style.maxWidth = "240px";
+        tb.appendChild(distSel);
+        distSel.addEventListener("change", function() {
+          openAdminLocs(distSel.value);
+        });
+      }
+    }
+    if (distSel) {
+      distSel.innerHTML = getDistricts().map(d => '<option value="' + esc(d.id) + '"' + (d.id === distId ? ' selected' : '') + '>' + esc(d.name) + '</option>').join("");
+      distSel.style.display = "";
+    }
+  } else if (distSel) {
+    distSel.style.display = "none";
+  }
   const locs = getLocationsForDistrict(distId);
   const aq = (__devPg.adminLocs && __devPg.adminLocs.q || '').trim().toLowerCase();
   const filtered = aq ? locs.filter(l => (l.name || '').toLowerCase().indexOf(aq) !== -1 || __devLocLabel(l.type || '').toLowerCase().indexOf(aq) !== -1) : locs;
@@ -15638,6 +15795,22 @@ function bindDevAdmin() {
     on(m.search.replace('#',''), "keydown", function(e) { if (e.key === "Enter") e.preventDefault(); });
     on(m.list.replace('#',''), "change", function(e) {
       const row = e.target.closest(".ig-dd-row");
+      const c = e.target;
+      if (pre === "igf" && c && c.checked) {
+        const curDist = getDistricts().find(d => d.id === c.value);
+        const selRangeId = $("#igfHqLoc") ? $("#igfHqLoc").value : "";
+        if (curDist && curDist.rangeId && selRangeId && curDist.rangeId !== selRangeId) {
+          const curRangeName = rangeNameOf(curDist.rangeId) || "another IG Range";
+          const newRangeName = rangeNameOf(selRangeId) || "new IG Range";
+          const ok = confirm('District "' + curDist.name + '" is already in ' + curRangeName + '. Still want to send it to ' + newRangeName + '?');
+          if (!ok) {
+            c.checked = false;
+            if (row) row.classList.remove("is-on");
+            __igDdAbsorb(pre);
+            return;
+          }
+        }
+      }
       if (row) row.classList.toggle("is-on", e.target.checked);
       __igDdAbsorb(pre);
     });
@@ -15654,6 +15827,8 @@ function bindDevAdmin() {
   on("devAddIgBtn", "click", devAddIgAdmin);
   on("devIgSearch", "input", () => { __devPg.igs.q = $("#devIgSearch").value; renderDevIgs(); });
   on("view-manage-igs", "click", (e) => {
+    const dr = e.target.closest("[data-devig-del-range]");
+    if (dr) return devDeleteRange(dr.getAttribute("data-devig-del-range"));
     const nr = e.target.closest("[data-devig-new-range]");
     if (nr) return openIgForm("", nr.getAttribute("data-devig-new-range"));
     const t = e.target.closest("[data-devig-dists],[data-devig-edit],[data-devig-del]");
@@ -15689,11 +15864,12 @@ function bindDevAdmin() {
   on("devConfirmOk", "click", () => { const fn = __devConfirmFn; __devConfirmFn = null; closeModals(); if (fn) fn(); });
   on("devConfirmCancel", "click", () => { __devConfirmFn = null; closeModals(); });
   document.addEventListener("click", e => {
-    const t = e.target.closest("[data-devdd-locs],[data-devdd-edit],[data-devdd-del],[data-devdu-users],[data-devda-users],[data-devda-edit],[data-devda-del],[data-devu-edit],[data-devu-del]");
+    const t = e.target.closest("[data-devdd-locs],[data-devdd-edit],[data-devdd-del],[data-devdd-detach],[data-devdu-users],[data-devda-users],[data-devda-edit],[data-devda-del],[data-devu-edit],[data-devu-del]");
     if (!t) return;
     else if (t.hasAttribute("data-devdd-locs")) openDevLocs(t.getAttribute("data-devdd-locs"));
     else if (t.hasAttribute("data-devdu-users")) openDevDistUsers(t.getAttribute("data-devdu-users"));
     else if (t.hasAttribute("data-devdd-edit")) openDevDistModal(t.getAttribute("data-devdd-edit"));
+    else if (t.hasAttribute("data-devdd-detach")) devDetachDistrictRange(t.getAttribute("data-devdd-detach"));
     else if (t.hasAttribute("data-devdd-del")) devDeleteDistrict(t.getAttribute("data-devdd-del"));
     else if (t.hasAttribute("data-devda-users")) openDevDaUsers(t.getAttribute("data-devda-users"));
     else if (t.hasAttribute("data-devda-edit")) openDevUserModal(t.getAttribute("data-devda-edit"));
