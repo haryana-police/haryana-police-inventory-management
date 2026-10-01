@@ -8,7 +8,7 @@
 <!-- Both stylesheets are versioned: without the query the browser keeps
      serving the old file from its own cache, so a CSS fix appears to do
      nothing until a hard refresh. Bump these when either file changes. -->
-<link rel="stylesheet" href="styles.css?v=2026.09.261">
+<link rel="stylesheet" href="styles.css?v=2026.09.262">
   <script>
     (function () {
       try { if (localStorage.getItem("hpi_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
@@ -21,7 +21,7 @@
   <script src="vendor/pdfjs/pdf.min.js" defer></script>
   <script src="vendor/mammoth/mammoth.browser.min.js" defer></script>
   <script src="vendor/xlsx/xlsx.full.min.js" defer></script>
-<link rel="stylesheet" href="mobile.css?v=2026.09.233" media="all">
+<link rel="stylesheet" href="mobile.css?v=2026.09.234" media="all">
 </head>
 <body>
 
@@ -183,6 +183,19 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         <span>Reports</span>
       </button>
+      <div class="sidebar-acc-wrap nav-manage-wrap" data-admin-only>
+        <button class="sidebar-link sidebar-acc-btn" id="manageMenuBtn" type="button" title="Account Management">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Account Management</span>
+          <span class="manage-caret">&#9662;</span>
+        </button>
+        <div class="sidebar-acc-sub hidden" id="manageMenu">
+          <button type="button" class="manage-menu-item" data-maction="districts" data-dev-only data-districts-entry><span class="mm-ic">&#128204;</span>Districts</button>
+          <button type="button" class="manage-menu-item" data-maction="users" data-admin-only><span class="mm-ic">&#128101;</span>Users</button>
+          <button type="button" class="manage-menu-item" data-maction="igs" data-dev-only><span class="mm-ic">&#128973;</span>IG Admins</button>
+          <button type="button" class="manage-menu-item" data-maction="locations" data-admin-only><span class="mm-ic">&#128205;</span>Locations</button>
+        </div>
+      </div>
     </nav>
 
     <div class="sidebar-footer">
@@ -246,15 +259,6 @@
           </div>
         </div>
         <div class="user-section">
-        <div class="nav-manage-wrap" data-admin-only>
-          <button class="btn btn-sm btn-gold" id="manageMenuBtn" title="Manage">Manage <span class="manage-caret">&#9662;</span></button>
-          <div class="manage-menu hidden" id="manageMenu">
-            <button type="button" class="manage-menu-item" data-maction="districts" data-dev-only data-districts-entry><span class="mm-ic">&#128204;</span>Districts</button>
-            <button type="button" class="manage-menu-item" data-maction="users" data-admin-only><span class="mm-ic">&#128101;</span>Users</button>
-            <button type="button" class="manage-menu-item" data-maction="igs" data-dev-only><span class="mm-ic">&#128973;</span>IG Admins</button>
-            <button type="button" class="manage-menu-item" data-maction="locations" data-admin-only><span class="mm-ic">&#128205;</span>Locations</button>
-          </div>
-        </div>
           <span class="district-badge" id="districtBadge"></span>
           <div class="user-id-block">
             <span class="user-id-name" id="userDisplayName"></span>
@@ -3019,7 +3023,7 @@
 <script src="api-client.js?v=2026.09.211"></script>
   <script src="enter-to-submit.js?v=2026.09.253"></script>
   <script src="cat-multiselect.js?v=2026.09.253"></script>
-  <script src="app.js?v=2026.09.269"></script>
+  <script src="app.js?v=2026.09.270"></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
 <script src="item-profile.js?v=2026.09.260"></script>
 <script src="person-profile.js?v=2026.09.211"></script>

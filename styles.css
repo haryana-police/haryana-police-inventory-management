@@ -2158,14 +2158,33 @@ select option:checked { background: #eef2f7; }
 .bal-good { background: rgba(16, 185, 129, .12); color: #047857; border: 1px solid rgba(16, 185, 129, .28); }
 .bal-poor { background: rgba(245, 158, 11, .14); color: #92400e; border: 1px solid rgba(245, 158, 11, .3); }
 
-/* MANAGE MENU (v2026.09.139) */
-.nav-manage-wrap { position: relative; display: inline-block; }
-.manage-caret { font-size: .75rem; margin-left: 4px; }
-.manage-menu { position: absolute; right: 0; top: calc(100% + 8px); min-width: 208px; background: #ffffff; border-radius: 14px; box-shadow: 0 14px 36px rgba(15, 23, 42, .18); border: 1px solid #e2e8f0; padding: 6px; z-index: 2600; animation: mmPop .14s ease; }
-@keyframes mmPop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
-.manage-menu-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; border: 0; background: transparent; border-radius: 9px; font-weight: 600; color: #0f172a; font-size: .92rem; cursor: pointer; transition: background .12s ease; }
-.manage-menu-item:hover { background: rgba(30, 58, 92, .09); }
-.mm-ic { font-size: 1rem; }
+/* ACCOUNT MANAGEMENT SIDEBAR MENU */
+.sidebar-acc-wrap { position: relative; width: 100%; margin-top: 4px; }
+.sidebar-acc-btn { width: 100%; display: flex; align-items: center; gap: 13px; cursor: pointer; text-align: left; }
+.sidebar-acc-btn .manage-caret { margin-left: auto; font-size: .8rem; transition: transform .2s ease; opacity: .75; }
+.sidebar-acc-wrap.is-open .sidebar-acc-btn .manage-caret { transform: rotate(180deg); }
+.sidebar-acc-sub { display: flex; flex-direction: column; gap: 4px; padding: 4px 0 6px 12px; animation: mmPop .14s ease; }
+.sidebar-acc-sub.hidden { display: none !important; }
+.sidebar-acc-sub .manage-menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, .08); border-radius: 9px;
+  background: rgba(255, 255, 255, .05); color: rgba(255, 255, 255, .82);
+  font-size: .84rem; font-weight: 550; cursor: pointer; text-align: left;
+  transition: background .14s, color .14s, transform .14s, border-color .14s;
+}
+.sidebar-acc-sub .manage-menu-item:hover {
+  background: rgba(212, 168, 67, .22); border-color: rgba(212, 168, 67, .5);
+  color: #ffffff; transform: translateX(3px);
+}
+.sidebar-acc-sub .manage-menu-item .mm-ic { font-size: .95rem; flex-shrink: 0; }
+@keyframes mmPop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+#appRoot.sidebar-collapsed .sidebar-acc-btn span,
+#appRoot.sidebar-collapsed .sidebar-acc-btn .manage-caret,
+#appRoot.sidebar-collapsed .sidebar-acc-sub { display: none; }
+#appRoot.sidebar-collapsed .sidebar:hover .sidebar-acc-btn span,
+#appRoot.sidebar-collapsed .sidebar:hover .sidebar-acc-btn .manage-caret { display: inline-block; }
+#appRoot.sidebar-collapsed .sidebar:hover .sidebar-acc-sub:not(.hidden) { display: flex; }
 
 /* ADD STOCK BIG SELECTS + COLUMN HEADS + CONS ALIGN (v2026.09.140) */
 .as-row-fields select { height: 46px; font-size: 1rem; font-weight: 600; border-radius: 12px; border: 1.5px solid var(--border, #dbe2ea); padding: 0 12px; background-color: #fff; cursor: pointer; }

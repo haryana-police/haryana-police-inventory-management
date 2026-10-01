@@ -90,7 +90,7 @@
         var sb = document.getElementById("sidebar");
         if (sb && sb.contains(e.target)) {
           var hit = e.target.closest("a,button,[data-tab],[data-page],[data-dist-tab]");
-          if (hit) setTimeout(closeNav, 80);
+          if (hit && !hit.closest("#manageMenuBtn, .sidebar-acc-btn")) setTimeout(closeNav, 80);
         }
       });
 

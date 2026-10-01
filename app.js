@@ -1712,6 +1712,8 @@ function handleAccessApproval(notifId, requestId, status, distId) {
 /* ==================== NAVIGATION ==================== */
 function switchTab(name) {
   $$(".sidebar-link").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+  const manageTabs = ["manage-districts", "manage-users", "manage-igs", "dausers", "admin-locs", "admin-users"];
+  $("#manageMenuBtn")?.classList.toggle("active", manageTabs.includes(name));
   $$(".view").forEach(v => v.classList.add("hidden"));
   const view = $("#view-" + name);
   if (view) {
@@ -10935,16 +10937,30 @@ if (e.target.closest("[data-ccat-edit]")) startEditConsCat(parseInt(e.target.clo
     else if (e.target.closest("[data-del-user]")) deleteUser(e.target.closest("[data-del-user]").dataset.delUser);
   });
 
-  $("#manageMenuBtn")?.addEventListener("click", (e) => { e.stopPropagation(); $("#manageMenu")?.classList.toggle("hidden"); });
-document.addEventListener("click", (e) => { if (!e.target.closest(".nav-manage-wrap")) $("#manageMenu")?.classList.add("hidden"); });
-$$("#manageMenu .manage-menu-item").forEach(b => b.addEventListener("click", () => {
-  const act = b.getAttribute("data-maction");
-  $("#manageMenu")?.classList.add("hidden");
-  if (act === "districts") { if (isIg()) openIgDistricts(); else openDevDistricts(); }
-  else if (act === "users") { if (isDevAdmin()) openDevUsers(); else if (isAdmin()) openAdminUsers(); else openUsersModal(); }
-  else if (act === "igs") openDevIgs();
-  else if (act === "locations") openAdminLocs();
-}));
+  $("#manageMenuBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const wrap = e.currentTarget.closest(".sidebar-acc-wrap, .nav-manage-wrap");
+    const menu = $("#manageMenu");
+    if (menu) {
+      menu.classList.toggle("hidden");
+      if (wrap) wrap.classList.toggle("is-open", !menu.classList.contains("hidden"));
+    }
+  });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".sidebar-acc-wrap, .nav-manage-wrap")) {
+      $("#manageMenu")?.classList.add("hidden");
+      document.querySelectorAll(".sidebar-acc-wrap, .nav-manage-wrap").forEach(w => w.classList.remove("is-open"));
+    }
+  });
+  $$("#manageMenu .manage-menu-item").forEach(b => b.addEventListener("click", () => {
+    const act = b.getAttribute("data-maction");
+    $("#manageMenu")?.classList.add("hidden");
+    document.querySelectorAll(".sidebar-acc-wrap, .nav-manage-wrap").forEach(w => w.classList.remove("is-open"));
+    if (act === "districts") { if (isIg()) openIgDistricts(); else openDevDistricts(); }
+    else if (act === "users") { if (isDevAdmin()) openDevUsers(); else if (isAdmin()) openAdminUsers(); else openUsersModal(); }
+    else if (act === "igs") openDevIgs();
+    else if (act === "locations") openAdminLocs();
+  }));
   $("#addDistrictForm").addEventListener("submit", addDistrict);
   $("#cancelDistEdit").addEventListener("click", cancelDistEdit);
   $("#addLocationBtn").addEventListener("click", addLocation);
@@ -12998,6 +13014,7 @@ const __I18N_ITEMS = {
   "Inventory System":"इन्वेंटरी सिस्टम",
   "Manage Locations":"लोकेशन प्रबंधित करें",
   "Manage Districts":"जिले प्रबंधित करें",
+  "Account Management":"खाता प्रबंधन",
   "Manage Users":"उपयोगकर्ता प्रबंधित करें",
   "Add New District":"नया जिला जोड़ें",
   "Add District":"जिला जोड़ें",
