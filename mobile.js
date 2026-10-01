@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    mobile.js — mobile drawer + page title + responsive tables
    Additive UI only: no business logic, no data/permission changes.
    Reuses the app's EXISTING #sidebarToggle; desktop collapse is
@@ -90,7 +90,7 @@
         var sb = document.getElementById("sidebar");
         if (sb && sb.contains(e.target)) {
           var hit = e.target.closest("a,button,[data-tab],[data-page],[data-dist-tab]");
-          if (hit && !hit.closest("#manageMenuBtn, .sidebar-acc-btn")) setTimeout(closeNav, 80);
+          if (hit) setTimeout(closeNav, 80);
         }
       });
 
@@ -105,7 +105,8 @@
         items: "Items", categories: "Categories", demands: "Demands",
         transactions: "Transactions", requests: "Access Requests",
         reports: "Reports", notifications: "Notifications",
-        settings: "Settings", profile: "Profile", agent: "IMS Agent"
+        settings: "Settings", profile: "Profile", agent: "IMS Agent",
+        "account-management": "Account Management"
       };
 
       function syncTitle() {
