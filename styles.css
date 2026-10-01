@@ -1760,7 +1760,7 @@ th[data-sort-col]:focus-visible { outline: 2px solid var(--primary); outline-off
 .ip-gal-actions { display: flex; gap: 4px; padding: 6px 8px; }
 .ip-gal-actions button { flex: 1; font-size: .68rem; padding: 4px 2px; }
 .ip-item-link { color: var(--primary); font-weight: 600; text-decoration: none; cursor: pointer; border-bottom: 1px dashed transparent; }
-.ip-item-link:hover { border-bottom-color: var(--primary); }
+.ip-item-link:hover { border-bottom-color: var(--primary); text-decoration: underline; }
 #ipLightbox { position: fixed; inset: 0; background: rgba(0,0,0,.82); display: flex; align-items: center; justify-content: center; z-index: 10040; }
 #ipLightbox img { max-width: 88vw; max-height: 88vh; border-radius: 10px; box-shadow: 0 8px 40px rgba(0,0,0,.5); }
 /* Profile pages sit above standard dialogs so they never open behind one (2026.09.182/183) */
