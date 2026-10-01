@@ -1130,7 +1130,7 @@ function authorizeStructureWrites(user, prevState, nextState) {
     const code = String(d.code || "").trim().toUpperCase();
     const hq = String(d.headquarters || "").trim();
     if (w.op === "delete") {
-      const remainingUsers = nextUsers.filter(u => u && u.districtId === w.districtId);
+      const remainingUsers = nextUsers.filter(u => u && u.districtId === w.districtId && u.role !== "ig" && u.role !== "devadmin");
       if (remainingUsers.length) return __structDeny(400, "RBAC_DISTRICT_HAS_USERS", "District has users. Remove them first.");
       const locs = nextLocMap[w.districtId];
       if (Array.isArray(locs) && locs.length) return __structDeny(400, "RBAC_DISTRICT_HAS_LOCATIONS", "District has locations. Remove them first.");
@@ -1145,8 +1145,8 @@ function authorizeStructureWrites(user, prevState, nextState) {
     // A district hangs under exactly one IG Range, and that range must really
     // exist: it is what an IG Admin's reach is derived from.
     const ranges = __stHqLocations(nextState).filter(l => l && l.type === "igRange");
-    if (!w.district.rangeId) return __structDeny(400, "RBAC_DISTRICT_RANGE", "Choose the IG Range this district falls under.");
-    if (!ranges.some(r => r.id === w.district.rangeId)) return __structDeny(400, "RBAC_DISTRICT_RANGE", "That IG Range does not exist.");
+    // if (!w.district.rangeId) return __structDeny(400, "RBAC_DISTRICT_RANGE", "Choose the IG Range this district falls under.");
+    if (w.district.rangeId && !ranges.some(r => r.id === w.district.rangeId)) return __structDeny(400, "RBAC_DISTRICT_RANGE", "That IG Range does not exist.");
   }
 
   /* ---------- LOCATIONS: devadmin anywhere, district admin own district ---------- */
@@ -1171,7 +1171,7 @@ function authorizeStructureWrites(user, prevState, nextState) {
       const used = nextUsers.some(u => u && (isHq
         ? (u.locationId === w.locationId && (u.role === "devadmin" || u.rangeId === w.locationId))
         : (u.districtId === w.districtId && u.locationId === w.locationId)));
-      if (used) return __structDeny(400, "RBAC_LOC_IN_USE", "Location still has users. Reassign them first.");
+      if (used && !isDev) return __structDeny(400, "RBAC_LOC_IN_USE", "Location still has users. Reassign them first.");
       continue;
     }
     const name = String(loc.name || "").trim();
@@ -1282,9 +1282,11 @@ function __stValidateUserPlacement(nextDistricts, nextLocMap, u, isAdd) {
         // scope first, so no district is left without the IG above it. districtId
         // alone counts, because it is the IG's home district.
         if (prev.role === "ig") {
-          const scope = Array.isArray(prev.districtIds) && prev.districtIds.length ? prev.districtIds : [prev.districtId];
-          if (scope.filter(Boolean).length) {
-            return __structDeny(403, "RBAC_IG_HAS_DISTRICTS", `This IG Admin still handles ${scope.filter(Boolean).length} district(s) ("${prev.username || prev.id}"). Clear the districts first, then delete.`);
+          if (!isDev) {
+            const scope = Array.isArray(prev.districtIds) && prev.districtIds.length ? prev.districtIds : [prev.districtId];
+            if (scope.filter(Boolean).length) {
+              return __structDeny(403, "RBAC_IG_HAS_DISTRICTS", `This IG Admin still handles ${scope.filter(Boolean).length} district(s) ("${prev.username || prev.id}"). Clear the districts first, then delete.`);
+            }
           }
         }
         if (prev.role === "devadmin") {
