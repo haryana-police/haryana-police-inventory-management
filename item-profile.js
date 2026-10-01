@@ -549,6 +549,36 @@
     txs.forEach(function (t) { run += t.qty; t.balance = run; });
     return txs;
   }
+  function getCurrentActiveTab() {
+    if (window.currentTab && window.currentTab !== "itemprofile") return window.currentTab;
+    var link = document.querySelector(".sidebar-link.active[data-tab]");
+    if (link && link.dataset.tab && link.dataset.tab !== "itemprofile") return link.dataset.tab;
+    var views = document.querySelectorAll(".view:not(.hidden)");
+    for (var i = 0; i < views.length; i++) {
+      var vid = views[i].id || "";
+      if (vid.indexOf("view-") === 0 && vid !== "view-itemprofile" && vid !== "view-login") {
+        return vid.substring(5);
+      }
+    }
+    return "";
+  }
+
+  function tabTitle(tab) {
+    var map = {
+      demands: "Demands",
+      distribution: "Distributions",
+      inventory: "Inventory",
+      consumables: "Consumables",
+      dashboard: "Dashboard",
+      allotments: "Allotments",
+      inspections: "Inspections",
+      maintenance: "Maintenance",
+      documents: "Documents",
+      reports: "Reports"
+    };
+    return map[tab] || (tab ? tab.charAt(0).toUpperCase() + tab.slice(1) : "Inventory");
+  }
+
   function closeProfile() {
     var kind = state.kind;
     state.itemId = null; state.item = null; state.kind = "stock";
@@ -560,15 +590,18 @@
   window.openItemProfile = function (itemId, opts) {
     if (!user()) { toast("Please login first.", "error"); return; }
     opts = opts || {};
+    if (!state.prevTab) {
+      state.prevTab = getCurrentActiveTab() || (state.kind === "cons" ? "consumables" : "inventory");
+    }
     if (typeof closeModals === "function") {
       try { closeModals(); } catch (e) {}
     }
+    document.querySelectorAll(".modal-backdrop:not(.hidden)").forEach(function (m) {
+      try { m.classList.add("hidden"); } catch (e) {}
+    });
     document.querySelectorAll(".ip-modal, #ppTxModal, #ipTxModal").forEach(function (m) {
       try { m.remove(); } catch (e) {}
     });
-    if (!state.prevTab && typeof currentTab !== "undefined") {
-      state.prevTab = currentTab;
-    }
 
     var cons = findConsItemAnywhere(itemId);
     if (cons) {
@@ -584,7 +617,8 @@
     state.kind = "stock";
     var found = findItemAnywhere(itemId);
     if (!found) {
-      var byName = findItemOrConsByName(itemId, opts);
+      var searchName = (opts && opts.name) || itemId;
+      var byName = findItemOrConsByName(searchName, opts);
       if (byName && byName.item && byName.item.id) {
         return window.openItemProfile(byName.item.id, opts);
       }
@@ -602,9 +636,15 @@
   window.openItemProfileByName = function (name, opts) {
     if (!name) return;
     opts = opts || {};
+    if (!state.prevTab) {
+      state.prevTab = getCurrentActiveTab() || "inventory";
+    }
     if (typeof closeModals === "function") {
       try { closeModals(); } catch (e) {}
     }
+    document.querySelectorAll(".modal-backdrop:not(.hidden)").forEach(function (m) {
+      try { m.classList.add("hidden"); } catch (e) {}
+    });
     var found = findItemOrConsByName(name, opts);
     if (found && found.item && found.item.id) {
       window.openItemProfile(found.item.id, opts);
@@ -623,7 +663,7 @@
     view.innerHTML = '<div class="ip-wrap"><div class="ip-error-view">' +
       '<div class="big">&#128269;</div><h2>Item Not Found</h2>' +
       '<p style="color:var(--muted)">' + esc(msg) + "</p>" +
-      '<button type="button" class="btn btn-primary" data-ip-nav="close">Back to Items</button></div></div>';
+      '<button type="button" class="btn btn-primary" data-ip-nav="close">Back to ' + esc(tabTitle(state.prevTab)) + '</button></div></div>';
     view.onclick = function (e) { if (e.target.closest('[data-ip-nav="close"]')) closeProfile(); };
   }
 
@@ -638,7 +678,7 @@
     state.txs = state.kind === "cons" ? deriveConsTxs(item, state.districtId) : deriveTxs(item, state.districtId);
     fillHeader(item);
     var crumb = view.querySelector('.ip-breadcrumb a[data-ip-nav="close"]');
-    if (crumb) crumb.textContent = state.kind === "cons" ? "Consumables" : "Inventory";
+    if (crumb) crumb.textContent = tabTitle(state.prevTab || (state.kind === "cons" ? "consumables" : "inventory"));
     fillBody(item);
     applyFilters();
   }
@@ -1170,7 +1210,9 @@
   if (typeof _origSwitchTab === "function") {
     window.switchTab = function (name) {
       if (name !== "itemprofile") {
+        window.currentTab = name;
         if (location.hash.indexOf("#items/") === 0) history.replaceState(null, "", location.pathname + location.search);
+        state.itemId = null; state.item = null;
       }
       return _origSwitchTab.apply(this, arguments);
     };
@@ -1189,13 +1231,19 @@
     if (a) {
       e.preventDefault();
       e.stopPropagation();
+      if (!state.prevTab) {
+        state.prevTab = getCurrentActiveTab() || (state.kind === "cons" ? "consumables" : "inventory");
+      }
       if (typeof closeModals === "function") {
         try { closeModals(); } catch (err) {}
       }
+      document.querySelectorAll(".modal-backdrop:not(.hidden)").forEach(function (m) {
+        try { m.classList.add("hidden"); } catch (err) {}
+      });
       var id = a.dataset.ipId;
       var nm = a.dataset.ipName;
       var dist = a.dataset.ipDist;
-      var opts = { districtId: dist };
+      var opts = { name: nm, districtId: dist };
       if (id) {
         window.openItemProfile(id, opts);
       } else if (nm) {
@@ -1221,4 +1269,11 @@
       footer.insertBefore(btn, footer.firstChild);
     }, 800);
   });
+
+  try {
+    var distView = document.getElementById("view-distribution");
+    if (distView && !distView.classList.contains("hidden") && typeof renderDistribution === "function") {
+      renderDistribution();
+    }
+  } catch (_) {}
 })();
