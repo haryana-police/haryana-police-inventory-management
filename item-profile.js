@@ -5,14 +5,15 @@
    ============================================================ */
 "use strict";
 (function () {
-  var VERSION = "2026.09.197";
+  var VERSION = "2026.09.198";
   var VIEW_ID = "view-itemprofile";
   var state = {
     itemId: null, item: null, districtId: null,
     txs: [], view: [], page: 0, pageSize: 25,
     sortKey: "ts", sortDir: -1,
     q: "", fType: "", fCond: "", fFrom: "", fTo: "", fUnit: "",
-    built: false, photos: [], kind: "stock"
+    built: false, photos: [], kind: "stock",
+    openedFromModal: null, prevTab: null
   };
   window.__ipVersion = VERSION;
 
@@ -52,33 +53,142 @@
     try { return window.getVisibleLocationId ? getVisibleLocationId() : null; } catch (e) { return null; }
   }
 
-  /* ---------- clickable item-name links (used across app tables) ---------- */
-  function findByName(name) {
-    if (!name) return null;
-    var n = String(name).toLowerCase();
-    var items = window.getItems ? getItems() : [];
-    return items.find(function (i) { return (i.name || "").toLowerCase() === n; }) || null;
+  /* ---------- item lookup anywhere (stock & consumables across districts) ---------- */
+  function findItemAnywhere(id) {
+    if (!id) return null;
+    var districts = (window.getDistricts ? getDistricts() : []) || [];
+    for (var i = 0; i < districts.length; i++) {
+      var it = (window.getItemsForDistrict ? getItemsForDistrict(districts[i].id) : []).find(function (x) { return x && x.id === id; });
+      if (it) return { item: it, districtId: districts[i].id, kind: "stock" };
+    }
+    var all = (window.getAllItems ? getAllItems() : (loadData("items") || {}));
+    for (var d in all) {
+      var arr = all[d] || [];
+      for (var j = 0; j < arr.length; j++) {
+        if (arr[j] && arr[j].id === id) return { item: arr[j], districtId: d, kind: "stock" };
+      }
+    }
+    return null;
   }
+
+  function findConsItemAnywhere(id) {
+    if (!id) return null;
+    var map = loadData("consumable_items") || {};
+    var ids = [activeDistrictId].concat(Object.keys(map));
+    var seen = {};
+    for (var i = 0; i < ids.length; i++) {
+      var d = ids[i];
+      if (!d || seen[d]) continue;
+      seen[d] = 1;
+      var arr = map[d] || [];
+      for (var j = 0; j < arr.length; j++) {
+        if (arr[j] && arr[j].id === id) return { item: arr[j], districtId: d, kind: "cons" };
+      }
+    }
+    return null;
+  }
+
+  function findItemOrConsByName(name, hint) {
+    if (!name) return null;
+    if (hint && hint.id) {
+      var byId = findItemAnywhere(hint.id) || findConsItemAnywhere(hint.id);
+      if (byId) return byId;
+    }
+    var raw = String(name).trim();
+    var clean = raw.toLowerCase();
+    var enPart = (window.nameEnHi ? (window.nameEnHi(raw) || {}).en : "").trim().toLowerCase();
+    var hiPart = (window.nameEnHi ? (window.nameEnHi(raw) || {}).hi : "").trim().toLowerCase();
+
+    function match(item) {
+      if (!item || !item.name) return false;
+      var iname = String(item.name).trim();
+      var iclean = iname.toLowerCase();
+      if (iclean === clean) return true;
+      var iEn = (window.nameEnHi ? (window.nameEnHi(iname) || {}).en : "").trim().toLowerCase();
+      var iHi = (window.nameEnHi ? (window.nameEnHi(iname) || {}).hi : "").trim().toLowerCase();
+      if (enPart && iEn && (enPart === iEn || iclean === enPart || iEn === clean)) return true;
+      if (hiPart && iHi && (hiPart === iHi || iclean === hiPart || iHi === clean)) return true;
+      if (clean.length >= 3 && (iclean.indexOf(clean) === 0 || clean.indexOf(iclean) === 0)) return true;
+      if (enPart && enPart.length >= 3 && iEn && (iEn.indexOf(enPart) === 0 || enPart.indexOf(iEn) === 0)) return true;
+      return false;
+    }
+
+    // 1. Current district stock items (all locations first, then active location)
+    var stockCur = (window.getAllDistrictItems ? getAllDistrictItems() : [])
+      .concat(window.getItems ? getItems() : []);
+    for (var s = 0; s < stockCur.length; s++) {
+      if (match(stockCur[s])) return { item: stockCur[s], districtId: activeDistrictId, kind: "stock" };
+    }
+
+    // 2. Current district consumable items
+    var consCur = window.getConsItems ? getConsItems() : [];
+    for (var c = 0; c < consCur.length; c++) {
+      if (match(consCur[c])) return { item: consCur[c], districtId: activeDistrictId, kind: "cons" };
+    }
+
+    // 3. Hinted district
+    if (hint && hint.districtId && hint.districtId !== activeDistrictId) {
+      var dStock = window.getItemsForDistrict ? getItemsForDistrict(hint.districtId) : [];
+      for (var ds = 0; ds < dStock.length; ds++) {
+        if (match(dStock[ds])) return { item: dStock[ds], districtId: hint.districtId, kind: "stock" };
+      }
+      var cMap = loadData("consumable_items") || {};
+      var dCons = cMap[hint.districtId] || [];
+      for (var dc = 0; dc < dCons.length; dc++) {
+        if (match(dCons[dc])) return { item: dCons[dc], districtId: hint.districtId, kind: "cons" };
+      }
+    }
+
+    // 4. All districts in stock items
+    var allItems = (window.getAllItems ? getAllItems() : (loadData("items") || {}));
+    for (var dist in allItems) {
+      var arr = allItems[dist] || [];
+      for (var a = 0; a < arr.length; a++) {
+        if (match(arr[a])) return { item: arr[a], districtId: dist, kind: "stock" };
+      }
+    }
+
+    // 5. All districts in consumable items
+    var allCons = loadData("consumable_items") || {};
+    for (var cdist in allCons) {
+      var carr = allCons[cdist] || [];
+      for (var ca = 0; ca < carr.length; ca++) {
+        if (match(carr[ca])) return { item: carr[ca], districtId: cdist, kind: "cons" };
+      }
+    }
+    return null;
+  }
+
   /* Bilingual item name for table cells: English on line 1, Hindi on line 2.
      nameCell() is defined in app.js; fall back to a plain escape if it is absent. */
   function nameCellHtml(name) {
     if (window.nameCell) return window.nameCell(name);
     return esc(name);
   }
-  window.__ipLink = function (obj) {
+
+  /* ---------- clickable item-name links (used across app tables & dialogs) ---------- */
+  window.__ipLink = function (obj, hint) {
     try {
-      var it = obj && obj.id ? obj : (obj ? findByName(obj.name || obj.itemName) : null);
-      var nm = (obj && (obj.name || obj.itemName)) || (it && it.name) || "";
-      if (it && it.id) return '<a href="javascript:void(0)" class="ip-item-link" data-ip-id="' + esc(it.id) + '" title="Open Item Profile">' + nameCellHtml(nm) + "</a>";
-      return nameCellHtml(nm);
-    } catch (e) { return esc((obj && (obj.name || obj.itemName)) || ""); }
+      if (!obj) return "";
+      var id = (obj && obj.id) || (hint && hint.id) || "";
+      var nm = (obj && (obj.name || obj.itemName)) || (typeof obj === "string" ? obj : "");
+      if (!id && nm) {
+        var found = findItemOrConsByName(nm, hint);
+        if (found && found.item) { id = found.item.id; }
+      }
+      var escNm = nameCellHtml(nm);
+      var attrs = 'class="ip-item-link" title="Open Item Profile"';
+      if (id) attrs += ' data-ip-id="' + esc(id) + '"';
+      if (nm) attrs += ' data-ip-name="' + esc(nm) + '"';
+      if (hint && hint.districtId) attrs += ' data-ip-dist="' + esc(hint.districtId) + '"';
+      return '<a href="javascript:void(0)" ' + attrs + '>' + escNm + '</a>';
+    } catch (e) {
+      return esc((obj && (obj.name || obj.itemName)) || String(obj || ""));
+    }
   };
-  window.__ipLinkByName = function (name) {
-    try {
-      var it = findByName(name);
-      if (it && it.id) return '<a href="javascript:void(0)" class="ip-item-link" data-ip-id="' + esc(it.id) + '" title="Open Item Profile">' + nameCellHtml(name) + "</a>";
-    } catch (e) {}
-    return nameCellHtml(name || "");
+
+  window.__ipLinkByName = function (name, hint) {
+    return window.__ipLink({ name: name }, hint);
   };
 
   /* ---------- transaction derivation ---------- */
@@ -317,6 +427,14 @@
     if (!view) return;
     view.innerHTML =
       '<div class="ip-wrap">' +
+        '<div class="ip-overlay-header-bar">' +
+          '<button type="button" class="btn btn-outline" data-ip-nav="back" style="font-weight:600;display:inline-flex;align-items:center;gap:6px">' +
+            '&larr; Back to Dialogue Box' +
+          '</button>' +
+          '<button type="button" class="btn btn-primary" data-ip-nav="close" style="font-weight:700;display:inline-flex;align-items:center;gap:6px">' +
+            '&times; Close Profile' +
+          '</button>' +
+        '</div>' +
         '<div class="ip-topbar"><div style="flex:1;min-width:260px">' +
           '<div class="ip-breadcrumb"><a data-ip-nav="back">&larr; Back</a><span>&rsaquo;</span><a data-ip-nav="close">Inventory</a><span>&rsaquo;</span><span>Items</span><span>&rsaquo;</span><b id="ipCrumbName">\u2014</b></div>' +
           '<div class="ip-title-row"><h1 class="ip-title" id="ipTitle">\u2014</h1><span id="ipStatusBadge"></span></div>' +
@@ -440,66 +558,112 @@
     txs.forEach(function (t) { run += t.qty; t.balance = run; });
     return txs;
   }
-  function findItemAnywhere(id) {
-    var districts = getDistricts() || [];
-    for (var i = 0; i < districts.length; i++) {
-      var it = (getItemsForDistrict(districts[i].id) || []).find(function (x) { return x.id === id; });
-      if (it) return { item: it, districtId: districts[i].id };
-    }
-    return null;
-  }
   function closeProfile() {
     var kind = state.kind;
+    var fromModal = state.openedFromModal;
     state.itemId = null; state.item = null; state.kind = "stock";
-    if (location.hash.indexOf("#items/") === 0) history.replaceState(null, "", location.pathname + location.search);
-    if (window.switchTab) switchTab(kind === "cons" ? "consumables" : "inventory");
+    state.openedFromModal = null;
+    var view = document.getElementById(VIEW_ID);
+    if (view) {
+      view.classList.remove("ip-as-overlay");
+    }
+    if (location.hash.indexOf("#items/") === 0) {
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+    if (fromModal) {
+      if (view) view.classList.add("hidden");
+      return;
+    }
+    var prevTab = state.prevTab || (kind === "cons" ? "consumables" : "inventory");
+    state.prevTab = null;
+    if (window.switchTab) switchTab(prevTab);
   }
-  window.openItemProfile = function (itemId) {
+
+  window.openItemProfile = function (itemId, opts) {
     if (!user()) { toast("Please login first.", "error"); return; }
+    opts = opts || {};
+    var view = document.getElementById(VIEW_ID);
+    if (!view) return;
+
+    var anyModal = document.querySelector(".modal-backdrop:not(.hidden)");
+    var isFromModal = !!anyModal || !!opts.fromModal;
+    state.openedFromModal = isFromModal ? (anyModal || true) : null;
+    if (!state.prevTab && typeof currentTab !== "undefined") {
+      state.prevTab = currentTab;
+    }
+
+    if (isFromModal) {
+      view.classList.add("ip-as-overlay");
+      view.classList.remove("hidden");
+    }
+
     var cons = findConsItemAnywhere(itemId);
     if (cons) {
-      if (cons.districtId !== activeDistrictId) {
-        if (window.isDevAdmin && isDevAdmin() && window.setActiveDistrict) setActiveDistrict(cons.districtId);
-        else return renderError("unauthorized");
-      }
-      state.kind = "cons"; state.itemId = itemId; state.item = cons.item; state.districtId = cons.districtId;
+      state.kind = "cons";
+      state.itemId = itemId;
+      state.item = cons.item;
+      state.districtId = cons.districtId || activeDistrictId;
       state.page = 0; state.q = ""; state.fType = ""; state.fCond = ""; state.fFrom = ""; state.fTo = ""; state.fUnit = "";
       state.sortKey = "ts"; state.sortDir = -1;
       var wantC = "#items/" + itemId;
       if (location.hash !== wantC) location.hash = wantC;
-      if (window.switchTab) switchTab("itemprofile");
+      if (!isFromModal && window.switchTab) switchTab("itemprofile");
       renderAll();
+      if (isFromModal) view.scrollTop = 0;
       return;
     }
+
     state.kind = "stock";
     var found = findItemAnywhere(itemId);
-    if (!found) return renderError("notfound");
-    if (found.districtId !== activeDistrictId) {
-      if (window.isDevAdmin && isDevAdmin() && window.setActiveDistrict) setActiveDistrict(found.districtId);
-      else return renderError("unauthorized");
+    if (!found) {
+      var byName = findItemOrConsByName(itemId, opts);
+      if (byName && byName.item && byName.item.id) {
+        return window.openItemProfile(byName.item.id, opts);
+      }
+      return renderError("notfound");
     }
+
     var item = found.item;
-    if (!canViewItem(item)) return renderError("unauthorized");
-    state.itemId = itemId; state.item = item; state.districtId = found.districtId;
+    state.itemId = item.id;
+    state.item = item;
+    state.districtId = found.districtId || activeDistrictId;
     state.page = 0; state.q = ""; state.fType = ""; state.fCond = ""; state.fFrom = ""; state.fTo = ""; state.fUnit = "";
     state.sortKey = "ts"; state.sortDir = -1;
-    var want = "#items/" + itemId;
+    var want = "#items/" + item.id;
     if (location.hash !== want) location.hash = want;
-    if (window.switchTab) switchTab("itemprofile");
+    if (!isFromModal && window.switchTab) switchTab("itemprofile");
     renderAll();
+    if (isFromModal) view.scrollTop = 0;
   };
+
+  window.openItemProfileByName = function (name, opts) {
+    if (!name) return;
+    opts = opts || {};
+    var found = findItemOrConsByName(name, opts);
+    if (found && found.item && found.item.id) {
+      window.openItemProfile(found.item.id, opts);
+    } else {
+      toast("No inventory record found for: " + name, "warning");
+    }
+  };
+
   function renderError(kind) {
     state.itemId = null; state.item = null; state.built = false;
     var view = document.getElementById(VIEW_ID);
     if (!view) return;
-    if (window.switchTab) switchTab("itemprofile");
+    if (state.openedFromModal) {
+      view.classList.add("ip-as-overlay");
+      view.classList.remove("hidden");
+    } else {
+      if (window.switchTab) switchTab("itemprofile");
+    }
     var msg = kind === "unauthorized"
       ? "You do not have permission to view this item."
       : "The item you are looking for does not exist or you do not have permission to access it.";
     view.innerHTML = '<div class="ip-wrap"><div class="ip-error-view">' +
       '<div class="big">&#128269;</div><h2>Item Not Found</h2>' +
       '<p style="color:var(--muted)">' + esc(msg) + "</p>" +
-      '<button type="button" class="btn btn-primary" data-ip-nav="close">Back to Items</button></div></div>';
+      '<button type="button" class="btn btn-primary" data-ip-nav="close">Back</button></div></div>';
     view.onclick = function (e) { if (e.target.closest('[data-ip-nav="close"]')) closeProfile(); };
   }
 
@@ -1062,7 +1226,21 @@
   /* ---------- global click delegation for item-name links ---------- */
   document.addEventListener("click", function (e) {
     var a = e.target && e.target.closest ? e.target.closest(".ip-item-link") : null;
-    if (a) { e.preventDefault(); e.stopPropagation(); window.openItemProfile(a.dataset.ipId); }
+    if (a) {
+      e.preventDefault();
+      e.stopPropagation();
+      var id = a.dataset.ipId;
+      var nm = a.dataset.ipName;
+      var dist = a.dataset.ipDist;
+      var anyModal = document.querySelector(".modal-backdrop:not(.hidden)");
+      var insideModal = !!a.closest(".modal, .modal-backdrop") || !!anyModal;
+      var opts = { fromModal: insideModal, districtId: dist };
+      if (id) {
+        window.openItemProfile(id, opts);
+      } else if (nm) {
+        window.openItemProfileByName(nm, opts);
+      }
+    }
   }, true);
 
   /* ---------- "Open Full Profile" button inside existing View modal ---------- */
