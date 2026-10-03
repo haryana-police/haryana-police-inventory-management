@@ -483,7 +483,7 @@ function __statHeadHtml(cols) {
 /* Which table belongs to which sort key, matched through the tbody id (unique
    per table in index.html). A table may also carry data-sort-table="key". */
 const __SORT_BODY_KEYS = {
-  inventoryBody: "inv", demandBody: "dem", inspBody: "insp",
+  inventoryBody: "inv", demandBody: "dem", inspBody: "insp", shramTableBody: "shram",
   allocBody: "alloc", allocRetBody: "allocRet", lowStockBody: "dashLow",
   statDetailBody: "statDetail"
 };
@@ -4745,7 +4745,7 @@ function deleteInspection(id) {
   render();
 }
 
-/* ==================== SHRAM DAAN ==================== */
+/* ==================== SHRAMDAAN ==================== */
 let __shramPhotos = [];
 let __shramActiveTab = "history";
 let __shramStatFilter = "all";
@@ -4762,7 +4762,7 @@ function saveShramDaanList(list) {
   saveData(`shramdaan_${activeDistrictId}`, list);
 }
 
-function seedShramDaan(districtId) {
+function seedShramDaan(districtId, forceSave) {
   const d = getDistricts().find(x => x.id === districtId);
   const distName = d ? d.name : "District";
   const locs = typeof getLocationsForDistrict === "function" ? getLocationsForDistrict(districtId) : getLocations();
@@ -4788,7 +4788,7 @@ function seedShramDaan(districtId) {
       <text x="400" y="270" font-family="'Segoe UI', Arial, sans-serif" font-size="26" font-weight="bold" fill="#ffffff" text-anchor="middle">${typeText}</text>
       <text x="400" y="300" font-family="'Segoe UI', Arial, sans-serif" font-size="15" fill="rgba(255,255,255,0.85)" text-anchor="middle">Haryana Police \u00b7 Community &amp; Cleanliness Drive</text>
       <rect x="25" y="405" width="750" height="72" rx="6" fill="rgba(0,0,0,0.82)" stroke="#d4af37" stroke-width="2"/>
-      <text x="40" y="430" font-family="monospace" font-size="13" font-weight="bold" fill="#d4af37">\u25c6 HARYANA POLICE - SHRAM DAAN DRIVE</text>
+      <text x="40" y="430" font-family="monospace" font-size="13" font-weight="bold" fill="#d4af37">&#x25C6; HARYANA POLICE - SHRAMDAAN DRIVE</text>
       <text x="40" y="449" font-family="monospace" font-size="12" fill="#ffffff">DATE: ${dateText} | UNIT: ${locText}</text>
       <text x="40" y="467" font-family="monospace" font-size="11.5" fill="#93c5fd">CONDUCTED BY: ${officerText}</text>
     </svg>`;
@@ -4883,7 +4883,9 @@ function seedShramDaan(districtId) {
     }
   ];
 
-  saveData(`shramdaan_${districtId}`, sampleDrives);
+  if (forceSave || !(window.CONFIG && window.CONFIG.useRemote)) {
+    saveData(`shramdaan_${districtId}`, sampleDrives);
+  }
   return sampleDrives;
 }
 
@@ -4928,7 +4930,7 @@ function renderShramDaan() {
 
   let all = getShramDaanList();
   if (!all.length && activeDistrictId) {
-    all = seedShramDaan(activeDistrictId);
+    all = seedShramDaan(activeDistrictId, false);
   }
 
   // Populate Location filter if needed
@@ -5019,7 +5021,7 @@ function renderShramDaan() {
         `;
       }).join("");
     } else {
-      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted);">No Shram Daan records found. Click "+ Record Shram Daan" to add one.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted);">No Shramdaan records found. Click "+ Record Shramdaan" to add one.</td></tr>`;
     }
     renderPager("shram", filtered.length, renderShramDaan);
   }
@@ -5074,7 +5076,7 @@ function renderShramDaan() {
         `;
       }).join("");
     } else {
-      galleryGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:var(--text-muted);">No photos uploaded yet. When you record a Shram Daan drive with camera or file uploads, the stamped photos will appear here in the gallery.</div>`;
+      galleryGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:var(--text-muted);">No photos uploaded yet. When you record a Shramdaan drive with camera or file uploads, the stamped photos will appear here in the gallery.</div>`;
     }
   }
 }
@@ -5105,7 +5107,7 @@ function __shramStampPhoto(photo, cb) {
       const locEl = $("#shramLocation");
       const unitStr = locEl && locEl.selectedIndex >= 0 ? locEl.options[locEl.selectedIndex].text : "";
 
-      const stampLine1 = "◆ HARYANA POLICE - SHRAM DAAN DRIVE";
+      const stampLine1 = "HARYANA POLICE - SHRAMDAAN DRIVE";
       const stampLine2 = "DATE: " + dateStr + " " + timeStr + (unitStr ? " | " + unitStr : "") + " | BY: " + officerStr;
 
       const line1W = ctx.measureText(stampLine1).width;
@@ -5281,8 +5283,8 @@ async function saveShramDaanEntry(e) {
   list.unshift(newEntry);
   saveShramDaanList(list);
 
-  __audit("Shram Daan Recorded", `${labels[workType]} at ${locationName} by ${officerName}`, { entity: "ShramDaan" });
-  toast("Shram Daan drive recorded successfully with verified timestamp!", "success");
+  __audit("Shramdaan Recorded", `${labels[workType]} at ${locationName} by ${officerName}`, { entity: "Shramdaan" });
+  toast("Shramdaan drive recorded successfully with verified timestamp!", "success");
   closeModals();
   renderShramDaan();
 }
@@ -5391,7 +5393,7 @@ function printShramSlip(id) {
   w.document.write(`
     <html>
       <head>
-        <title>Shram Daan Slip - Haryana Police</title>
+        <title>Shramdaan Slip - Haryana Police</title>
         <style>
           body { font-family: 'Segoe UI', Arial, sans-serif; padding: 24px; color: #1e293b; }
           .header { text-align: center; border-bottom: 2px solid #1e3a5f; padding-bottom: 12px; margin-bottom: 16px; }
@@ -5407,7 +5409,7 @@ function printShramSlip(id) {
       </head>
       <body>
         <div class="header">
-          <div class="title">HARYANA POLICE \u00b7 SHRAM DAAN DRIVE SLIP</div>
+          <div class="title">HARYANA POLICE \u00b7 SHRAMDAAN DRIVE SLIP</div>
           <div class="subtitle">${esc(dist ? dist.name : 'Haryana Police')} \u00b7 Community &amp; Cleanliness Activity Record</div>
         </div>
         <table>
@@ -5433,10 +5435,10 @@ function printShramSlip(id) {
 }
 
 function deleteShramDaan(id) {
-  if (!confirm("Are you sure you want to delete this Shram Daan drive record?")) return;
+  if (!confirm("Are you sure you want to delete this Shramdaan drive record?")) return;
   const list = getShramDaanList().filter(d => d.id !== id);
   saveShramDaanList(list);
-  toast("Shram Daan drive record deleted.", "success");
+  toast("Shramdaan drive record deleted.", "success");
   renderShramDaan();
 }
 
@@ -5453,7 +5455,7 @@ function __shramExportData() {
   ]);
   const dist = getDistricts().find(x => x.id === activeDistrictId);
   return {
-    title: "Shram Daan Activity Report",
+    title: "Shramdaan Activity Report",
     subtitle: (dist ? dist.name + " \u00b7 " : "") + "Generated " + new Date().toLocaleString() + " (" + rows.length + " drive" + (rows.length === 1 ? "" : "s") + ")",
     cols: ["Date & Time", "Work Type", "Description / Work Done", "Location / Unit", "Conducted By", "Participants", "Photos"],
     rows,
@@ -5466,108 +5468,125 @@ function exportShramExcel() { excelReport(__shramExportData()); toast("Excel exp
 function exportShramWord() { wordReport(__shramExportData()); toast("Word document exported.", "success"); }
 function exportShramPDF() { pdfReport(__shramExportData()); toast("PDF exported.", "success"); }
 
-/* Setup Shram Daan Listeners */
+/* Setup Shramdaan Listeners (Delegated on document for 100% reliability) */
 function initShramDaanListeners() {
-  $("#newShramDaanBtn")?.addEventListener("click", openShramDaanModal);
-  $("#shramDaanForm")?.addEventListener("submit", saveShramDaanEntry);
+  if (initShramDaanListeners.__done) return;
+  initShramDaanListeners.__done = true;
 
-  $("#shramTabHistoryBtn")?.addEventListener("click", () => {
-    __shramActiveTab = "history";
-    $("#shramTabHistoryBtn")?.classList.add("btn-primary");
-    $("#shramTabHistoryBtn")?.classList.remove("btn-outline");
-    $("#shramTabGalleryBtn")?.classList.remove("btn-primary");
-    $("#shramTabGalleryBtn")?.classList.add("btn-outline");
-    $("#shramHistoryPane")?.classList.remove("hidden");
-    $("#shramGalleryPane")?.classList.add("hidden");
-  });
+  // Global delegated click handler
+  document.addEventListener("click", e => {
+    // 1. Sidebar tab navigation (makes sure sidebar link click ALWAYS works)
+    const sidebarBtn = e.target.closest(".sidebar-link");
+    if (sidebarBtn && sidebarBtn.dataset.tab) {
+      switchTab(sidebarBtn.dataset.tab);
+      return;
+    }
 
-  $("#shramTabGalleryBtn")?.addEventListener("click", () => {
-    __shramActiveTab = "gallery";
-    $("#shramTabGalleryBtn")?.classList.add("btn-primary");
-    $("#shramTabGalleryBtn")?.classList.remove("btn-outline");
-    $("#shramTabHistoryBtn")?.classList.remove("btn-primary");
-    $("#shramTabHistoryBtn")?.classList.add("btn-outline");
-    $("#shramGalleryPane")?.classList.remove("hidden");
-    $("#shramHistoryPane")?.classList.add("hidden");
-  });
+    // 2. New Shramdaan Button
+    if (e.target.closest("#newShramDaanBtn")) {
+      openShramDaanModal();
+      return;
+    }
 
-  $("#shramSearch")?.addEventListener("input", renderShramDaan);
-  $("#shramTypeFilter")?.addEventListener("change", () => {
-    __shramStatFilter = $("#shramTypeFilter").value || "all";
-    renderShramDaan();
-  });
-  $("#shramLocationFilter")?.addEventListener("change", renderShramDaan);
-  $("#shramDateFrom")?.addEventListener("change", renderShramDaan);
-  $("#shramDateTo")?.addEventListener("change", renderShramDaan);
+    // 3. Tab Buttons (History vs Gallery)
+    if (e.target.closest("#shramTabHistoryBtn")) {
+      __shramActiveTab = "history";
+      const hBtn = $("#shramTabHistoryBtn");
+      const gBtn = $("#shramTabGalleryBtn");
+      if (hBtn) { hBtn.classList.add("btn-primary"); hBtn.classList.remove("btn-outline"); }
+      if (gBtn) { gBtn.classList.remove("btn-primary"); gBtn.classList.add("btn-outline"); }
+      $("#shramHistoryPane")?.classList.remove("hidden");
+      $("#shramGalleryPane")?.classList.add("hidden");
+      return;
+    }
 
-  $("#shramClearFilterBtn")?.addEventListener("click", () => {
-    const s = $("#shramSearch"); if (s) s.value = "";
-    const t = $("#shramTypeFilter"); if (t) t.value = "";
-    const l = $("#shramLocationFilter"); if (l) l.value = "";
-    const df = $("#shramDateFrom"); if (df) df.value = "";
-    const dt = $("#shramDateTo"); if (dt) dt.value = "";
-    __shramStatFilter = "all";
-    renderShramDaan();
-  });
+    if (e.target.closest("#shramTabGalleryBtn")) {
+      __shramActiveTab = "gallery";
+      const hBtn = $("#shramTabHistoryBtn");
+      const gBtn = $("#shramTabGalleryBtn");
+      if (gBtn) { gBtn.classList.add("btn-primary"); gBtn.classList.remove("btn-outline"); }
+      if (hBtn) { hBtn.classList.remove("btn-primary"); hBtn.classList.add("btn-outline"); }
+      $("#shramGalleryPane")?.classList.remove("hidden");
+      $("#shramHistoryPane")?.classList.add("hidden");
+      return;
+    }
 
-  $$("#shramStats .stat-card").forEach(c => {
-    c.addEventListener("click", () => {
-      const f = c.dataset.shramFilter || "all";
+    // 4. Clear filter button
+    if (e.target.closest("#shramClearFilterBtn")) {
+      const s = $("#shramSearch"); if (s) s.value = "";
+      const t = $("#shramTypeFilter"); if (t) t.value = "";
+      const l = $("#shramLocationFilter"); if (l) l.value = "";
+      const df = $("#shramDateFrom"); if (df) df.value = "";
+      const dt = $("#shramDateTo"); if (dt) dt.value = "";
+      __shramStatFilter = "all";
+      renderShramDaan();
+      return;
+    }
+
+    // 5. Stat card filter
+    const statCard = e.target.closest("#shramStats .stat-card");
+    if (statCard) {
+      const f = statCard.dataset.shramFilter || "all";
       __shramStatFilter = f;
       const tf = $("#shramTypeFilter");
       if (tf) tf.value = f === "all" ? "" : f;
       renderShramDaan();
-    });
-  });
-
-  $("#shramWorkType")?.addEventListener("change", e => {
-    const val = e.target.value;
-    const wrap = $("#shramCustomTypeWrap");
-    if (wrap) {
-      if (val === "other") wrap.classList.remove("hidden");
-      else wrap.classList.add("hidden");
+      return;
     }
-  });
 
-  $("#shramPhotoUploadBtn")?.addEventListener("click", () => {
-    $("#shramFileInput")?.click();
-  });
+    // 6. Photo upload button
+    if (e.target.closest("#shramPhotoUploadBtn")) {
+      $("#shramFileInput")?.click();
+      return;
+    }
 
-  $("#shramFileInput")?.addEventListener("change", e => {
-    const files = e.target.files;
-    if (!files || !files.length) return;
-    Array.from(files).forEach(f => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        __shramAddPhoto({
-          id: uid(),
-          name: f.name,
-          mime: f.type || "image/jpeg",
-          size: f.size,
-          dataUrl: String(reader.result),
-          stamped: false
-        });
-      };
-      reader.readAsDataURL(f);
-    });
-    e.target.value = "";
-  });
+    // 7. Camera button
+    if (e.target.closest("#shramPhotoCameraBtn")) {
+      openCam("shramdaan");
+      return;
+    }
 
-  $("#shramPhotoCameraBtn")?.addEventListener("click", () => {
-    openCam("shramdaan");
-  });
-
-  $("#shramPhotoPreviews")?.addEventListener("click", e => {
+    // 8. Remove photo preview button
     const rm = e.target.closest(".shram-thumb-remove");
     if (rm && rm.dataset.removeIdx !== undefined) {
       const idx = Number(rm.dataset.removeIdx);
       __shramPhotos.splice(idx, 1);
       __shramRenderPhotoPreviews();
       toast("Photo removed.", "info");
+      return;
     }
-  });
 
-  document.addEventListener("click", e => {
+    // 9. Lightbox close
+    if (e.target.closest("#shramLightboxCloseBtn")) {
+      closeModal("#shramLightboxModal");
+      return;
+    }
+
+    // 10. Print slip button in detail modal
+    if (e.target.closest("#shramPrintSlipBtn")) {
+      if (__shramDetailId) printShramSlip(__shramDetailId);
+      return;
+    }
+
+    // 11. Export menu toggle & items
+    if (e.target.closest("#shramExportBtn")) {
+      e.stopPropagation();
+      $("#shramExportMenu")?.classList.toggle("hidden");
+      return;
+    }
+
+    const expBtn = e.target.closest("#shramExportMenu [data-export]");
+    if (expBtn) {
+      $("#shramExportMenu")?.classList.add("hidden");
+      const t = expBtn.dataset.export;
+      if (t === "print") printShramReport();
+      else if (t === "pdf") exportShramPDF();
+      else if (t === "excel") exportShramExcel();
+      else if (t === "word") exportShramWord();
+      return;
+    }
+
+    // 12. Table actions: View, Print, Delete
     const viewBtn = e.target.closest("[data-shram-action='view']");
     if (viewBtn) { openShramDaanDetailModal(viewBtn.dataset.id); return; }
 
@@ -5577,6 +5596,7 @@ function initShramDaanListeners() {
     const delBtn = e.target.closest("[data-shram-action='delete']");
     if (delBtn) { deleteShramDaan(delBtn.dataset.id); return; }
 
+    // 13. Image thumbnail click -> Lightbox
     const imgEl = e.target.closest("[data-shram-img-id]");
     if (imgEl) {
       const driveId = imgEl.dataset.shramImgId;
@@ -5586,31 +5606,59 @@ function initShramDaanListeners() {
     }
   });
 
-  $("#shramLightboxCloseBtn")?.addEventListener("click", () => {
-    closeModal("#shramLightboxModal");
+  // Delegated change/input handlers
+  document.addEventListener("input", e => {
+    if (e.target && e.target.id === "shramSearch") renderShramDaan();
   });
 
-  $("#shramPrintSlipBtn")?.addEventListener("click", () => {
-    if (__shramDetailId) printShramSlip(__shramDetailId);
+  document.addEventListener("change", e => {
+    if (!e.target) return;
+    if (e.target.id === "shramTypeFilter") {
+      __shramStatFilter = e.target.value || "all";
+      renderShramDaan();
+    } else if (e.target.id === "shramLocationFilter" || e.target.id === "shramDateFrom" || e.target.id === "shramDateTo") {
+      renderShramDaan();
+    } else if (e.target.id === "shramWorkType") {
+      const val = e.target.value;
+      const wrap = $("#shramCustomTypeWrap");
+      if (wrap) {
+        if (val === "other") wrap.classList.remove("hidden");
+        else wrap.classList.add("hidden");
+      }
+    } else if (e.target.id === "shramFileInput") {
+      const files = e.target.files;
+      if (!files || !files.length) return;
+      Array.from(files).forEach(f => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          __shramAddPhoto({
+            id: uid(),
+            name: f.name,
+            mime: f.type || "image/jpeg",
+            size: f.size,
+            dataUrl: String(reader.result),
+            stamped: false
+          });
+        };
+        reader.readAsDataURL(f);
+      });
+      e.target.value = "";
+    }
   });
 
-  $("#shramExportBtn")?.addEventListener("click", e => {
-    e.stopPropagation();
-    $("#shramExportMenu")?.classList.toggle("hidden");
-  });
-
-  $$("#shramExportMenu [data-export]").forEach(b => {
-    b.addEventListener("click", () => {
-      $("#shramExportMenu")?.classList.add("hidden");
-      const t = b.dataset.export;
-      if (t === "print") printShramReport();
-      else if (t === "pdf") exportShramPDF();
-      else if (t === "excel") exportShramExcel();
-      else if (t === "word") exportShramWord();
-    });
+  document.addEventListener("submit", e => {
+    if (e.target && e.target.id === "shramDaanForm") {
+      saveShramDaanEntry(e);
+    }
   });
 }
-document.addEventListener("DOMContentLoaded", initShramDaanListeners);
+
+// Run listeners immediately if DOM is ready, and on DOMContentLoaded
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initShramDaanListeners);
+} else {
+  initShramDaanListeners();
+}
 function getDemands() {
   if (!activeDistrictId) return [];
   return loadData(`demands_${activeDistrictId}`) || [];
