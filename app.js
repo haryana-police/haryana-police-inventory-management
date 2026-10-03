@@ -3320,7 +3320,9 @@ function __saveItemProfilePhotos(itemId, photos, meta) {
   let uploadTs = Date.now();
   if (meta && meta.date) {
     try {
-      const parsed = new Date(meta.date + "T" + (meta.time || "00:00") + ":00").getTime();
+      const dStr = meta.date;
+      const tStr = meta.time || "00:00:00";
+      const parsed = Date.parse(dStr + " " + tStr) || Date.parse(dStr) || Date.now();
       if (!isNaN(parsed) && parsed > 0) uploadTs = parsed;
     } catch (e) {}
   }
@@ -3332,7 +3334,7 @@ function __saveItemProfilePhotos(itemId, photos, meta) {
     if (!list.some(x => (x.name === ph.name && x.size === ph.size) || x.data === ph.dataUrl)) {
       let photoName = ph.name || "photo.jpg";
       if (meta && meta.label && (!ph.name || ph.name.startsWith("camera-"))) {
-        photoName = meta.label + (meta.date ? (" (" + meta.date + ")") : "");
+        photoName = meta.label + (meta.date ? (" (" + meta.date + (meta.time ? " " + meta.time : "") + ")") : "");
       }
       list.push({
         id: ph.id || uid(),
@@ -3341,6 +3343,8 @@ function __saveItemProfilePhotos(itemId, photos, meta) {
         size: ph.size || 0,
         uploadedBy: currentUser ? (currentUser.name || currentUser.username) : "",
         uploadedAt: uploadTs,
+        date: meta && meta.date ? meta.date : todayStr(),
+        time: meta && meta.time ? meta.time : nowTimeStr(),
         isProfile: list.length === 0,
         source: meta && meta.source ? meta.source : undefined,
         sourceDetails: meta ? { date: meta.date || todayStr(), time: meta.time || nowTimeStr(), label: meta.label || "" } : undefined
@@ -3779,6 +3783,17 @@ function openAddStockModal(preset) {
       }
       if (row.__catCombo) row.__catCombo.sync();
       if (row.__itemCombo) row.__itemCombo.sync();
+      if (preset.unit) {
+        const uSel = row.querySelector(".as-row-unit");
+        if (uSel) {
+          const hit = Array.from(uSel.options).find(o => o.value.toLowerCase() === String(preset.unit).toLowerCase());
+          if (hit) uSel.value = hit.value; else uSel.value = preset.unit;
+        }
+      }
+      if (preset.minStock !== undefined && preset.minStock !== null) {
+        const mInp = row.querySelector(".as-row-min");
+        if (mInp) mInp.value = preset.minStock;
+      }
     }
   }
   $("#asDate").value = todayStr();
@@ -3791,7 +3806,15 @@ function addAsRow() {
   const key = "k" + (++__asSeq);
   box.insertAdjacentHTML("beforeend", __asRowHtml(key));
   const row = box.querySelector(`.as-item-row[data-key="${key}"]`);
-  if (row) __initRowCombos(row);
+  if (row) {
+    __initRowCombos(row);
+    const minInp = row.querySelector(".as-row-min");
+    if (minInp) {
+      minInp.addEventListener("focus", () => {
+        if (typeof minInp.showPicker === "function") try { minInp.showPicker(); } catch(e){}
+      });
+    }
+  }
 }
 function __asRowHtml(key) {
   const cats = getCategories();
@@ -3801,6 +3824,16 @@ function __asRowHtml(key) {
       <div class="as-item-wrap">
         <select class="as-row-item" disabled><option value="">Select a category first...</option></select>
         <input type="text" class="as-row-newname hidden" placeholder="New item name..." autocomplete="off">
+      </div>
+      <select class="as-row-unit" title="Unit">
+        <option value="pcs" selected>Pieces (pcs)</option>
+        <option value="kg">Kilograms (kgs)</option>
+        <option value="liters">Litres</option>
+        <option value="boxes">Boxes (boxs)</option>
+        <option value="sets">Sets</option>
+      </select>
+      <div class="as-min-wrap" title="Minimum Stock Alert">
+        <input type="text" inputmode="numeric" pattern="[0-9]*" class="as-row-min" list="asMinStockList" placeholder="Min Qty" value="5" title="Minimum Stock Alert">
       </div>
       <div class="as-cond-qtys">
         <span class="as-cq"><input type="number" class="as-row-qty-good" placeholder="Good" min="0" value=""></span>
@@ -3879,14 +3912,37 @@ function __asRowsChange(e) {
   if (e.target.classList.contains("as-row-cat")) { __asPopulateRowItems(row); return; }
   if (e.target.classList.contains("as-row-item")) {
     const newName = row.querySelector(".as-row-newname");
+    const unitSel = row.querySelector(".as-row-unit");
+    const minInp = row.querySelector(".as-row-min");
     if ((e.target.value || "") === "__new__") {
       newName.classList.remove("hidden");
       if (row.__itemCombo && row.__itemCombo.lastTyped && row.__itemCombo.lastTyped !== "➕ New item...") {
         newName.value = row.__itemCombo.lastTyped;
       }
       newName.focus();
+    } else {
+      newName.classList.add("hidden");
+      newName.value = "";
+      const val = (e.target.value || "").trim();
+      if (val) {
+        const it = getItems().find(i => (i.name || "").toLowerCase() === val.toLowerCase() && !i.isDeleted)
+          || getAllDistrictItems().find(i => (i.name || "").toLowerCase() === val.toLowerCase() && !i.isDeleted);
+        if (it) {
+          if (unitSel && it.unit) {
+            const hit = Array.from(unitSel.options).find(o => o.value.toLowerCase() === String(it.unit).toLowerCase());
+            if (hit) unitSel.value = hit.value;
+            else {
+              const opt = document.createElement("option");
+              opt.value = it.unit; opt.textContent = it.unit; opt.selected = true;
+              unitSel.appendChild(opt);
+            }
+          }
+          if (minInp && it.minStock !== undefined && it.minStock !== null) {
+            minInp.value = it.minStock;
+          }
+        }
+      }
     }
-    else { newName.classList.add("hidden"); newName.value = ""; }
     return;
   }
   if (e.target.classList.contains("as-photo-input")) { __asReadPhotos(row, e.target.files); e.target.value = ""; return; }
@@ -3915,6 +3971,9 @@ async function saveAddStock(e) {
     const newNameEl = row.querySelector(".as-row-newname");
     const v = (itemSel || {}).value || "";
     const name = (v === "__new__" ? (newNameEl.value || "") : v).trim();
+    const unit = (row.querySelector(".as-row-unit") || {}).value || "pcs";
+    const minStockVal = parseInt((row.querySelector(".as-row-min") || {}).value, 10);
+    const minStock = isNaN(minStockVal) || minStockVal < 0 ? 5 : minStockVal;
     const qg = parseInt((row.querySelector(".as-row-qty-good") || {}).value, 10) || 0;
     const qp = parseInt((row.querySelector(".as-row-qty-poor") || {}).value, 10) || 0;
     const qd = parseInt((row.querySelector(".as-row-qty-damaged") || {}).value, 10) || 0;
@@ -3922,7 +3981,7 @@ async function saveAddStock(e) {
     if (!categoryId) return toast("Every row needs a category.", "error");
     if (!name) return toast(v === "__new__" ? "Enter the new item name." : "Select an item in every row (or choose \u2795 New item...).", "error");
     if (qty <= 0) return toast("Enter at least one quantity above 0 in every row.", "error");
-    plan.push({ row, categoryId, name, qty, qg, qp, qd });
+    plan.push({ row, categoryId, name, unit, minStock, qty, qg, qp, qd });
   }
   // Photos are uploaded separately from the item data (server scan-file store
   // in remote mode; a dedicated local store otherwise). Only lightweight
@@ -3941,6 +4000,8 @@ async function saveAddStock(e) {
     const histPhotos = p.photoRefs.length ? p.photoRefs : undefined;
     let item = items.find(i => i.locationId === currentUser.locationId && (i.name || "").toLowerCase() === p.name.toLowerCase());
     if (item) {
+      if (p.unit) item.unit = p.unit;
+      if (typeof p.minStock === "number") item.minStock = p.minStock;
       item.conditionCounts = item.conditionCounts || { good: item.quantity || 0, poor: 0, damaged: 0 };
       item.conditionCounts.good = (item.conditionCounts.good || 0) + p.qg;
       item.conditionCounts.poor = (item.conditionCounts.poor || 0) + p.qp;
@@ -3951,14 +4012,13 @@ async function saveAddStock(e) {
       updated++;
     } else {
       const cc = { good: p.qg, poor: p.qp, damaged: p.qd };
-      const distProto = getAllDistrictItems().find(i => (i.name || "").toLowerCase() === p.name.toLowerCase() && i.categoryId === p.categoryId);
       item = {
         id: uid(),
         name: p.name,
         categoryId: p.categoryId,
-        unit: (distProto && distProto.unit) ? distProto.unit : "pcs",
+        unit: p.unit || "pcs",
         quantity: p.qty,
-        minStock: (distProto && typeof distProto.minStock === "number") ? distProto.minStock : 5,
+        minStock: typeof p.minStock === "number" ? p.minStock : 5,
         locationId: currentUser.locationId,
         conditionCounts: cc,
         createdAt: Date.now(),
@@ -14948,7 +15008,7 @@ function __consReqStatus(reqId) {
   if (txns.some(t => t.type === "DISTRIBUTION_REJECTED" && t.requestId === reqId)) return "Rejected";
   return "Pending Approval";
 }
-function __consItemCat(catId) { return (getCategories().find(c => c.id === catId) || {}).name || ""; }
+function __consItemCat(catId) { return (getConsCats().find(c => c.id === catId) || getCategories().find(c => c.id === catId) || {}).name || ""; }
 function __consItem(itemId) { return getConsItems().find(x => x.id === itemId) || null; }
 function __consNow() {
   const d = new Date();
@@ -15273,6 +15333,7 @@ function openConsTxnDetails(txnId) {
     (rj ? row("Rejected By", esc(rj.byName || "&mdash;")) : "") +
     row("Status", status ? __consStatusBadge(status) : "&mdash;") +
     (t.remarks ? row("Remarks", esc(t.remarks)) : "") +
+    (t.photo ? row("Attached Photo", `<img src="${t.photo}" style="max-width:140px;max-height:100px;border-radius:8px;border:1px solid var(--border);cursor:zoom-in;display:inline-block" onclick="__openDataUrl('${t.photo}', 'photo')">`) : "") +
     (rj && rj.reason ? row("Reject Reason", esc(rj.reason)) : "");
   openModal("#consTxnModal");
 }
@@ -15292,9 +15353,11 @@ function renderConsLedger() {
     // removed: mark lost button moved to Item Consume tab
     // removed: recipient approve moved out of history actions
     // removed: edit button moved to Item Consume tab
+    const hasPhoto = t.photo || (Array.isArray(t.photos) && t.photos.length);
+    const photoBtn = hasPhoto ? ` <button type="button" class="hist-photo-chip" data-cons-photo="${t.id}" title="View Attached Photo">&#128247;</button>` : '';
     return `<tr data-cons-txn="${t.id}">
       <td data-th="Item Category">${esc(r.categoryName)}</td>
-      <td data-th="Item"><button type="button" class="linklike" data-cons-item="${t.itemId}">${nameCell(r.itemName)}</button>${r.isItemDeleted ? ' <span class="status-badge status-out" style="font-size:0.7rem;padding:1px 5px;margin-left:4px">Deleted</span>' : ''}</td>
+      <td data-th="Item"><button type="button" class="linklike" data-cons-item="${t.itemId}">${nameCell(r.itemName)}</button>${r.isItemDeleted ? ' <span class="status-badge status-out" style="font-size:0.7rem;padding:1px 5px;margin-left:4px">Deleted</span>' : ''}${photoBtn}</td>
       <td data-th="Quantity">${t.type === "DELETED" ? `<span class="muted">&mdash;</span>` : t.qty}</td>
       <td data-th="Date">${esc(fmtDate(t.date ? new Date(t.date) : t.createdAt))}</td>
       <td data-th="Distributed To">${__consRecipientLabel(t)}</td>
@@ -15406,6 +15469,16 @@ function __consRowHtml(key) {
         <select class="as-row-item cons-row-item" disabled><option value="">Select a category first...</option></select>
         <input type="text" class="as-row-newname hidden" placeholder="New item name..." autocomplete="off">
       </div>
+      <select class="cons-row-unit" title="Unit">
+        <option value="pcs" selected>Pieces (pcs)</option>
+        <option value="kg">Kilograms (kgs)</option>
+        <option value="liters">Litres</option>
+        <option value="boxes">Boxes (boxs)</option>
+        <option value="sets">Sets</option>
+      </select>
+      <div class="as-min-wrap" title="Minimum Stock Alert">
+        <input type="text" inputmode="numeric" pattern="[0-9]*" class="cons-row-min" list="asMinStockList" placeholder="Min Qty" value="5" title="Minimum Stock Alert">
+      </div>
       <div class="as-cond-qtys cons-cond-qtys">
         <span class="as-cq"><input type="number" class="cons-row-qty" placeholder="Qty" min="1" value=""></span>
       </div>
@@ -15428,7 +15501,15 @@ function addConsRow() {
   const key = "k" + (++__consRowSeq);
   box.insertAdjacentHTML("beforeend", __consRowHtml(key));
   const row = box.querySelector(`.cons-item-row[data-key="${key}"]`);
-  if (row) __initRowCombos(row);
+  if (row) {
+    __initRowCombos(row);
+    const minInp = row.querySelector(".cons-row-min");
+    if (minInp) {
+      minInp.addEventListener("focus", () => {
+        if (typeof minInp.showPicker === "function") try { minInp.showPicker(); } catch(e){}
+      });
+    }
+  }
 }
 function __consPopulateRowItems(row) {
   if (!row) return;
@@ -15492,14 +15573,38 @@ function __consRowsChange(e) {
   if (e.target.classList.contains("cons-row-cat")) { __consPopulateRowItems(row); return; }
   if (e.target.classList.contains("cons-row-item")) {
     const newName = row.querySelector(".as-row-newname");
+    const unitSel = row.querySelector(".cons-row-unit");
+    const minInp = row.querySelector(".cons-row-min");
     if ((e.target.value || "") === "__new__") {
       newName.classList.remove("hidden");
       if (row.__itemCombo && row.__itemCombo.lastTyped && row.__itemCombo.lastTyped !== "➕ New item...") {
         newName.value = row.__itemCombo.lastTyped;
       }
       newName.focus();
+    } else {
+      newName.classList.add("hidden");
+      newName.value = "";
+      const val = (e.target.value || "").trim();
+      const cid = (row.querySelector(".cons-row-cat") || {}).value || "";
+      if (val) {
+        const it = getConsItems().find(i => (i.name || "").toLowerCase() === val.toLowerCase() && (!cid || i.categoryId === cid) && !i.isDeleted)
+          || getAllDistrictItems().find(i => (i.name || "").toLowerCase() === val.toLowerCase() && (!cid || i.categoryId === cid) && !i.isDeleted);
+        if (it) {
+          if (unitSel && it.unit) {
+            const hit = Array.from(unitSel.options).find(o => o.value.toLowerCase() === String(it.unit).toLowerCase());
+            if (hit) unitSel.value = hit.value;
+            else {
+              const opt = document.createElement("option");
+              opt.value = it.unit; opt.textContent = it.unit; opt.selected = true;
+              unitSel.appendChild(opt);
+            }
+          }
+          if (minInp && it.minStock !== undefined && it.minStock !== null) {
+            minInp.value = it.minStock;
+          }
+        }
+      }
     }
-    else { newName.classList.add("hidden"); newName.value = ""; }
     return;
   }
   if (e.target.classList.contains("cons-photo-input")) { __consReadPhotos(row, e.target.files); e.target.value = ""; return; }
@@ -15527,12 +15632,15 @@ function saveConsAdd(e) {
     const newNameEl = row.querySelector(".as-row-newname");
     const selV = (sel || {}).value || "";
     const newName = (selV === "__new__" ? (newNameEl ? newNameEl.value : "") : selV).trim();
+    const unit = (row.querySelector(".cons-row-unit") || {}).value || "pcs";
+    const minStockVal = parseInt((row.querySelector(".cons-row-min") || {}).value, 10);
+    const minStock = isNaN(minStockVal) || minStockVal < 0 ? 5 : minStockVal;
     const qty = Math.floor(Number((row.querySelector(".cons-row-qty") || {}).value));
     if (!cid && !newName && (!isFinite(qty) || qty <= 0)) continue;
     if (!cid) return toast("Har row me category select karo.", "error");
     if (!newName) return toast("Har row me item select ya type karo.", "error");
     if (!isFinite(qty) || qty <= 0) return toast("Quantity must be a positive whole number.", "error");
-    cleanRows.push({ row, cid, newName, qty });
+    cleanRows.push({ row, cid, newName, unit, minStock, qty });
   }
   if (!cleanRows.length) return toast("Add at least one item.", "error");
   const remarks = $("#consRemarks").value.trim();
@@ -15544,8 +15652,11 @@ function saveConsAdd(e) {
   for (const p of cleanRows) {
     let item = items.find(x => x.name.toLowerCase() === p.newName.toLowerCase() && x.categoryId === p.cid && !x.isDeleted);
     if (!item) {
-      item = { id: uid(), categoryId: p.cid, name: p.newName, photoUrl: "", condition: "Good", remarks: "", createdAt: Date.now() };
+      item = { id: uid(), categoryId: p.cid, name: p.newName, unit: p.unit || "pcs", minStock: p.minStock, photoUrl: "", condition: "Good", remarks: "", createdAt: Date.now() };
       items.push(item);
+    } else {
+      if (p.unit) item.unit = p.unit;
+      if (typeof p.minStock === "number") item.minStock = p.minStock;
     }
     const photos = __consRowPhotos[p.row.dataset.key] || [];
     const photo = photos[0];
@@ -15641,16 +15752,73 @@ function saveConsDist(e) {
     toName = u.name;
   }
   const remarks = $("#cdRemarks").value.trim();
-  const __cdPhoto = (__attStore.consDist || [])[0];
+  const distPhotos = (__attStore.consDist || []).slice();
+  const __cdPhoto = distPhotos[0];
   const t = __consCommit("DISTRIBUTION_REQUEST", item, qty, { type: toType, id: toId, name: toName }, null, remarks, __cdPhoto ? __cdPhoto.dataUrl : "");
   t.requestId = t.id;
+  if (distPhotos.length) {
+    t.photos = distPhotos.map(p => ({ id: p.id || uid(), name: p.name || "Distribution Photo", dataUrl: p.dataUrl }));
+  }
   const txns = getConsTxns();
   txns.unshift(t);
   saveConsTxns(txns);
-  if ((__attStore.consDist || []).length) {
-    __saveItemProfilePhotos(item.id, __attStore.consDist, { date: t.date, time: t.time, source: "cons_distribution", label: "Consumable Distributed" });
-  }
+
   const catName = __consItemCat(item.categoryId);
+  if (distPhotos.length) {
+    __saveItemProfilePhotos(item.id, distPhotos, {
+      date: t.date,
+      time: t.time,
+      source: "cons_distribution",
+      label: "Distributed to " + toName + " (" + qty + " " + (item.unit || "pcs") + ")"
+    });
+  }
+
+  // Also record this distribution on the main Distribution page
+  const distList = getDistributions();
+  const dDist = getDistricts().find(dd => dd.id === activeDistrictId);
+  const fromLoc = getLocations().find(l => l.id === currentUser.locationId);
+  const distEntry = {
+    id: t.id,
+    distNo: nextDistNo(),
+    remarks: remarks || "",
+    fromDistrictId: activeDistrictId,
+    fromDistrictName: dDist ? dDist.name : "",
+    fromLocationId: currentUser.locationId || "",
+    fromLocationName: fromLoc ? fromLoc.name : "",
+    fromUserId: currentUser.id,
+    fromUserName: currentUser.name,
+    toType: toType,
+    toDistrictId: activeDistrictId,
+    toDistrictName: dDist ? dDist.name : "",
+    toName: toName,
+    toLocationId: toType === "unit" ? toId : "",
+    toLocationName: toType === "unit" ? toName : "",
+    toUserId: toType === "staff" ? toId : null,
+    toUserName: toType === "staff" ? toName : "",
+    items: [{
+      key: "i0",
+      itemName: item.name,
+      qty: qty,
+      condition: "Good",
+      categoryId: item.categoryId,
+      categoryName: catName || "Consumable",
+      unit: item.unit || "pcs",
+      fromItemId: item.id
+    }],
+    attachments: distPhotos.map(p => ({ id: p.id || uid(), name: p.name || "Distribution Photo", dataUrl: p.dataUrl })),
+    status: "completed",
+    approveRemark: remarks || "Consumable distribution",
+    approvedBy: currentUser.name,
+    approvedAt: Date.now(),
+    isConsumable: true,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  distList.unshift(distEntry);
+  saveDistributions(distList);
+
+  __attStore.consDist = [];
+  __attRender("consDist");
   const msg = "Category: " + catName + " | Item: " + item.name + " | Quantity: " + qty + " | Distributed By: " + currentUser.name + " | Date: " + t.date + ". Please Approve or Reject this distribution request.";
   addNotification(activeDistrictId, {
     type: "cons_request",
@@ -16035,6 +16203,16 @@ document.addEventListener("click", (e) => {
   if (dist) { openConsDist(dist.dataset.consDist); return; }
   const loss = e.target.closest("[data-cons-loss]");
   if (loss) { openConsLoss(loss.dataset.consLoss); return; }
+  const cp = e.target.closest("[data-cons-photo]");
+  if (cp) {
+    const txn = getConsTxns().find(x => x.id === cp.dataset.consPhoto);
+    if (txn) {
+      const pUrl = txn.photo || (txn.photos && txn.photos[0] ? txn.photos[0].dataUrl : "");
+      if (pUrl) __openDataUrl(pUrl, "photo");
+      else toast("Photo not found.", "error");
+    }
+    return;
+  }
   const edit = e.target.closest("[data-cons-edit]");
   if (edit) { openConsEdit(edit.dataset.consEdit); return; }
   const appr = e.target.closest("[data-cons-approve]");

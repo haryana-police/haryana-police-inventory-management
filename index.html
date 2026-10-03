@@ -8,7 +8,7 @@
 <!-- Both stylesheets are versioned: without the query the browser keeps
      serving the old file from its own cache, so a CSS fix appears to do
      nothing until a hard refresh. Bump these when either file changes. -->
-<link rel="stylesheet" href="styles.css?v=2026.09.274">
+<link rel="stylesheet" href="styles.css?v=2026.09.275">
   <script>
     (function () {
       try { if (localStorage.getItem("hpi_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
@@ -1700,6 +1700,18 @@
     </form>
   </div>
 </div>
+<datalist id="asMinStockList">
+  <option value="1">1</option>
+  <option value="2">2</option>
+  <option value="3">3</option>
+  <option value="5">5</option>
+  <option value="10">10</option>
+  <option value="15">15</option>
+  <option value="20">20</option>
+  <option value="25">25</option>
+  <option value="50">50</option>
+  <option value="100">100</option>
+</datalist>
 <!-- Add Stock Modal (updates existing item row or creates a new one) -->
 <div class="modal-backdrop hidden" id="addStockModal">
 <div class="modal modal-lg">
@@ -1708,7 +1720,7 @@
 <button class="modal-close" data-close>&times;</button>
 </div>
 <form id="addStockForm">
-  <div class="as-cols-head"><span>Category</span><span>Item</span><span>Quantity &mdash; Good / Damaged</span><span></span></div>
+  <div class="as-cols-head"><span>Category</span><span>Item</span><span>Unit</span><span>Min Qty</span><span>Quantity &mdash; Good / Damaged</span><span></span></div>
   <div id="asRows"></div>
   <div class="as-rows-toolbar">
     <button type="button" class="btn btn-sm btn-outline" id="asAddItemBtn">+ Add Item</button>
@@ -3257,9 +3269,9 @@
 <script src="api-client.js?v=2026.09.212"></script>
   <script src="enter-to-submit.js?v=2026.09.253"></script>
   <script src="cat-multiselect.js?v=2026.09.253"></script>
-  <script src="app.js?v=2026.09.289"></script>
+  <script src="app.js?v=2026.09.290"></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
-<script src="item-profile.js?v=2026.09.265"></script>
+<script src="item-profile.js?v=2026.09.266"></script>
 <script src="person-profile.js?v=2026.09.213"></script>
 <input type="file" id="attFileInput" multiple hidden>
 <div class="modal-backdrop hidden" id="camModal" style="z-index: 100050;">
@@ -3289,7 +3301,7 @@
       <button class="modal-close" data-close>&times;</button>
     </div>
     <form id="consAddForm">
-      <div class="as-cols-head cons-cols-head"><span>Category</span><span>Item</span><span>Quantity</span><span></span></div>
+      <div class="as-cols-head cons-cols-head"><span>Category</span><span>Item</span><span>Unit</span><span>Min Qty</span><span>Quantity</span><span></span></div>
       <div id="consRows"></div>
       <div class="as-rows-toolbar">
         <button type="button" class="btn btn-sm btn-outline" id="consAddItemBtn">+ Add Item</button>

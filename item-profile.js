@@ -1021,14 +1021,25 @@
         '<button type="button" class="btn btn-primary" id="ipGalUpload">Upload Photo</button>' +
         '<button type="button" class="btn btn-outline" id="ipGalCamera">&#128247; Camera</button></div>' : "") +
       '<div class="ip-gallery">' + list.slice().reverse().map(function (p) {
-      return '<div class="ip-gal-item">' + (p.isProfile ? '<span class="ip-gal-badge">Profile</span>' : "") +
-        '<img src="' + p.data + '" data-gal-view alt="photo">' +
-        '<div class="ip-gal-meta"><b>' + esc(p.name || "photo") + '</b><br><span style="font-size:.78rem;color:var(--text-muted,#64748b)">&#128197; ' + fmtDT(p.uploadedAt) + '</span><br><span style="font-size:.74rem;color:var(--text-muted,#64748b)">by ' + esc(p.uploadedBy || "\u2014") + '</span></div>' +
-        (manage ? '<div class="ip-gal-actions">' +
-          (p.isProfile ? "" : '<button type="button" class="btn btn-outline" data-gal-act="profile" data-gal-id="' + p.id + '">Set Profile</button>') +
-          '<button type="button" class="btn btn-outline act-dd-del" data-gal-act="del" data-gal-id="' + p.id + '">Delete</button></div>' : "") +
-        "</div>";
-    }).join("") + "</div>";
+        var dtDisplay = "";
+        if (p.sourceDetails && (p.sourceDetails.date || p.sourceDetails.time)) {
+          dtDisplay = (p.sourceDetails.date ? fmtD(p.sourceDetails.date) : "") + (p.sourceDetails.time ? " " + p.sourceDetails.time : "");
+        } else if (p.date || p.time) {
+          dtDisplay = (p.date ? fmtD(p.date) : "") + (p.time ? " " + p.time : "");
+        } else if (p.uploadedAt) {
+          dtDisplay = fmtDT(p.uploadedAt);
+        } else {
+          dtDisplay = "\u2014";
+        }
+        return '<div class="ip-gal-item">' + (p.isProfile ? '<span class="ip-gal-badge">Profile</span>' : "") +
+          '<span class="ip-gal-stamp">&#128197; ' + esc(dtDisplay) + '</span>' +
+          '<img src="' + p.data + '" data-gal-view alt="photo">' +
+          '<div class="ip-gal-meta"><b>' + esc(p.name || "photo") + '</b><br><span style="font-size:.78rem;color:var(--text-muted,#64748b)">&#128197; ' + esc(dtDisplay) + '</span><br><span style="font-size:.74rem;color:var(--text-muted,#64748b)">by ' + esc(p.uploadedBy || "\u2014") + '</span></div>' +
+          (manage ? '<div class="ip-gal-actions">' +
+            (p.isProfile ? "" : '<button type="button" class="btn btn-outline" data-gal-act="profile" data-gal-id="' + p.id + '">Set Profile</button>') +
+            '<button type="button" class="btn btn-outline act-dd-del" data-gal-act="del" data-gal-id="' + p.id + '">Delete</button></div>' : "") +
+          "</div>";
+      }).join("") + "</div>";
   }
   function handleGalleryAction(act, photoId) {
     var map = photosMap(), list = map[state.itemId] || [];
