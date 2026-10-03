@@ -8,7 +8,7 @@
 <!-- Both stylesheets are versioned: without the query the browser keeps
      serving the old file from its own cache, so a CSS fix appears to do
      nothing until a hard refresh. Bump these when either file changes. -->
-<link rel="stylesheet" href="styles.css?v=2026.09.270">
+<link rel="stylesheet" href="styles.css?v=2026.09.271">
   <script>
     (function () {
       try { if (localStorage.getItem("hpi_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
@@ -3248,7 +3248,7 @@
 <script src="api-client.js?v=2026.09.212"></script>
   <script src="enter-to-submit.js?v=2026.09.253"></script>
   <script src="cat-multiselect.js?v=2026.09.253"></script>
-  <script src="app.js?v=2026.09.282"></script>
+  <script src="app.js?v=2026.09.283"></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
 <script src="item-profile.js?v=2026.09.265"></script>
 <script src="person-profile.js?v=2026.09.213"></script>
@@ -3657,6 +3657,7 @@
       <button type="button" class="btn btn-outline" id="devConfirmCancel">Cancel</button>
       <button type="button" class="btn btn-red" id="devConfirmOk">Confirm</button>
     </div>
+  </div>
 </div>
 
 <!-- ========== SHRAMDAAN RECORD MODAL ========== -->
@@ -3790,7 +3791,7 @@
   <div class="modal" style="max-width:900px;width:95vw;padding:16px;">
     <div class="modal-header" style="padding-bottom:10px;">
       <h3 id="shramLightboxTitle" style="font-size:16px;margin:0;">Photo Preview</h3>
-      <button type="button" class="modal-close" id="shramLightboxCloseBtn">&times;</button>
+      <button type="button" class="modal-close" id="shramLightboxCloseBtn" data-close>&times;</button>
     </div>
     <div class="modal-body" style="text-align:center;padding:10px 0;background:#111;border-radius:6px;position:relative;">
       <img id="shramLightboxImg" src="" alt="Enlarged Shram Daan Photo" style="max-height:75vh;max-width:100%;object-fit:contain;border-radius:4px;display:inline-block;">

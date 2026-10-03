@@ -5177,50 +5177,54 @@ function openShramDaanModal() {
   const modal = $("#shramDaanModal");
   if (!modal) return;
 
-  $("#shramDaanForm")?.reset();
-  __shramPhotos = [];
-  __shramRenderPhotoPreviews();
+  try {
+    $("#shramDaanForm")?.reset();
+    __shramPhotos = [];
+    __shramRenderPhotoPreviews();
 
-  // Populate Location options
-  const locSel = $("#shramLocation");
-  if (locSel) {
-    const locs = getLocations();
-    locSel.innerHTML = `<option value="">-- Select Location / Unit --</option>` +
-      locs.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
-    if (currentUser && currentUser.locationId) {
-      locSel.value = currentUser.locationId;
-    }
-  }
-
-  // Pre-fill Officer Name & Role
-  if (currentUser) {
-    const nameEl = $("#shramOfficerName");
-    if (nameEl) nameEl.value = (currentUser.rank ? currentUser.rank + " " : "") + (currentUser.name || "");
-    const roleLower = (currentUser.role || "").toLowerCase();
-    const rankLower = (currentUser.rank || "").toLowerCase();
-    const roleSel = $("#shramOfficerRole");
-    if (roleSel) {
-      if (roleLower.includes("line") || rankLower.includes("line")) {
-        roleSel.value = "Line Officer";
-      } else if (roleLower.includes("station") || roleLower.includes("sho") || rankLower.includes("sho")) {
-        roleSel.value = "Station Officer";
-      } else if (roleLower.includes("mhc")) {
-        roleSel.value = "MHC";
-      } else {
-        roleSel.value = "Station Officer";
+    // Populate Location options
+    const locSel = $("#shramLocation");
+    if (locSel) {
+      const locs = typeof getLocations === "function" ? getLocations() : [];
+      locSel.innerHTML = `<option value="">-- Select Location / Unit --</option>` +
+        locs.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
+      if (currentUser && currentUser.locationId) {
+        locSel.value = currentUser.locationId;
       }
     }
-  }
 
-  const now = new Date();
-  const dEl = $("#shramDate"); if (dEl) dEl.value = now.toISOString().slice(0, 10);
-  const tEl = $("#shramTime"); if (tEl) {
-    const hh = String(now.getHours()).padStart(2, "0");
-    const mm = String(now.getMinutes()).padStart(2, "0");
-    tEl.value = `${hh}:${mm}`;
-  }
+    // Pre-fill Officer Name & Role
+    if (currentUser) {
+      const nameEl = $("#shramOfficerName");
+      if (nameEl) nameEl.value = (currentUser.rank ? currentUser.rank + " " : "") + (currentUser.name || "");
+      const roleLower = (currentUser.role || "").toLowerCase();
+      const rankLower = (currentUser.rank || "").toLowerCase();
+      const roleSel = $("#shramOfficerRole");
+      if (roleSel) {
+        if (roleLower.includes("line") || rankLower.includes("line")) {
+          roleSel.value = "Line Officer";
+        } else if (roleLower.includes("station") || roleLower.includes("sho") || rankLower.includes("sho")) {
+          roleSel.value = "Station Officer";
+        } else if (roleLower.includes("mhc")) {
+          roleSel.value = "MHC";
+        } else {
+          roleSel.value = "Station Officer";
+        }
+      }
+    }
 
-  $("#shramCustomTypeWrap")?.classList.add("hidden");
+    const now = new Date();
+    const dEl = $("#shramDate"); if (dEl) dEl.value = now.toISOString().slice(0, 10);
+    const tEl = $("#shramTime"); if (tEl) {
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mm = String(now.getMinutes()).padStart(2, "0");
+      tEl.value = `${hh}:${mm}`;
+    }
+
+    $("#shramCustomTypeWrap")?.classList.add("hidden");
+  } catch (err) {
+    console.error("Error setting up shramdaan modal form:", err);
+  }
   openModal("#shramDaanModal");
 }
 
