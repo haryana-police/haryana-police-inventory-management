@@ -1967,6 +1967,7 @@ th[data-sort-col]:focus-visible { outline: 2px solid var(--primary); outline-off
 .att-thumb-x { position:absolute; top:2px; right:2px; width:20px; height:20px; border-radius:50%; border:none; background:rgba(15,23,42,.75); color:#fff; font-size:.85rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .12s ease; }
 .att-thumb:hover .att-thumb-x { opacity:1; }
 .att-thumb-sm { width:56px; height:56px; cursor:default; }
+#camModal { z-index: 100050 !important; }
 .cam-modal { max-width:720px; width:95%; }
 .cam-body { position:relative; background:#0b1220; border-radius:10px; overflow:hidden; min-height:300px; display:flex; align-items:center; justify-content:center; }
 .cam-body video { width:100%; max-height:60vh; object-fit:cover; display:block; }

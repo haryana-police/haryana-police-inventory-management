@@ -8,7 +8,7 @@
 <!-- Both stylesheets are versioned: without the query the browser keeps
      serving the old file from its own cache, so a CSS fix appears to do
      nothing until a hard refresh. Bump these when either file changes. -->
-<link rel="stylesheet" href="styles.css?v=2026.09.271">
+<link rel="stylesheet" href="styles.css?v=2026.09.272">
   <script>
     (function () {
       try { if (localStorage.getItem("hpi_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
@@ -1333,14 +1333,13 @@
                   <th>Work Type</th>
                   <th>Work Done / Description</th>
                   <th>Location / Unit</th>
-                  <th>Done By / Recorded By</th>
                   <th>Participants</th>
                   <th>Photos</th>
                   <th style="text-align:center;">Actions</th>
                 </tr>
               </thead>
               <tbody id="shramTableBody">
-                <tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-muted);">No Shram Daan records found. Click "+ Record Shram Daan" to add one.</td></tr>
+                <tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted);">No Shramdaan records found. Click "+ Record Shramdaan" to add one.</td></tr>
               </tbody>
             </table>
           </div>
@@ -3248,12 +3247,12 @@
 <script src="api-client.js?v=2026.09.212"></script>
   <script src="enter-to-submit.js?v=2026.09.253"></script>
   <script src="cat-multiselect.js?v=2026.09.253"></script>
-  <script src="app.js?v=2026.09.284"></script>
+  <script src="app.js?v=2026.09.285"></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
 <script src="item-profile.js?v=2026.09.265"></script>
 <script src="person-profile.js?v=2026.09.213"></script>
 <input type="file" id="attFileInput" multiple hidden>
-<div class="modal-backdrop hidden" id="camModal">
+<div class="modal-backdrop hidden" id="camModal" style="z-index: 100050;">
   <div class="modal cam-modal">
     <div class="modal-header">
       <h2>Take Photo</h2>
@@ -3692,15 +3691,9 @@
           </div>
 
           <div class="form-group">
-            <label for="shramLocation" style="font-weight:600;display:block;margin-bottom:6px;">Location / Unit (स्थान) <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
-            <select id="shramLocation" class="form-control" required style="width:100%;height:38px;">
-              <option value="">-- Select Location / Unit --</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="shramRecordedByDisplay" style="font-weight:600;display:block;margin-bottom:6px;">Done By / Recorded By (दर्जकर्ता अधिकारी)</label>
-            <input type="text" id="shramRecordedByDisplay" class="form-control" readonly tabindex="-1" style="width:100%;height:38px;background:var(--bg-alt,#f1f5f9);cursor:not-allowed;" title="Auto-filled from logged-in user">
+            <label for="shramLocationDisplay" style="font-weight:600;display:block;margin-bottom:6px;">Location / Unit (स्थान)</label>
+            <input type="text" id="shramLocationDisplay" class="form-control" readonly tabindex="-1" style="width:100%;height:38px;background:var(--bg-alt,#f1f5f9);cursor:default;font-weight:600;" title="Default location from logged-in user">
+            <input type="hidden" id="shramLocation" value="">
           </div>
 
           <div class="form-group">
