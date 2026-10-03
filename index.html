@@ -8,7 +8,7 @@
 <!-- Both stylesheets are versioned: without the query the browser keeps
      serving the old file from its own cache, so a CSS fix appears to do
      nothing until a hard refresh. Bump these when either file changes. -->
-<link rel="stylesheet" href="styles.css?v=2026.09.269">
+<link rel="stylesheet" href="styles.css?v=2026.09.270">
   <script>
     (function () {
       try { if (localStorage.getItem("hpi_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
@@ -178,6 +178,10 @@
       <button class="sidebar-link" data-tab="inspections">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 14l2 2 4-4"/></svg>
         <span>Inspections</span>
+      </button>
+      <button class="sidebar-link" data-tab="shramdaan">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 0 1 4 13C4 8.5 8 3 13 3c5 0 7 2 7 7 0 5.5-5.5 10-9 10Z"/><path d="M9 13c2.5-1 4.5-3 5-6"/></svg>
+        <span>Shram Daan</span>
       </button>
       <button class="sidebar-link" data-tab="reports">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -1214,6 +1218,147 @@
           </table>
         </div>
         <div class="pager" id="pager_maint"></div>
+      </div>
+    </section>
+
+    <!-- ========== SHRAM DAAN VIEW ========== -->
+    <section id="view-shramdaan" class="view hidden">
+      <div class="page-header">
+        <div>
+          <h2>Shram Daan / श्रमदान</h2>
+          <p class="section-desc" style="color:var(--text-muted);margin:4px 0 0;font-size:13px;">Record &amp; track community service, cleanliness drives, gardening, tree plantation &amp; fatigue work by Line &amp; Station Officers</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-primary" id="newShramDaanBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:-3px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            + Record Shram Daan
+          </button>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="shramStats">
+        <div class="stat-card clickable stat-total" data-shram-filter="all" title="Click to view all records">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statShramTotal">0</span>
+            <span class="stat-label">Total Drives</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-stock" data-shram-filter="gardening" title="Click to view Gardening records">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 10v12m-8-8a8 8 0 0 1 16 0"/><circle cx="12" cy="6" r="3"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statShramGardening">0</span>
+            <span class="stat-label">Gardening (बागवानी)</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-low" data-shram-filter="cleaning" title="Click to view Cleaning records">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 22h16"/><path d="M12 2v14"/><path d="m8 10 4-4 4 4"/><circle cx="18" cy="8" r="1"/><circle cx="6" cy="14" r="1"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statShramCleaning">0</span>
+            <span class="stat-label">Cleaning (सफ़ाई)</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-categories" data-shram-filter="planting" title="Click to view Tree Plantation records">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 0 1 4 13C4 8.5 8 3 13 3c5 0 7 2 7 7 0 5.5-5.5 10-9 10Z"/><path d="M9 13c2.5-1 4.5-3 5-6"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statShramPlanting">0</span>
+            <span class="stat-label">Planting (पौधारोपण)</span>
+          </div>
+        </div>
+        <div class="stat-card clickable stat-critical" data-shram-filter="fatigue" title="Click to view Fatigue records">
+          <div class="stat-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="statShramFatigue">0</span>
+            <span class="stat-label">Fatigue (फटीक)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section Tabs: Activity History & Uploaded Photos Gallery -->
+      <div class="shram-view-tabs" style="display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid var(--border-color);padding-bottom:10px;">
+        <button type="button" class="btn btn-sm btn-primary" id="shramTabHistoryBtn">
+          📋 Activity History Table (<span id="shramHistoryCount">0</span>)
+        </button>
+        <button type="button" class="btn btn-sm btn-outline" id="shramTabGalleryBtn">
+          📷 Uploaded Photos Gallery (<span id="shramPhotoCount">0</span>)
+        </button>
+      </div>
+
+      <div class="toolbar" id="shramToolbar">
+        <input type="text" id="shramSearch" placeholder="Search work description, officer, location...">
+        <select id="shramTypeFilter">
+          <option value="">All Work Types</option>
+          <option value="gardening">Gardening (बागवानी)</option>
+          <option value="cleaning">Cleaning (सफ़ाई अभियान)</option>
+          <option value="planting">Planting (पौधारोपण)</option>
+          <option value="fatigue">Fatigue (फटीक / शारीरिक श्रम)</option>
+          <option value="other">Other (अन्य कार्य)</option>
+        </select>
+        <select id="shramLocationFilter">
+          <option value="">All Locations / Units</option>
+        </select>
+        <input type="date" id="shramDateFrom" title="From Date">
+        <input type="date" id="shramDateTo" title="To Date">
+        <button type="button" class="btn btn-sm btn-outline" id="shramClearFilterBtn" title="Reset Filters">✕ Clear</button>
+        <div class="stat-export-dd">
+          <button class="btn btn-sm btn-outline" id="shramExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
+          <div class="stat-export-menu hidden" id="shramExportMenu">
+            <button data-export="pdf"><span class="ee-ic">&#128196;</span> Download PDF</button>
+            <button data-export="excel"><span class="ee-ic">&#128229;</span> Download Excel</button>
+            <button data-export="word"><span class="ee-ic">&#128220;</span> Download Word</button>
+            <button data-export="print"><span class="ee-ic">&#128424;</span> Print</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content 1: History Table -->
+      <div id="shramHistoryPane">
+        <div class="card">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width:45px;">#</th>
+                  <th>Date &amp; Time</th>
+                  <th>Work Type</th>
+                  <th>Work Done / Description</th>
+                  <th>Location / Unit</th>
+                  <th>Done By (Officer)</th>
+                  <th>Participants</th>
+                  <th>Photos</th>
+                  <th style="text-align:center;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="shramTableBody">
+                <tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-muted);">No Shram Daan records found. Click "+ Record Shram Daan" to add one.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pager" id="pager_shram"></div>
+        </div>
+      </div>
+
+      <!-- Tab Content 2: Uploaded Photos Gallery -->
+      <div id="shramGalleryPane" class="hidden">
+        <div class="card" style="padding:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="margin:0;font-size:16px;font-weight:600;">Uploaded Photos (<span id="shramGalleryTotal">0</span>)</h3>
+            <span style="font-size:12px;color:var(--text-muted);">All photos captured via camera or uploaded with official date &amp; time stamp</span>
+          </div>
+          <div id="shramGalleryGrid" class="shram-gallery-grid">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
       </div>
     </section>
 
@@ -3103,7 +3248,7 @@
 <script src="api-client.js?v=2026.09.212"></script>
   <script src="enter-to-submit.js?v=2026.09.253"></script>
   <script src="cat-multiselect.js?v=2026.09.253"></script>
-  <script src="app.js?v=2026.09.281"></script>
+  <script src="app.js?v=2026.09.282"></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
 <script src="item-profile.js?v=2026.09.265"></script>
 <script src="person-profile.js?v=2026.09.213"></script>
@@ -3511,6 +3656,149 @@
     <div class="modal-footer">
       <button type="button" class="btn btn-outline" id="devConfirmCancel">Cancel</button>
       <button type="button" class="btn btn-red" id="devConfirmOk">Confirm</button>
+    </div>
+</div>
+
+<!-- ========== SHRAM DAAN RECORD MODAL ========== -->
+<div class="modal-backdrop hidden" id="shramDaanModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>Record Shram Daan / श्रमदान दर्ज करें</h2>
+      <button type="button" class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="shramDaanForm">
+      <div class="modal-body" style="max-height:calc(85vh - 120px);overflow-y:auto;padding:16px 20px;">
+        <div style="background:var(--bg-alt,#f8f9fa);padding:12px 14px;border-radius:8px;margin-bottom:16px;border-left:4px solid var(--primary-color,#1a56db);font-size:13px;color:var(--text-muted);">
+          Line Officer conducts Shram Daan at Police Line; Station Officer conducts at Police Station. Attach live camera photos or uploaded files with verified date and time stamp.
+        </div>
+
+        <div class="form-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:14px;">
+          <div class="form-group">
+            <label for="shramWorkType" style="font-weight:600;display:block;margin-bottom:6px;">Work Type (कार्य का प्रकार) <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
+            <select id="shramWorkType" class="form-control" required style="width:100%;height:38px;">
+              <option value="">-- Select Work Type --</option>
+              <option value="gardening">Gardening / बागवानी</option>
+              <option value="cleaning">Cleaning / सफ़ाई अभियान</option>
+              <option value="planting">Planting / पौधारोपण</option>
+              <option value="fatigue">Fatigue / फटीक (Manual Fatigue Duty)</option>
+              <option value="other">Other / अन्य कार्य</option>
+            </select>
+          </div>
+
+          <div class="form-group hidden" id="shramCustomTypeWrap">
+            <label for="shramCustomType" style="font-weight:600;display:block;margin-bottom:6px;">Specify Other Work Type <span style="color:var(--red,#dc2626);">*</span></label>
+            <input type="text" id="shramCustomType" class="form-control" placeholder="e.g. Painting, Road Repair" style="width:100%;height:38px;">
+          </div>
+
+          <div class="form-group">
+            <label for="shramLocation" style="font-weight:600;display:block;margin-bottom:6px;">Location / Unit (स्थान) <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
+            <select id="shramLocation" class="form-control" required style="width:100%;height:38px;">
+              <option value="">-- Select Location / Unit --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="shramOfficerRole" style="font-weight:600;display:block;margin-bottom:6px;">Conducted By (Officer Role) <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
+            <select id="shramOfficerRole" class="form-control" required style="width:100%;height:38px;">
+              <option value="Line Officer">Line Officer (Police Line / लाइन ऑफिसर)</option>
+              <option value="Station Officer">Station Officer (Police Station / थाना प्रभारी)</option>
+              <option value="SHO">SHO / Inspector (थानाध्यक्ष)</option>
+              <option value="MHC">MHC / Munshi (मुंशी)</option>
+              <option value="Sub-Inspector">Sub-Inspector (उप-निरीक्षक / चौकी प्रभारी)</option>
+              <option value="Other">Other Officer (अन्य अधिकारी)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="shramOfficerName" style="font-weight:600;display:block;margin-bottom:6px;">Officer In-Charge Name <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
+            <input type="text" id="shramOfficerName" class="form-control" placeholder="e.g. Insp. Rajesh Kumar" required style="width:100%;height:38px;">
+          </div>
+
+          <div class="form-group">
+            <label for="shramOfficerBelt" style="font-weight:600;display:block;margin-bottom:6px;">Belt No. / PNO / ID (Optional)</label>
+            <input type="text" id="shramOfficerBelt" class="form-control" placeholder="e.g. 542/GGN" style="width:100%;height:38px;">
+          </div>
+
+          <div class="form-group">
+            <label for="shramDate" style="font-weight:600;display:block;margin-bottom:6px;">Date (दिनांक) <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
+            <input type="date" id="shramDate" class="form-control" required style="width:100%;height:38px;">
+          </div>
+
+          <div class="form-group">
+            <label for="shramTime" style="font-weight:600;display:block;margin-bottom:6px;">Time (समय) <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
+            <input type="time" id="shramTime" class="form-control" required style="width:100%;height:38px;">
+          </div>
+
+          <div class="form-group">
+            <label for="shramParticipants" style="font-weight:600;display:block;margin-bottom:6px;">Personnel Involved (जवानों की संख्या)</label>
+            <input type="number" id="shramParticipants" class="form-control" min="1" value="5" placeholder="e.g. 10" style="width:100%;height:38px;">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:16px;">
+          <label for="shramDescription" style="font-weight:600;display:block;margin-bottom:6px;">Description of Work Done (किए गए कार्य का विवरण) <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
+          <textarea id="shramDescription" class="form-control" rows="3" placeholder="Describe in detail what work was carried out (e.g. Cleaned front lawn and barracks, planted 25 neem and banyan saplings along perimeter, trimmed overgrown branches, disposed dry leaves)..." required style="width:100%;resize:vertical;"></textarea>
+        </div>
+
+        <div class="form-group" style="margin-bottom:10px;">
+          <label style="font-weight:600;display:block;margin-bottom:6px;">Photos / तस्वीरें (Capture via Camera or Upload) <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+            <input type="file" id="shramFileInput" accept="image/*" multiple style="display:none;">
+            <button type="button" class="btn btn-outline" id="shramPhotoUploadBtn">
+              📁 Choose Photo Files
+            </button>
+            <button type="button" class="btn btn-outline" id="shramPhotoCameraBtn">
+              📷 Open Camera
+            </button>
+            <span style="font-size:12px;color:var(--text-muted);">Multiple photos supported. Official timestamp is automatically attached.</span>
+          </div>
+          <div id="shramPhotoPreviews" class="shram-previews-container" style="display:flex;gap:10px;flex-wrap:wrap;min-height:70px;padding:10px;background:var(--bg-alt,#f8f9fa);border:1px dashed var(--border-color,#ccc);border-radius:6px;">
+            <div id="shramNoPhotoNotice" style="width:100%;text-align:center;color:var(--text-muted);font-size:13px;padding:15px 0;">No photos added yet. Click &quot;Choose Photo Files&quot; or &quot;Open Camera&quot;.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;padding:14px 20px;border-top:1px solid var(--border-color);">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="shramSubmitBtn">Save Shram Daan Entry</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========== SHRAM DAAN DETAIL MODAL ========== -->
+<div class="modal-backdrop hidden" id="shramDetailModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>Shram Daan Drive Details / श्रमदान विवरण</h2>
+      <button type="button" class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="modal-body" style="max-height:calc(85vh - 120px);overflow-y:auto;padding:20px;">
+      <div id="shramDetailContent">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+    <div class="modal-footer" style="display:flex;justify-content:space-between;gap:10px;padding:14px 20px;border-top:1px solid var(--border-color);">
+      <button type="button" class="btn btn-outline" id="shramPrintSlipBtn">🖨️ Print Slip</button>
+      <button type="button" class="btn btn-primary" data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== SHRAM PHOTO LIGHTBOX MODAL ========== -->
+<div class="modal-backdrop hidden" id="shramLightboxModal" style="z-index:99999;">
+  <div class="modal" style="max-width:900px;width:95vw;padding:16px;">
+    <div class="modal-header" style="padding-bottom:10px;">
+      <h3 id="shramLightboxTitle" style="font-size:16px;margin:0;">Photo Preview</h3>
+      <button type="button" class="modal-close" id="shramLightboxCloseBtn">&times;</button>
+    </div>
+    <div class="modal-body" style="text-align:center;padding:10px 0;background:#111;border-radius:6px;position:relative;">
+      <img id="shramLightboxImg" src="" alt="Enlarged Shram Daan Photo" style="max-height:75vh;max-width:100%;object-fit:contain;border-radius:4px;display:inline-block;">
+      <div id="shramLightboxStamp" style="position:absolute;bottom:16px;left:16px;background:rgba(0,0,0,0.8);color:#fff;padding:6px 12px;border-radius:4px;font-family:monospace;font-size:12px;text-align:left;border:1px solid rgba(255,255,255,0.2);"></div>
+    </div>
+    <div class="modal-footer" style="display:flex;justify-content:space-between;padding-top:10px;">
+      <span id="shramLightboxMeta" style="font-size:13px;color:var(--text-muted);align-self:center;"></span>
+      <a id="shramLightboxDownloadBtn" class="btn btn-sm btn-primary" download="shramdaan-photo.jpg">⬇ Download Photo</a>
     </div>
   </div>
 </div>
