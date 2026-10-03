@@ -343,6 +343,7 @@ function authorizeUserCollectionWrite(user, currentUsers, incomingUsers) {
 // Maintenance requests (per-district array records stored under
 // hp_inventory.maintenance_<districtId>). These are NOT inventory records and
 const MAINT_KEY_PREFIX = 'hp_inventory.maintenance_';
+const SHRAMDAAN_KEY_PREFIX = 'hp_inventory.shramdaan_';
 // move through an independent workflow, so they get their own write guard:
 //   create          (status pending)        — a requesting-unit user
 //                                           (role station/mhc/post/tsi) or
@@ -513,7 +514,7 @@ function sanitizeMaintenanceRecord(record) {
   return r;
 }
 
-module.exports = { projectStateFor, restoreScopeFor, diffStructureWrites, authorizeStructureWrites, diffConsumableWrites, authorizeConsumableWrites, diffMaintenanceWrites, finalizeMaintenanceState, MAINT_KEY_PREFIX, ITEM_STORE_KEY, DISTRIBUTION_KEY_PREFIX, CONTENT_FIELDS, stableStringify, itemFingerprint, diffItemWrites, distributionExemptKeys, authorizeItemWrites, authorizeUserCollectionWrite, authorizeMaintenanceWrites, finishMaintenanceRecord, sanitizeMaintenanceRecord };
+module.exports = { projectStateFor, restoreScopeFor, diffStructureWrites, authorizeStructureWrites, diffConsumableWrites, authorizeConsumableWrites, diffMaintenanceWrites, finalizeMaintenanceState, MAINT_KEY_PREFIX, SHRAMDAAN_KEY_PREFIX, ITEM_STORE_KEY, DISTRIBUTION_KEY_PREFIX, CONTENT_FIELDS, stableStringify, itemFingerprint, diffItemWrites, distributionExemptKeys, authorizeItemWrites, authorizeUserCollectionWrite, authorizeMaintenanceWrites, finishMaintenanceRecord, sanitizeMaintenanceRecord };
 
 
 // ============================================================
@@ -669,6 +670,10 @@ function projectStateFor(user, state) {
       if (inScope(key.slice(MAINT_KEY_PREFIX.length))) out[key] = value;
       continue;
     }
+    if (key.indexOf(SHRAMDAAN_KEY_PREFIX) === 0) {
+      if (inScope(key.slice(SHRAMDAAN_KEY_PREFIX.length))) out[key] = value;
+      continue;
+    }
     if (key.indexOf(D_SUFFIXED) >= 0) {
       const idx = key.indexOf(D_SUFFIXED);
       if (inScope(key.slice(0, idx))) out[key] = value;
@@ -785,6 +790,12 @@ function restoreScopeFor(user, current, incoming) {
       const maintDistId = key.slice(MAINT_KEY_PREFIX.length);
       if (inScope(maintDistId)) continue;   // the caller's own district: theirs to change
       out[key] = cur;                      // someone else's: put back what was stored
+      continue;
+    }
+    if (key.indexOf(SHRAMDAAN_KEY_PREFIX) === 0) {
+      const shramDistId = key.slice(SHRAMDAAN_KEY_PREFIX.length);
+      if (inScope(shramDistId)) continue;
+      out[key] = cur;
       continue;
     }
     if (key.indexOf(D_SUFFIXED) >= 0) {

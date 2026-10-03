@@ -416,6 +416,20 @@ const __SORT_DEFS = {
       null /* Actions: View button only */
     ]
   },
+  /* Shram Daan (#shramTableBody, pager_shram) */
+  shram: {
+    cols: [
+      null, /* # */
+      r => (r.date + " " + (r.time || "")),
+      r => r.workType || "",
+      r => r.description || "",
+      r => r.locationName || "",
+      r => r.officerName || "",
+      r => Number(r.participants) || 0,
+      r => (r.photos ? r.photos.length : 0),
+      null /* Actions */
+    ]
+  },
   /* Allotted items (#allocBody, pager_alloc) */
   alloc: {
     cols: [
@@ -1826,6 +1840,7 @@ function render() {
   renderDemands();
   renderDistribution();
   renderMaintenance();
+  renderShramDaan();
   const allocView = $("#view-allotments");
   if (allocView && !allocView.classList.contains("hidden")) renderAllotments();
   const invView = $("#view-inventory");
@@ -4730,7 +4745,872 @@ function deleteInspection(id) {
   render();
 }
 
-/* ==================== DEMANDS ==================== */
+/* ==================== SHRAM DAAN ==================== */
+let __shramPhotos = [];
+let __shramActiveTab = "history";
+let __shramStatFilter = "all";
+let __shramDetailId = null;
+
+function getShramDaanList() {
+  if (!activeDistrictId) return [];
+  const list = loadData(`shramdaan_${activeDistrictId}`);
+  return Array.isArray(list) ? list : [];
+}
+
+function saveShramDaanList(list) {
+  if (!activeDistrictId) return;
+  saveData(`shramdaan_${activeDistrictId}`, list);
+}
+
+function seedShramDaan(districtId) {
+  const d = getDistricts().find(x => x.id === districtId);
+  const distName = d ? d.name : "District";
+  const locs = typeof getLocationsForDistrict === "function" ? getLocationsForDistrict(districtId) : getLocations();
+  const lineLoc = locs.find(l => (l.name || "").toLowerCase().includes("line")) || locs[0] || { id: "line_1", name: "Police Line" };
+  const stationLoc = locs.find(l => (l.name || "").toLowerCase().includes("station") || (l.name || "").toLowerCase().includes("thana") || (l.name || "").toLowerCase().includes("ps")) || locs[1] || locs[0] || { id: "ps_1", name: "Police Station City" };
+
+  const today = new Date();
+  const d1 = new Date(today.getTime() - 86400000 * 2).toISOString().slice(0, 10);
+  const d2 = new Date(today.getTime() - 86400000 * 5).toISOString().slice(0, 10);
+  const d3 = new Date(today.getTime() - 86400000 * 8).toISOString().slice(0, 10);
+
+  function makeSamplePhotoSvg(typeText, dateText, officerText, locText, color1, color2) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+      <defs>
+        <linearGradient id="bg_${color1.replace('#','')}" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${color1}"/>
+          <stop offset="100%" stop-color="${color2}"/>
+        </linearGradient>
+      </defs>
+      <rect width="800" height="500" fill="url(#bg_${color1.replace('#','')})"/>
+      <circle cx="400" cy="180" r="70" fill="rgba(255,255,255,0.12)"/>
+      <path d="M375 210 L400 150 L425 210 Z" fill="rgba(255,255,255,0.3)"/>
+      <text x="400" y="270" font-family="'Segoe UI', Arial, sans-serif" font-size="26" font-weight="bold" fill="#ffffff" text-anchor="middle">${typeText}</text>
+      <text x="400" y="300" font-family="'Segoe UI', Arial, sans-serif" font-size="15" fill="rgba(255,255,255,0.85)" text-anchor="middle">Haryana Police \u00b7 Community &amp; Cleanliness Drive</text>
+      <rect x="25" y="405" width="750" height="72" rx="6" fill="rgba(0,0,0,0.82)" stroke="#d4af37" stroke-width="2"/>
+      <text x="40" y="430" font-family="monospace" font-size="13" font-weight="bold" fill="#d4af37">\u25c6 HARYANA POLICE - SHRAM DAAN DRIVE</text>
+      <text x="40" y="449" font-family="monospace" font-size="12" fill="#ffffff">DATE: ${dateText} | UNIT: ${locText}</text>
+      <text x="40" y="467" font-family="monospace" font-size="11.5" fill="#93c5fd">CONDUCTED BY: ${officerText}</text>
+    </svg>`;
+    return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  }
+
+  const sampleDrives = [
+    {
+      id: "shram_1",
+      workType: "cleaning",
+      customType: "",
+      workTypeLabel: "Cleaning (सफ़ाई अभियान)",
+      locationId: lineLoc.id,
+      locationName: lineLoc.name,
+      officerRole: "Line Officer",
+      officerName: "Insp. Suresh Kumar",
+      officerBelt: "Line Officer, Dist. Lines",
+      date: d1,
+      time: "08:00",
+      participants: 28,
+      description: "Comprehensive cleanliness drive (स्वच्छता अभियान) conducted across Police Line parade grounds, administrative block, MT section and police barracks. Waste segregation, sweeping and drain sanitation completed.",
+      photos: [
+        {
+          id: "ph_cl_1",
+          name: "police-line-cleaning-1.jpg",
+          dataUrl: makeSamplePhotoSvg("Cleanliness Drive / सफ़ाई अभियान", d1 + " 08:00 AM", "Insp. Suresh Kumar (Line Officer)", lineLoc.name, "#1e3a8a", "#0d9488"),
+          capturedAt: d1 + " 08:00",
+          stamped: true
+        },
+        {
+          id: "ph_cl_2",
+          name: "police-line-cleaning-2.jpg",
+          dataUrl: makeSamplePhotoSvg("Barracks & Grounds Sanitation", d1 + " 09:30 AM", "Insp. Suresh Kumar (Line Officer)", lineLoc.name, "#0f766e", "#155e75"),
+          capturedAt: d1 + " 09:30",
+          stamped: true
+        }
+      ],
+      createdBy: "system",
+      createdAt: Date.now() - 86400000 * 2
+    },
+    {
+      id: "shram_2",
+      workType: "planting",
+      customType: "",
+      workTypeLabel: "Planting (पौधारोपण)",
+      locationId: stationLoc.id,
+      locationName: stationLoc.name,
+      officerRole: "Station Officer",
+      officerName: "Sub-Insp. Manoj Sharma",
+      officerBelt: "Station Officer / SHO",
+      date: d2,
+      time: "09:30",
+      participants: 15,
+      description: "Mass tree plantation drive (पौधारोपण अभियान). Planted 30 medicinal and fruit-bearing saplings (Neem, Peepal, Jamun, Amla) along the perimeter boundary wall and entrance courtyard of the Police Station.",
+      photos: [
+        {
+          id: "ph_pl_1",
+          name: "police-station-planting.jpg",
+          dataUrl: makeSamplePhotoSvg("Tree Plantation / पौधारोपण", d2 + " 09:30 AM", "Sub-Insp. Manoj Sharma (Station Officer)", stationLoc.name, "#065f46", "#047857"),
+          capturedAt: d2 + " 09:30",
+          stamped: true
+        }
+      ],
+      createdBy: "system",
+      createdAt: Date.now() - 86400000 * 5
+    },
+    {
+      id: "shram_3",
+      workType: "gardening",
+      customType: "",
+      workTypeLabel: "Gardening (बागवानी)",
+      locationId: lineLoc.id,
+      locationName: lineLoc.name,
+      officerRole: "Line Officer",
+      officerName: "Insp. Suresh Kumar",
+      officerBelt: "Line Officer, Dist. Lines",
+      date: d3,
+      time: "16:00",
+      participants: 12,
+      description: "Maintenance and beautification of Police Line central garden. Lawn mowing, weeding flowerbeds, pruning hedge plants and setting up organic fertilizer beds.",
+      photos: [
+        {
+          id: "ph_gd_1",
+          name: "police-line-gardening.jpg",
+          dataUrl: makeSamplePhotoSvg("Gardening & Lawn Mowing", d3 + " 04:00 PM", "Insp. Suresh Kumar (Line Officer)", lineLoc.name, "#854d0e", "#b45309"),
+          capturedAt: d3 + " 16:00",
+          stamped: true
+        }
+      ],
+      createdBy: "system",
+      createdAt: Date.now() - 86400000 * 8
+    }
+  ];
+
+  saveData(`shramdaan_${districtId}`, sampleDrives);
+  return sampleDrives;
+}
+
+function __shramFiltered() {
+  const all = getShramDaanList();
+  const search = ($("#shramSearch")?.value || "").trim().toLowerCase();
+  const typeFilter = ($("#shramTypeFilter")?.value || "").toLowerCase();
+  const locFilter = $("#shramLocationFilter")?.value || "";
+  const dFrom = $("#shramDateFrom")?.value || "";
+  const dTo = $("#shramDateTo")?.value || "";
+
+  return all.filter(r => {
+    if (__shramStatFilter && __shramStatFilter !== "all" && r.workType !== __shramStatFilter) return false;
+    if (typeFilter && r.workType !== typeFilter) return false;
+    if (locFilter && r.locationId !== locFilter) return false;
+    if (dFrom && r.date < dFrom) return false;
+    if (dTo && r.date > dTo) return false;
+    if (search) {
+      const q = [
+        r.description,
+        r.officerName,
+        r.officerRole,
+        r.officerBelt,
+        r.locationName,
+        r.workType,
+        r.customType,
+        r.date
+      ].filter(Boolean).join(" ").toLowerCase();
+      if (!q.includes(search)) return false;
+    }
+    return true;
+  }).sort((a, b) => {
+    const tA = (a.date || "") + " " + (a.time || "");
+    const tB = (b.date || "") + " " + (b.time || "");
+    return tB.localeCompare(tA);
+  });
+}
+
+function renderShramDaan() {
+  const container = $("#view-shramdaan");
+  if (!container) return;
+
+  let all = getShramDaanList();
+  if (!all.length && activeDistrictId) {
+    all = seedShramDaan(activeDistrictId);
+  }
+
+  // Populate Location filter if needed
+  const locFilter = $("#shramLocationFilter");
+  if (locFilter && locFilter.options.length <= 1) {
+    const locs = getLocations();
+    locFilter.innerHTML = `<option value="">All Locations / Units</option>` +
+      locs.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
+  }
+
+  // Calculate statistics
+  const stats = { total: all.length, gardening: 0, cleaning: 0, planting: 0, fatigue: 0 };
+  let totalPhotos = 0;
+  all.forEach(d => {
+    if (stats[d.workType] !== undefined) stats[d.workType]++;
+    if (Array.isArray(d.photos)) totalPhotos += d.photos.length;
+  });
+
+  const sTotal = $("#statShramTotal"); if (sTotal) sTotal.textContent = stats.total;
+  const sGardening = $("#statShramGardening"); if (sGardening) sGardening.textContent = stats.gardening;
+  const sCleaning = $("#statShramCleaning"); if (sCleaning) sCleaning.textContent = stats.cleaning;
+  const sPlanting = $("#statShramPlanting"); if (sPlanting) sPlanting.textContent = stats.planting;
+  const sFatigue = $("#statShramFatigue"); if (sFatigue) sFatigue.textContent = stats.fatigue;
+
+  const filtered = __shramFiltered();
+  const sHistCount = $("#shramHistoryCount"); if (sHistCount) sHistCount.textContent = filtered.length;
+
+  let filteredPhotosCount = 0;
+  filtered.forEach(d => { if (Array.isArray(d.photos)) filteredPhotosCount += d.photos.length; });
+  const sPhotoCount = $("#shramPhotoCount"); if (sPhotoCount) sPhotoCount.textContent = filteredPhotosCount;
+  const sGalleryTotal = $("#shramGalleryTotal"); if (sGalleryTotal) sGalleryTotal.textContent = filteredPhotosCount;
+
+  // Render History Table
+  const tbody = $("#shramTableBody");
+  if (tbody) {
+    if (filtered.length) {
+      const pageRows = __pgRows("shram", filtered);
+      tbody.innerHTML = pageRows.map((r, idx) => {
+        const badgeCls = `shram-badge shram-badge-${r.workType || 'other'}`;
+        const icons = { gardening: "🌿", cleaning: "🧹", planting: "🌱", fatigue: "💪", other: "📌" };
+        const icon = icons[r.workType] || "📌";
+        const typeTitle = r.customType ? `${r.customType} (Other)` : (r.workTypeLabel || r.workType);
+        const photos = Array.isArray(r.photos) ? r.photos : [];
+
+        let photosHtml = '<span style="color:var(--text-muted);font-size:12px;">No photos</span>';
+        if (photos.length > 0) {
+          const thumbs = photos.slice(0, 3).map((p, pi) => `
+            <img src="${p.dataUrl}" alt="Photo" class="shram-table-thumb" 
+                 style="width:34px;height:34px;object-fit:cover;border-radius:4px;border:1px solid var(--border-color);cursor:pointer;vertical-align:middle;margin-right:3px;"
+                 data-shram-img-id="${esc(r.id)}" data-photo-idx="${pi}" title="Click to enlarge">
+          `).join("");
+          const moreBadge = photos.length > 3 ? `<span class="badge" style="font-size:10px;padding:2px 5px;background:var(--primary-100);color:var(--primary);border-radius:4px;vertical-align:middle;">+${photos.length - 3}</span>` : "";
+          photosHtml = `<div style="display:inline-flex;align-items:center;">${thumbs}${moreBadge}</div>`;
+        }
+
+        return `
+          <tr>
+            <td style="font-weight:600;color:var(--text-muted);">${idx + 1}</td>
+            <td style="white-space:nowrap;">
+              <div style="font-weight:600;">${esc(r.date || "")}</div>
+              <div style="font-size:11.5px;color:var(--text-muted);">🕒 ${esc(r.time || "")}</div>
+            </td>
+            <td>
+              <span class="${badgeCls}">${icon} ${esc(typeTitle)}</span>
+            </td>
+            <td style="max-width:280px;">
+              <div style="font-size:13px;line-height:1.35;word-break:break-word;" title="${esc(r.description || "")}">
+                ${esc((r.description || "").length > 95 ? (r.description.slice(0, 95) + "...") : (r.description || "-"))}
+              </div>
+            </td>
+            <td>
+              <span style="font-weight:550;">${esc(r.locationName || "-")}</span>
+            </td>
+            <td>
+              <div style="font-weight:600;">${esc(r.officerName || "-")}</div>
+              <div style="font-size:11px;color:var(--text-muted);">${esc(r.officerRole || "")} ${r.officerBelt ? `(${esc(r.officerBelt)})` : ""}</div>
+            </td>
+            <td style="text-align:center;">
+              <span class="badge" style="background:var(--primary-050);color:var(--primary);font-weight:600;padding:3px 8px;border-radius:12px;">${r.participants || 1}</span>
+            </td>
+            <td>${photosHtml}</td>
+            <td style="text-align:center;white-space:nowrap;">
+              <button type="button" class="btn btn-sm btn-outline" data-shram-action="view" data-id="${esc(r.id)}" title="View full drive details">View</button>
+              <button type="button" class="btn btn-sm btn-outline" data-shram-action="print" data-id="${esc(r.id)}" title="Print Drive Slip">🖨️</button>
+              ${(canEdit() || isDevAdmin()) ? `<button type="button" class="btn btn-sm btn-outline" data-shram-action="delete" data-id="${esc(r.id)}" style="color:var(--red,#dc2626);" title="Delete Record">&times;</button>` : ""}
+            </td>
+          </tr>
+        `;
+      }).join("");
+    } else {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted);">No Shram Daan records found. Click "+ Record Shram Daan" to add one.</td></tr>`;
+    }
+    renderPager("shram", filtered.length, renderShramDaan);
+  }
+
+  // Render Uploaded Photos Gallery
+  const galleryGrid = $("#shramGalleryGrid");
+  if (galleryGrid) {
+    const allGalleryItems = [];
+    filtered.forEach(drive => {
+      if (Array.isArray(drive.photos)) {
+        drive.photos.forEach((ph, pIdx) => {
+          allGalleryItems.push({ drive, photo: ph, pIdx });
+        });
+      }
+    });
+
+    if (allGalleryItems.length) {
+      galleryGrid.innerHTML = allGalleryItems.map(item => {
+        const d = item.drive;
+        const p = item.photo;
+        const badgeCls = `shram-badge shram-badge-${d.workType || 'other'}`;
+        const icons = { gardening: "🌿", cleaning: "🧹", planting: "🌱", fatigue: "💪", other: "📌" };
+        const icon = icons[d.workType] || "📌";
+        const typeTitle = d.customType ? d.customType : (d.workTypeLabel || d.workType);
+
+        return `
+          <div class="shram-photo-card" data-drive-id="${esc(d.id)}" data-photo-idx="${item.pIdx}">
+            <div class="shram-photo-wrap" data-shram-img-id="${esc(d.id)}" data-photo-idx="${item.pIdx}">
+              <img src="${p.dataUrl}" alt="${esc(p.name || 'Photo')}" class="shram-photo-img" loading="lazy">
+              <div class="shram-photo-stamp">
+                <span>📅 ${esc(p.capturedAt || (d.date + ' ' + d.time))}</span>
+                <span>📍 ${esc(d.locationName || '')}</span>
+              </div>
+            </div>
+            <div class="shram-card-body">
+              <div class="shram-card-header">
+                <span class="${badgeCls}">${icon} ${esc(typeTitle)}</span>
+                <span style="font-size:11.5px;color:var(--text-muted);font-weight:600;">👥 ${d.participants || 1} personnel</span>
+              </div>
+              <div class="shram-card-desc" title="${esc(d.description || '')}">${esc(d.description || '-')}</div>
+              <div class="shram-card-meta">
+                <span><b>By:</b> ${esc(d.officerName || '-')}</span>
+                <span>${esc(d.officerRole || '')}</span>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:6px;">
+                <button type="button" class="btn btn-sm btn-outline" style="flex:1;font-size:11px;" data-shram-img-id="${esc(d.id)}" data-photo-idx="${item.pIdx}">🔍 Enlarge</button>
+                <button type="button" class="btn btn-sm btn-outline" style="flex:1;font-size:11px;" data-shram-action="view" data-id="${esc(d.id)}">Details</button>
+                <a href="${p.dataUrl}" download="${esc(p.name || 'shramdaan-photo.jpg')}" class="btn btn-sm btn-outline" style="font-size:11px;padding:0 8px;" title="Download Photo">⬇</a>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    } else {
+      galleryGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:var(--text-muted);">No photos uploaded yet. When you record a Shram Daan drive with camera or file uploads, the stamped photos will appear here in the gallery.</div>`;
+    }
+  }
+}
+
+function __shramStampPhoto(photo, cb) {
+  const img = new Image();
+  img.onload = () => {
+    try {
+      const c = document.createElement("canvas");
+      const maxDim = 1600;
+      let w = img.width, h = img.height;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+        else { w = Math.round(w * maxDim / h); h = maxDim; }
+      }
+      c.width = w;
+      c.height = h;
+      const ctx = c.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+
+      const pad = Math.max(10, Math.round(w * 0.02));
+      const fontSize = Math.max(13, Math.round(w * 0.022));
+      ctx.font = "bold " + fontSize + "px 'Courier New', monospace, sans-serif";
+
+      const dateStr = $("#shramDate")?.value || new Date().toISOString().slice(0, 10);
+      const timeStr = $("#shramTime")?.value || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const officerStr = $("#shramOfficerName")?.value || (currentUser ? currentUser.name : "Police Officer");
+      const locEl = $("#shramLocation");
+      const unitStr = locEl && locEl.selectedIndex >= 0 ? locEl.options[locEl.selectedIndex].text : "";
+
+      const stampLine1 = "◆ HARYANA POLICE - SHRAM DAAN DRIVE";
+      const stampLine2 = "DATE: " + dateStr + " " + timeStr + (unitStr ? " | " + unitStr : "") + " | BY: " + officerStr;
+
+      const line1W = ctx.measureText(stampLine1).width;
+      const line2W = ctx.measureText(stampLine2).width;
+      const boxW = Math.max(line1W, line2W) + pad * 2;
+      const boxH = fontSize * 2.8 + pad * 1.5;
+
+      ctx.fillStyle = "rgba(0, 0, 0, 0.82)";
+      ctx.fillRect(pad, h - boxH - pad, boxW, boxH);
+
+      ctx.fillStyle = "#d4af37";
+      ctx.fillRect(pad, h - boxH - pad, boxW, Math.max(2, Math.round(fontSize * 0.16)));
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(stampLine1, pad * 2, h - boxH - pad + fontSize + pad * 0.4);
+      ctx.fillStyle = "#fef08a";
+      ctx.fillText(stampLine2, pad * 2, h - pad - pad * 0.5);
+
+      photo.dataUrl = c.toDataURL("image/jpeg", 0.85);
+      photo.stamped = true;
+      photo.capturedAt = dateStr + " " + timeStr;
+    } catch (e) {
+      console.warn("Photo stamp fallback:", e);
+    }
+    cb(photo);
+  };
+  img.onerror = () => cb(photo);
+  img.src = photo.dataUrl;
+}
+
+function __shramAddPhoto(photo) {
+  if (!photo.stamped && photo.dataUrl && photo.dataUrl.indexOf("data:image/") === 0 && photo.dataUrl.indexOf("data:image/svg") !== 0) {
+    __shramStampPhoto(photo, stampedPhoto => {
+      __shramPhotos.push(stampedPhoto);
+      __shramRenderPhotoPreviews();
+      toast("Photo stamped with verified date & time.", "success");
+    });
+  } else {
+    if (!photo.capturedAt) {
+      const dStr = $("#shramDate")?.value || new Date().toISOString().slice(0, 10);
+      const tStr = $("#shramTime")?.value || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      photo.capturedAt = dStr + " " + tStr;
+    }
+    __shramPhotos.push(photo);
+    __shramRenderPhotoPreviews();
+  }
+}
+
+function __shramRenderPhotoPreviews() {
+  const container = $("#shramPhotoPreviews");
+  if (!container) return;
+  if (!__shramPhotos.length) {
+    container.innerHTML = `<div id="shramNoPhotoNotice" style="width:100%;text-align:center;color:var(--text-muted);font-size:13px;padding:15px 0;">No photos added yet. Click &quot;Choose Photo Files&quot; or &quot;Open Camera&quot;.</div>`;
+    return;
+  }
+
+  container.innerHTML = __shramPhotos.map((p, idx) => `
+    <div class="shram-photo-thumb" data-photo-idx="${idx}">
+      <img src="${p.dataUrl}" alt="${esc(p.name || 'Preview')}">
+      <button type="button" class="shram-thumb-remove" data-remove-idx="${idx}" title="Remove photo">&times;</button>
+      <div class="shram-thumb-badge">${esc(p.capturedAt || 'Stamped')}</div>
+    </div>
+  `).join("");
+}
+
+function openShramDaanModal() {
+  const modal = $("#shramDaanModal");
+  if (!modal) return;
+
+  $("#shramDaanForm")?.reset();
+  __shramPhotos = [];
+  __shramRenderPhotoPreviews();
+
+  // Populate Location options
+  const locSel = $("#shramLocation");
+  if (locSel) {
+    const locs = getLocations();
+    locSel.innerHTML = `<option value="">-- Select Location / Unit --</option>` +
+      locs.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
+    if (currentUser && currentUser.locationId) {
+      locSel.value = currentUser.locationId;
+    }
+  }
+
+  // Pre-fill Officer Name & Role
+  if (currentUser) {
+    const nameEl = $("#shramOfficerName");
+    if (nameEl) nameEl.value = (currentUser.rank ? currentUser.rank + " " : "") + (currentUser.name || "");
+    const roleLower = (currentUser.role || "").toLowerCase();
+    const rankLower = (currentUser.rank || "").toLowerCase();
+    const roleSel = $("#shramOfficerRole");
+    if (roleSel) {
+      if (roleLower.includes("line") || rankLower.includes("line")) {
+        roleSel.value = "Line Officer";
+      } else if (roleLower.includes("station") || roleLower.includes("sho") || rankLower.includes("sho")) {
+        roleSel.value = "Station Officer";
+      } else if (roleLower.includes("mhc")) {
+        roleSel.value = "MHC";
+      } else {
+        roleSel.value = "Station Officer";
+      }
+    }
+  }
+
+  const now = new Date();
+  const dEl = $("#shramDate"); if (dEl) dEl.value = now.toISOString().slice(0, 10);
+  const tEl = $("#shramTime"); if (tEl) {
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    tEl.value = `${hh}:${mm}`;
+  }
+
+  $("#shramCustomTypeWrap")?.classList.add("hidden");
+  openModal("#shramDaanModal");
+}
+
+async function saveShramDaanEntry(e) {
+  if (e) e.preventDefault();
+  const workType = $("#shramWorkType")?.value;
+  if (!workType) return toast("Please select a Work Type.", "error");
+
+  const customType = $("#shramCustomType")?.value.trim() || "";
+  if (workType === "other" && !customType) {
+    return toast("Please specify the custom work type.", "error");
+  }
+
+  const locationId = $("#shramLocation")?.value;
+  if (!locationId) return toast("Please select a Location / Unit.", "error");
+  const locObj = getLocations().find(l => l.id === locationId);
+  const locationName = locObj ? locObj.name : "Location";
+
+  const officerRole = $("#shramOfficerRole")?.value || "Officer";
+  const officerName = $("#shramOfficerName")?.value.trim();
+  if (!officerName) return toast("Please enter Officer Name.", "error");
+  const officerBelt = $("#shramOfficerBelt")?.value.trim() || "";
+
+  const date = $("#shramDate")?.value;
+  const time = $("#shramTime")?.value;
+  if (!date || !time) return toast("Please select Date and Time.", "error");
+
+  const participants = Number($("#shramParticipants")?.value) || 1;
+  const description = $("#shramDescription")?.value.trim();
+  if (!description) return toast("Please enter a description of the work done.", "error");
+
+  const labels = {
+    gardening: "Gardening (बागवानी)",
+    cleaning: "Cleaning (सफ़ाई अभियान)",
+    planting: "Planting (पौधारोपण)",
+    fatigue: "Fatigue (फटीक / शारीरिक श्रम)",
+    other: customType || "Other (अन्य कार्य)"
+  };
+
+  const newEntry = {
+    id: "shram_" + uid(),
+    workType,
+    customType,
+    workTypeLabel: labels[workType] || workType,
+    locationId,
+    locationName,
+    officerRole,
+    officerName,
+    officerBelt,
+    date,
+    time,
+    participants,
+    description,
+    photos: [...__shramPhotos],
+    createdBy: currentUser ? currentUser.id : "system",
+    createdAt: Date.now()
+  };
+
+  const list = getShramDaanList();
+  list.unshift(newEntry);
+  saveShramDaanList(list);
+
+  __audit("Shram Daan Recorded", `${labels[workType]} at ${locationName} by ${officerName}`, { entity: "ShramDaan" });
+  toast("Shram Daan drive recorded successfully with verified timestamp!", "success");
+  closeModals();
+  renderShramDaan();
+}
+
+function openShramDaanDetailModal(id) {
+  const list = getShramDaanList();
+  const drive = list.find(d => d.id === id);
+  if (!drive) return toast("Drive record not found.", "error");
+  __shramDetailId = id;
+
+  const content = $("#shramDetailContent");
+  if (!content) return;
+
+  const badgeCls = `shram-badge shram-badge-${drive.workType || 'other'}`;
+  const icons = { gardening: "🌿", cleaning: "🧹", planting: "🌱", fatigue: "💪", other: "📌" };
+  const icon = icons[drive.workType] || "📌";
+  const typeTitle = drive.customType ? `${drive.customType} (Other)` : (drive.workTypeLabel || drive.workType);
+  const photos = Array.isArray(drive.photos) ? drive.photos : [];
+
+  let photosSection = '<p style="color:var(--text-muted);font-style:italic;">No photos uploaded for this drive.</p>';
+  if (photos.length > 0) {
+    photosSection = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:12px;margin-top:10px;">
+        ${photos.map((p, idx) => `
+          <div style="position:relative;border-radius:6px;overflow:hidden;border:1px solid var(--border-color);background:#000;cursor:pointer;"
+               data-shram-img-id="${esc(drive.id)}" data-photo-idx="${idx}">
+            <img src="${p.dataUrl}" alt="Photo" style="width:100%;height:130px;object-fit:cover;display:block;">
+            <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.75);color:#fff;font-size:10px;font-family:monospace;padding:3px 6px;text-align:center;">
+              📅 ${esc(p.capturedAt || (drive.date + ' ' + drive.time))}
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  content.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
+      <div>
+        <span class="${badgeCls}" style="font-size:14px;padding:5px 14px;">${icon} ${esc(typeTitle)}</span>
+        <h3 style="margin:8px 0 2px;font-size:18px;">${esc(drive.locationName || 'Haryana Police')}</h3>
+        <span style="font-size:12px;color:var(--text-muted);">Record ID: #${esc(drive.id)} \u00b7 Created ${new Date(drive.createdAt || Date.now()).toLocaleString()}</span>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:16px;font-weight:700;color:var(--primary);">${esc(drive.date)}</div>
+        <div style="font-size:13px;color:var(--text-muted);">🕒 ${esc(drive.time)}</div>
+      </div>
+    </div>
+
+    <div class="demand-detail-grid" style="margin-bottom:16px;">
+      <div><span class="stat-label">Conducted By</span><b>${esc(drive.officerName || '-')}</b></div>
+      <div><span class="stat-label">Officer Role / Designation</span><b>${esc(drive.officerRole || '-')}</b></div>
+      <div><span class="stat-label">Belt No. / PNO</span><b>${esc(drive.officerBelt || '-')}</b></div>
+      <div><span class="stat-label">Location / Unit</span><b>${esc(drive.locationName || '-')}</b></div>
+      <div><span class="stat-label">Personnel Involved</span><b>${drive.participants || 1} Persons</b></div>
+      <div><span class="stat-label">Photos Attached</span><b>${photos.length} Photo${photos.length === 1 ? '' : 's'}</b></div>
+      <div style="grid-column:1/-1;">
+        <span class="stat-label">Description of Work Done</span>
+        <div style="background:var(--bg-alt,#f8f9fa);padding:12px;border-radius:6px;font-size:13.5px;line-height:1.5;margin-top:4px;white-space:pre-wrap;">${esc(drive.description || '-')}</div>
+      </div>
+    </div>
+
+    <div>
+      <h4 style="margin:0 0 4px;font-size:14px;font-weight:600;">Uploaded Photos (${photos.length})</h4>
+      <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">Click any photo to view full resolution and download.</p>
+      ${photosSection}
+    </div>
+  `;
+
+  openModal("#shramDetailModal");
+}
+
+function openShramLightbox(driveId, photoIdx) {
+  const list = getShramDaanList();
+  const drive = list.find(d => d.id === driveId);
+  if (!drive || !drive.photos || !drive.photos[photoIdx]) return;
+  const p = drive.photos[photoIdx];
+
+  const titleEl = $("#shramLightboxTitle"); if (titleEl) titleEl.textContent = `${drive.workTypeLabel || drive.workType} - Photo #${Number(photoIdx) + 1}`;
+  const imgEl = $("#shramLightboxImg"); if (imgEl) imgEl.src = p.dataUrl;
+  const stampEl = $("#shramLightboxStamp"); if (stampEl) stampEl.textContent = `DATE & TIME: ${p.capturedAt || (drive.date + ' ' + drive.time)} | UNIT: ${drive.locationName} | OFFICER: ${drive.officerName}`;
+  const metaEl = $("#shramLightboxMeta"); if (metaEl) metaEl.textContent = `${p.name || 'Photo'} (${drive.photos.length} photos in drive)`;
+
+  const dlBtn = $("#shramLightboxDownloadBtn");
+  if (dlBtn) {
+    dlBtn.href = p.dataUrl;
+    dlBtn.download = p.name || `shramdaan-${drive.date}-${Number(photoIdx) + 1}.jpg`;
+  }
+  openModal("#shramLightboxModal");
+}
+
+function printShramSlip(id) {
+  const drive = getShramDaanList().find(d => d.id === id);
+  if (!drive) return toast("Record not found.", "error");
+  const dist = getDistricts().find(d => d.id === activeDistrictId);
+  const w = window.open("", "_blank", "width=850,height=700");
+  if (!w) return toast("Allow pop-ups to print slip.", "error");
+
+  const photosHtml = (drive.photos || []).map(p => `
+    <div style="display:inline-block;margin:6px;border:1px solid #ccc;border-radius:4px;overflow:hidden;max-width:320px;">
+      <img src="${p.dataUrl}" style="max-width:100%;height:180px;object-fit:cover;display:block;">
+      <div style="padding:4px 6px;font-family:monospace;font-size:10px;background:#f1f5f9;">${esc(p.capturedAt || (drive.date + ' ' + drive.time))}</div>
+    </div>
+  `).join("");
+
+  w.document.write(`
+    <html>
+      <head>
+        <title>Shram Daan Slip - Haryana Police</title>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 24px; color: #1e293b; }
+          .header { text-align: center; border-bottom: 2px solid #1e3a5f; padding-bottom: 12px; margin-bottom: 16px; }
+          .title { font-size: 20px; font-weight: bold; color: #1e3a5f; margin: 0; }
+          .subtitle { font-size: 13px; color: #64748b; margin-top: 4px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+          th, td { border: 1px solid #cbd5e1; padding: 8px 12px; font-size: 13px; }
+          th { background: #f8fafc; text-align: left; width: 30%; color: #334155; }
+          .desc { background: #f8fafc; padding: 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; line-height: 1.5; margin-bottom: 16px; }
+          .sign-row { display: flex; justify-content: space-between; margin-top: 40px; padding-top: 20px; }
+          .sign-box { text-align: center; width: 220px; border-top: 1px dashed #64748b; padding-top: 6px; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="title">HARYANA POLICE \u00b7 SHRAM DAAN DRIVE SLIP</div>
+          <div class="subtitle">${esc(dist ? dist.name : 'Haryana Police')} \u00b7 Community &amp; Cleanliness Activity Record</div>
+        </div>
+        <table>
+          <tr><th>Drive ID</th><td>#${esc(drive.id)}</td></tr>
+          <tr><th>Work Type</th><td><b>${esc(drive.workTypeLabel || drive.workType)}</b> ${drive.customType ? `(${esc(drive.customType)})` : ''}</td></tr>
+          <tr><th>Date &amp; Time</th><td>${esc(drive.date)} at ${esc(drive.time)}</td></tr>
+          <tr><th>Location / Unit</th><td>${esc(drive.locationName || '-')}</td></tr>
+          <tr><th>Conducted By</th><td><b>${esc(drive.officerName || '-')}</b> (${esc(drive.officerRole || '')}${drive.officerBelt ? `, ${esc(drive.officerBelt)}` : ''})</td></tr>
+          <tr><th>Personnel Involved</th><td>${drive.participants || 1} Police Personnel</td></tr>
+        </table>
+        <div><b>Work Done Description:</b></div>
+        <div class="desc">${esc(drive.description || '-')}</div>
+        ${drive.photos && drive.photos.length ? `<div><b>Attached Verified Photos (${drive.photos.length}):</b></div><div style="margin-top:8px;">${photosHtml}</div>` : ''}
+        <div class="sign-row">
+          <div class="sign-box">Conducted By<br><b>${esc(drive.officerName || 'Officer In-Charge')}</b><br>${esc(drive.officerRole || '')}</div>
+          <div class="sign-box">Verified By<br><b>Supervisory Officer</b><br>Haryana Police</div>
+        </div>
+        <script>setTimeout(function(){ window.print(); }, 400);</script>
+      </body>
+    </html>
+  `);
+  w.document.close();
+}
+
+function deleteShramDaan(id) {
+  if (!confirm("Are you sure you want to delete this Shram Daan drive record?")) return;
+  const list = getShramDaanList().filter(d => d.id !== id);
+  saveShramDaanList(list);
+  toast("Shram Daan drive record deleted.", "success");
+  renderShramDaan();
+}
+
+function __shramExportData() {
+  const filtered = __shramFiltered();
+  const rows = filtered.map(d => [
+    d.date + " " + (d.time || ""),
+    d.workTypeLabel || d.workType,
+    d.description || "-",
+    d.locationName || "-",
+    d.officerName + (d.officerRole ? " (" + d.officerRole + ")" : ""),
+    String(d.participants || 1),
+    String(d.photos ? d.photos.length : 0)
+  ]);
+  const dist = getDistricts().find(x => x.id === activeDistrictId);
+  return {
+    title: "Shram Daan Activity Report",
+    subtitle: (dist ? dist.name + " \u00b7 " : "") + "Generated " + new Date().toLocaleString() + " (" + rows.length + " drive" + (rows.length === 1 ? "" : "s") + ")",
+    cols: ["Date & Time", "Work Type", "Description / Work Done", "Location / Unit", "Conducted By", "Participants", "Photos"],
+    rows,
+    fileName: "shramdaan-report"
+  };
+}
+
+function printShramReport() { printReport(__shramExportData()); }
+function exportShramExcel() { excelReport(__shramExportData()); toast("Excel exported.", "success"); }
+function exportShramWord() { wordReport(__shramExportData()); toast("Word document exported.", "success"); }
+function exportShramPDF() { pdfReport(__shramExportData()); toast("PDF exported.", "success"); }
+
+/* Setup Shram Daan Listeners */
+function initShramDaanListeners() {
+  $("#newShramDaanBtn")?.addEventListener("click", openShramDaanModal);
+  $("#shramDaanForm")?.addEventListener("submit", saveShramDaanEntry);
+
+  $("#shramTabHistoryBtn")?.addEventListener("click", () => {
+    __shramActiveTab = "history";
+    $("#shramTabHistoryBtn")?.classList.add("btn-primary");
+    $("#shramTabHistoryBtn")?.classList.remove("btn-outline");
+    $("#shramTabGalleryBtn")?.classList.remove("btn-primary");
+    $("#shramTabGalleryBtn")?.classList.add("btn-outline");
+    $("#shramHistoryPane")?.classList.remove("hidden");
+    $("#shramGalleryPane")?.classList.add("hidden");
+  });
+
+  $("#shramTabGalleryBtn")?.addEventListener("click", () => {
+    __shramActiveTab = "gallery";
+    $("#shramTabGalleryBtn")?.classList.add("btn-primary");
+    $("#shramTabGalleryBtn")?.classList.remove("btn-outline");
+    $("#shramTabHistoryBtn")?.classList.remove("btn-primary");
+    $("#shramTabHistoryBtn")?.classList.add("btn-outline");
+    $("#shramGalleryPane")?.classList.remove("hidden");
+    $("#shramHistoryPane")?.classList.add("hidden");
+  });
+
+  $("#shramSearch")?.addEventListener("input", renderShramDaan);
+  $("#shramTypeFilter")?.addEventListener("change", () => {
+    __shramStatFilter = $("#shramTypeFilter").value || "all";
+    renderShramDaan();
+  });
+  $("#shramLocationFilter")?.addEventListener("change", renderShramDaan);
+  $("#shramDateFrom")?.addEventListener("change", renderShramDaan);
+  $("#shramDateTo")?.addEventListener("change", renderShramDaan);
+
+  $("#shramClearFilterBtn")?.addEventListener("click", () => {
+    const s = $("#shramSearch"); if (s) s.value = "";
+    const t = $("#shramTypeFilter"); if (t) t.value = "";
+    const l = $("#shramLocationFilter"); if (l) l.value = "";
+    const df = $("#shramDateFrom"); if (df) df.value = "";
+    const dt = $("#shramDateTo"); if (dt) dt.value = "";
+    __shramStatFilter = "all";
+    renderShramDaan();
+  });
+
+  $$("#shramStats .stat-card").forEach(c => {
+    c.addEventListener("click", () => {
+      const f = c.dataset.shramFilter || "all";
+      __shramStatFilter = f;
+      const tf = $("#shramTypeFilter");
+      if (tf) tf.value = f === "all" ? "" : f;
+      renderShramDaan();
+    });
+  });
+
+  $("#shramWorkType")?.addEventListener("change", e => {
+    const val = e.target.value;
+    const wrap = $("#shramCustomTypeWrap");
+    if (wrap) {
+      if (val === "other") wrap.classList.remove("hidden");
+      else wrap.classList.add("hidden");
+    }
+  });
+
+  $("#shramPhotoUploadBtn")?.addEventListener("click", () => {
+    $("#shramFileInput")?.click();
+  });
+
+  $("#shramFileInput")?.addEventListener("change", e => {
+    const files = e.target.files;
+    if (!files || !files.length) return;
+    Array.from(files).forEach(f => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        __shramAddPhoto({
+          id: uid(),
+          name: f.name,
+          mime: f.type || "image/jpeg",
+          size: f.size,
+          dataUrl: String(reader.result),
+          stamped: false
+        });
+      };
+      reader.readAsDataURL(f);
+    });
+    e.target.value = "";
+  });
+
+  $("#shramPhotoCameraBtn")?.addEventListener("click", () => {
+    openCam("shramdaan");
+  });
+
+  $("#shramPhotoPreviews")?.addEventListener("click", e => {
+    const rm = e.target.closest(".shram-thumb-remove");
+    if (rm && rm.dataset.removeIdx !== undefined) {
+      const idx = Number(rm.dataset.removeIdx);
+      __shramPhotos.splice(idx, 1);
+      __shramRenderPhotoPreviews();
+      toast("Photo removed.", "info");
+    }
+  });
+
+  document.addEventListener("click", e => {
+    const viewBtn = e.target.closest("[data-shram-action='view']");
+    if (viewBtn) { openShramDaanDetailModal(viewBtn.dataset.id); return; }
+
+    const printBtn = e.target.closest("[data-shram-action='print']");
+    if (printBtn) { printShramSlip(printBtn.dataset.id); return; }
+
+    const delBtn = e.target.closest("[data-shram-action='delete']");
+    if (delBtn) { deleteShramDaan(delBtn.dataset.id); return; }
+
+    const imgEl = e.target.closest("[data-shram-img-id]");
+    if (imgEl) {
+      const driveId = imgEl.dataset.shramImgId;
+      const pIdx = Number(imgEl.dataset.photoIdx || 0);
+      openShramLightbox(driveId, pIdx);
+      return;
+    }
+  });
+
+  $("#shramLightboxCloseBtn")?.addEventListener("click", () => {
+    closeModal("#shramLightboxModal");
+  });
+
+  $("#shramPrintSlipBtn")?.addEventListener("click", () => {
+    if (__shramDetailId) printShramSlip(__shramDetailId);
+  });
+
+  $("#shramExportBtn")?.addEventListener("click", e => {
+    e.stopPropagation();
+    $("#shramExportMenu")?.classList.toggle("hidden");
+  });
+
+  $$("#shramExportMenu [data-export]").forEach(b => {
+    b.addEventListener("click", () => {
+      $("#shramExportMenu")?.classList.add("hidden");
+      const t = b.dataset.export;
+      if (t === "print") printShramReport();
+      else if (t === "pdf") exportShramPDF();
+      else if (t === "excel") exportShramExcel();
+      else if (t === "word") exportShramWord();
+    });
+  });
+}
+document.addEventListener("DOMContentLoaded", initShramDaanListeners);
 function getDemands() {
   if (!activeDistrictId) return [];
   return loadData(`demands_${activeDistrictId}`) || [];
@@ -6001,6 +6881,7 @@ async function __openDataUrl(u, name) {
 let __camStream = null, __camCtx = "", __camFacing = "environment";
 function __attTargetPush(ctx, photo) {
   if (ctx === "maint") { __maintPhotos.push(photo); __maintRenderPhotoPreviews(); return; }
+  if (ctx === "shramdaan") { __shramAddPhoto(photo); return; }
   if (ctx === "as" || ctx.indexOf("as:") === 0) {
     const key = ctx.slice(3);
     (__asPhotos[key] = __asPhotos[key] || []).push(photo);
@@ -11997,7 +12878,7 @@ function __allStoreKeys() {
   } catch (e) {}
   ["categories", "districts", "users", "locations", "items", "persons", "allotments", "scans", "accessRequests", "seedVersion", "activeDistrict"].forEach(k => keys.add(STORAGE_PREFIX + k));
   getDistricts().forEach(d => {
-    ["demands_", "notifications_", "inspections_", "audit_"].forEach(px => keys.add(STORAGE_PREFIX + px + d.id));
+    ["demands_", "notifications_", "inspections_", "audit_", "shramdaan_"].forEach(px => keys.add(STORAGE_PREFIX + px + d.id));
   });
   return [...keys];
 }
