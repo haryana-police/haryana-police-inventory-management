@@ -2934,7 +2934,11 @@ function renderInventory() {
       const qtyStr = qtyNum > 0 ? "+" + qtyNum : String(qtyNum);
       const qtyColor = qtyNum > 0 ? "color:var(--green)" : (qtyNum < 0 ? "color:var(--red)" : "color:var(--muted)");
 
-      const whenStr = (e.date ? (e.date.includes("-") && e.date.length === 10 ? fmtDate(e.date) : e.date) : "") + (e.time ? " " + e.time : "");
+      const dStr = (e.date ? (e.date.includes("-") && e.date.length === 10 ? fmtDate(e.date) : e.date) : "");
+      const tStr = e.time || "";
+      const whenHtml = (dStr || tStr)
+        ? `<div class="inv-hist-datetime"><span class="inv-hist-date">${esc(dStr || "\u2014")}</span>${tStr ? `<span class="inv-hist-time">${esc(tStr)}</span>` : ""}</div>`
+        : "\u2014";
 
       let detailParts = [];
       if (e.person) detailParts.push(`<span style="font-weight:600">${esc(e.person)}</span>${e.ref ? ` (${esc(e.ref)})` : ""}`);
@@ -2950,7 +2954,7 @@ function renderInventory() {
       let btns = actDD([{ label: "View Item", attrs: `data-action="view" data-id="${i.id}"` }]);
 
       return `<tr data-item-id="${i.id}">
-        <td style="white-space:nowrap;font-size:0.85rem">${esc(whenStr || "\u2014")}</td>
+        <td>${whenHtml}</td>
         <td class="item-name">${__ipLink(i)}${isDel ? ' <span class="status-badge status-out" style="font-size:.68rem;padding:1px 6px;margin-left:4px">Deleted</span>' : ''}</td>
         <td><span class="status-badge ${badgeCls}" style="font-size:0.75rem">${esc(typeLabel)}</span></td>
         <td class="qty-strong" style="${qtyColor}">${qtyStr}</td>
@@ -2962,7 +2966,7 @@ function renderInventory() {
       </tr>`;
     }).join("");
 
-    tbody.innerHTML += `<tr class="rpt-total-row"><td>Total Entries: ${filtered.length}</td><td colspan="2"></td><td class="qty-strong" style="${totalNetChange > 0 ? 'color:var(--green)' : totalNetChange < 0 ? 'color:var(--red)' : ''}">${totalNetChange > 0 ? '+' + totalNetChange : totalNetChange} net</td><td colspan="5"></td></tr>`;
+    tbody.innerHTML += `<tr class="rpt-total-row"><td colspan="3">Total Entries: ${filtered.length}</td><td class="qty-strong" style="${totalNetChange > 0 ? 'color:var(--green)' : totalNetChange < 0 ? 'color:var(--red)' : ''}">${totalNetChange > 0 ? '+' + totalNetChange : totalNetChange} net</td><td colspan="5"></td></tr>`;
   } else {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="9">No stock history entries found. Try adjusting the filters.</td></tr>`;
   }
