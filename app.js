@@ -356,12 +356,14 @@ const __SORT_DEFS = {
   /* Inventory (#inventoryBody, pager_inv) */
   inv: {
     cols: [
-      i => i.name,
-      (i, c) => { if (c.cond) { const cc = i.conditionCounts || { good: i.quantity, poor: 0, damaged: 0 }; return cc[c.cond] || 0; } const h = i.history || []; const last = h[h.length - 1]; return last ? (Number(last.qty) || 0) : null; },
-      (i, c) => (c.locs.get(i.locationId) || {}).name || "",
-      i => (i.conditionCounts || {}).good || 0,
-      (i, c) => { const cc = i.conditionCounts || { good: i.quantity, poor: 0, damaged: 0 }; const q = c.cond ? (cc[c.cond] || 0) : i.quantity; return q <= 0 ? 0 : q <= (Number(i.minStock) || 0) ? 1 : 2; },
-      i => __lastChangeAt(i) || null,
+      r => r.at || 0,
+      r => (r.item && r.item.name) || "",
+      r => __hTypeLabel[r.type] || r.type || "",
+      r => Number(r.qty) || 0,
+      r => Number(r.prev) || 0,
+      r => Number(r.balance) || 0,
+      r => (r.loc && r.loc.name) || "",
+      r => (r.user || "") + " " + (r.remarks || "") + " " + (r.person || ""),
       null /* Actions */
     ]
   },
@@ -2744,16 +2746,98 @@ function syncComboboxes() {
   });
 }
 
+function __isConsumableItem(item) {
+  if (!item) return false;
+  if (item.isConsumable || item.is_consumable || item.consumable) return true;
+  const consCatMap = (typeof loadData === "function" ? loadData("cons_categories") : null) || {};
+  for (const distId of Object.keys(consCatMap)) {
+    const list = Array.isArray(consCatMap[distId]) ? consCatMap[distId] : [];
+    if (list.some(c => c && c.id === item.categoryId)) return true;
+  }
+  const consItemsMap = (typeof loadData === "function" ? loadData("consumable_items") : null) || {};
+  for (const distId of Object.keys(consItemsMap)) {
+    const list = Array.isArray(consItemsMap[distId]) ? consItemsMap[distId] : [];
+    if (list.some(ci => ci && ci.id === item.id)) return true;
+  }
+  return false;
+}
+
+function __invHistoryEntries() {
+  const items = getItems().filter(i => !__isConsumableItem(i));
+  const cats = getCategories();
+  const locs = getLocations();
+  const catMap = new Map(cats.map(c => [c.id, c]));
+  const locMap = new Map(locs.map(l => [l.id, l]));
+
+  const entries = [];
+  for (const item of items) {
+    if (__isConsumableItem(item)) continue;
+    const cat = catMap.get(item.categoryId);
+    const loc = locMap.get(item.locationId);
+    const hist = __histWithBalances(item);
+    if (hist && hist.length) {
+      for (const h of hist) {
+        let at = Number(h.at) || 0;
+        if (!at && h.date) {
+          const dStr = h.date.length === 10 ? h.date : "";
+          if (dStr) at = new Date(dStr + "T" + (h.time || "00:00") + ":00").getTime() || 0;
+        }
+        if (!at) at = Number(item.updatedAt || item.createdAt || 0);
+
+        entries.push({
+          item,
+          cat,
+          loc,
+          at,
+          date: h.date || (at ? fmtDate(at) : ""),
+          time: h.time || "",
+          type: h.type || "ADJUST",
+          qty: Number(h.qty) || 0,
+          prev: h.prev !== undefined ? h.prev : (item.quantity || 0),
+          balance: h.balance !== undefined ? h.balance : (item.quantity || 0),
+          user: h.user || "",
+          person: h.person || "",
+          ref: h.ref || "",
+          remarks: h.remarks || "",
+          photos: Array.isArray(h.photos) ? h.photos : null,
+        });
+      }
+    } else {
+      // Baseline initial opening stock entry so item is visible in history
+      const at = Number(item.createdAt || item.updatedAt || 0);
+      entries.push({
+        item,
+        cat,
+        loc,
+        at,
+        date: at ? fmtDate(at) : todayStr(),
+        time: "",
+        type: "STOCK_IN",
+        qty: Number(item.quantity) || 0,
+        prev: 0,
+        balance: Number(item.quantity) || 0,
+        user: "",
+        person: "",
+        ref: "",
+        remarks: "Opening stock",
+        photos: null,
+      });
+    }
+  }
+  return entries;
+}
+
 function __invFiltered() {
-  const items = getItems();
-  const q = ($("#searchInput") || {}).value || "";
+  const entries = __invHistoryEntries();
+  const q = (($("#searchInput") || {}).value || "").trim().toLowerCase();
   const catFilter = (typeof __msMatches === "function") ? __msMatches($("#categoryFilter")) : (($("#categoryFilter") || {}).value || "");
   const locFilter = ($("#locationFilter") || {}).value || "";
   const condFilter = ($("#conditionFilter") || {}).value || "";
   const dateFrom = ($("#itemDateFrom") || {}).value;
   const dateTo = ($("#itemDateTo") || {}).value;
 
-  const rows = items.filter(i => {
+  const rows = entries.filter(e => {
+    const i = e.item;
     if (typeof catFilter === "function" ? !catFilter(i) : (catFilter && i.categoryId !== catFilter)) return false;
     if (locFilter && i.locationId !== locFilter) return false;
     if (condFilter) {
@@ -2761,23 +2845,31 @@ function __invFiltered() {
       const cc = i.conditionCounts || {};
       if (!(cc[condFilter] > 0)) return false;
     }
-    if (q && !i.name.toLowerCase().includes(q.toLowerCase())) return false;
+    if (q) {
+      const matchName = (i.name || "").toLowerCase().includes(q);
+      const matchCat = (e.cat && e.cat.name || "").toLowerCase().includes(q);
+      const matchRem = (e.remarks || "").toLowerCase().includes(q);
+      const matchPerson = (e.person || "").toLowerCase().includes(q);
+      const matchRef = (e.ref || "").toLowerCase().includes(q);
+      const matchUser = (e.user || "").toLowerCase().includes(q);
+      const matchType = (__hTypeLabel[e.type] || e.type || "").toLowerCase().includes(q);
+      if (!matchName && !matchCat && !matchRem && !matchPerson && !matchRef && !matchUser && !matchType) return false;
+    }
     if (dateFrom) {
-      const d = i.createdAt || 0;
+      const d = e.at || 0;
       if (!d || d < new Date(dateFrom + "T00:00:00").getTime()) return false;
     }
     if (dateTo) {
-      const d = i.createdAt || 0;
+      const d = e.at || 0;
       if (!d || d >= new Date(dateTo + "T00:00:00").getTime() + 86400000) return false;
     }
     return true;
   });
-  rows.sort((a, b) => (__lastChangeAt(b) - __lastChangeAt(a)) || a.name.localeCompare(b.name));
-  // Ticked categories form one block each, in the order they were ticked.
-  if (typeof __msGrouped === "function") return __msGrouped(rows, $("#categoryFilter"), i => i.categoryId);
+
+  rows.sort((a, b) => (b.at - a.at) || (a.item.name || "").localeCompare(b.item.name || ""));
+  if (typeof __msGrouped === "function") return __msGrouped(rows, $("#categoryFilter"), e => e.item.categoryId);
   return rows;
 }
-/* Recency helper: latest stock-change timestamp (history last entry), else updatedAt. Used to show the newest-changed item first in Stock History. */
 function __lastChangeAt(item) {
   const h = item.history || [];
   const last = h[h.length - 1];
@@ -2820,7 +2912,6 @@ window.addEventListener("resize", actDdReflow);
 window.addEventListener("scroll", actDdReflow, true);
 
 function renderInventory() {
-  const items = getItems();
   const cats = getCategories();
   const locs = getLocations();
   const condFilter = ($("#conditionFilter") || {}).value || "";
@@ -2830,118 +2921,86 @@ function renderInventory() {
   const tbody = $("#inventoryBody");
   if (!tbody) return;
 
-if (filtered.length) {
-    let totalQty = 0;
+  if (filtered.length) {
+    let totalNetChange = 0;
     const pageRows = __pgRows("inv", filtered);
-    tbody.innerHTML = pageRows.map(i => {
-      const cat = cats.find(c => c.id === i.categoryId);
-      const loc = locs.find(l => l.id === i.locationId);
-const cc = i.conditionCounts || { good: i.quantity, poor: 0, damaged: 0 };
-      const displayQty = condFilter ? (cc[condFilter] || 0) : i.quantity;
-      totalQty += displayQty;
+    tbody.innerHTML = pageRows.map(e => {
+      const i = e.item;
+      const loc = e.loc;
       const isDel = !!i.isDeleted;
-      const cls = isDel ? "status-out" : (displayQty === 0 ? "status-out" : displayQty <= i.minStock ? "status-low" : "status-ok");
-      const label = isDel ? "Deleted" : (displayQty === 0 ? "Out of Stock" : displayQty <= i.minStock ? "Low Stock" : "In Stock");
-  const __chg = (() => { if (condFilter) return null; const h = i.history || []; const last = h[h.length - 1]; if (!last) return null; const q = Number(last.qty) || 0; const when = (last.date || "") + (last.time ? " " + last.time : ""); const parts = when.split(" "); return { q: q, when: when, nice: (parts[0] ? fmtDate(parts[0]) : "") + (parts[1] ? " " + parts[1] : ""), rem: last.remarks || "", photos: last.photos || null }; })();
-const isDelItem = isDel || (__chg && (__chg.type === "ITEM_DELETED" || __chg.rem === "Deleted Item"));
-const __chgCell = condFilter ? `<td class="qty-strong">${displayQty}</td>` : (isDelItem ? `<td class="qty-strong" style="color:var(--red)" title="${esc("Deleted: " + (__chg ? __chg.when : ""))}"><span class="status-badge status-out" style="font-size:0.75rem">Deleted Item</span></td>` : (__chg ? `<td class="qty-strong" style="color:var(--${__chg.q > 0 ? "green" : "red"})" title="${esc("Last update " + __chg.when + ": " + __chg.rem)}">${__chg.q > 0 ? "+" + __chg.q : __chg.q}${photoChipsHtml({ photos: __chg.photos })}</td>` : `<td class="qty-strong"><span class="muted">&mdash;</span></td>`));
-      /* Actions column: record-level RBAC. Every row gets View; Edit/Delete
-         only when the record belongs to the logged-in user's own unit.
-         Developer Admin gets View only ? no Edit/Delete buttons at all.
-         Other units under the district: Edit/Delete disabled with a tooltip.
-         ("All Locations" evaluates this PER RECORD, never per filter.) */
-      let btns;
-      if (isDel) {
-        btns = actDD([{ label: "View", attrs: `data-action="view" data-id="${i.id}"` }]);
-      } else {
-      const locFilterVal = ($("#locationFilter") || {}).value || "";
-      const adminOwnSelected = currentUser.role !== "admin" || (locFilterVal === currentUser.locationId);
-      if (!canViewItem(i)) btns = "";
-      else if (isDevAdmin()) {
-        btns = actDD([{ label: "View", attrs: `data-action="view" data-id="${i.id}"` }]);
-      } else if (currentUser.role === "admin" && !adminOwnSelected) {
-        /* District Admin: Edit/Delete ONLY when their own unit is selected
-           in the location filter. "All Locations" or another unit = view only. */
-        btns = actDD([{ label: "View", attrs: `data-action="view" data-id="${i.id}"` }]);
-      } else if (itemOwnedByCurrentUser(i)) {
-        btns = actDD([
-          { label: "View", attrs: `data-action="view" data-id="${i.id}"` },
-          ...(canEditItem(i) ? [
-            { label: "Edit", attrs: `data-action="edit" data-id="${i.id}"` },
-            { label: "Delete", attrs: `data-action="delete" data-id="${i.id}"` }
-          ] : [])
-        ]);
-      } else {
-        const lockTitle = __rbacLockMsg();
-        btns = actDD([
-          { label: "View", attrs: `data-action="view" data-id="${i.id}"` },
-        ]);
-      }
-      }
-      return `<tr data-item-id="${i.id}"><td class="item-name">${__ipLink(i)}${isDel ? ' <span class="status-badge status-out" style="font-size:.68rem;padding:1px 6px;margin-left:4px">Deleted</span>' : ''}</td>${__chgCell}<td>${esc(loc ? loc.name : "")}</td><td>${buildCondBar(cc)}</td><td><span class="status-badge ${cls}">${label}</span></td><td>${__chg ? esc(__chg.nice) : (i.updatedAt ? fmtDate(i.updatedAt) : "<span style='color:var(--muted)'>\u2014</span>")}</td><td class="actions-cell">${btns}</td></tr>`;
+      const typeLabel = __hTypeLabel[e.type] || e.type;
+      const qtyNum = Number(e.qty) || 0;
+      totalNetChange += qtyNum;
+      const qtyStr = qtyNum > 0 ? "+" + qtyNum : String(qtyNum);
+      const qtyColor = qtyNum > 0 ? "color:var(--green)" : (qtyNum < 0 ? "color:var(--red)" : "color:var(--muted)");
+
+      const whenStr = (e.date ? (e.date.includes("-") && e.date.length === 10 ? fmtDate(e.date) : e.date) : "") + (e.time ? " " + e.time : "");
+
+      let detailParts = [];
+      if (e.person) detailParts.push(`<span style="font-weight:600">${esc(e.person)}</span>${e.ref ? ` (${esc(e.ref)})` : ""}`);
+      if (e.remarks) detailParts.push(esc(e.remarks));
+      if (e.user) detailParts.push(`<span class="muted">By: ${esc(e.user)}</span>`);
+      const detailHtml = detailParts.join("<br>") + photoChipsHtml(e);
+
+      let badgeCls = "status-neutral";
+      if (e.type === "STOCK_IN" || e.type === "RETURN" || e.type === "RECOVERED") badgeCls = "status-ok";
+      else if (e.type === "DAMAGE" || e.type === "LOSS" || e.type === "ITEM_DELETED" || e.type === "WRITEOFF") badgeCls = "status-out";
+      else if (e.type === "ALLOTMENT") badgeCls = "status-low";
+
+      let btns = actDD([{ label: "View Item", attrs: `data-action="view" data-id="${i.id}"` }]);
+
+      return `<tr data-item-id="${i.id}">
+        <td style="white-space:nowrap;font-size:0.85rem">${esc(whenStr || "\u2014")}</td>
+        <td class="item-name">${__ipLink(i)}${isDel ? ' <span class="status-badge status-out" style="font-size:.68rem;padding:1px 6px;margin-left:4px">Deleted</span>' : ''}</td>
+        <td><span class="status-badge ${badgeCls}" style="font-size:0.75rem">${esc(typeLabel)}</span></td>
+        <td class="qty-strong" style="${qtyColor}">${qtyStr}</td>
+        <td class="qty-strong" style="color:var(--muted)">${e.prev}</td>
+        <td class="qty-strong" style="font-weight:700">${e.balance}</td>
+        <td>${esc(loc ? loc.name : "")}</td>
+        <td style="font-size:0.82rem;line-height:1.35">${detailHtml || '<span class="muted">\u2014</span>'}</td>
+        <td class="actions-cell">${btns}</td>
+      </tr>`;
     }).join("");
 
-    if (condFilter) {
-      const condLabel = condFilter.charAt(0).toUpperCase() + condFilter.slice(1);
-      let catTotalQty = 0;
-      if (catFilter) {
-        filtered.forEach(i => {
-          const cc = i.conditionCounts || {};
-          catTotalQty += (cc[condFilter] || 0);
-        });
-      }
-      const allItems = getItems();
-      let grandTotalQty = 0;
-      allItems.forEach(i => {
-        const cc = i.conditionCounts || {};
-        grandTotalQty += (cc[condFilter] || 0);
-      });
-      const catName = catFilter ? (cats.find(c => c.id === catFilter) || {}).name : "";
-      const summaryHtml = catFilter
-        ? `<tr class="summary-row"><td colspan="2" style="font-weight:700;color:var(--primary)">${condLabel} Total (${esc(catName)})</td><td class="qty-strong" style="color:var(--primary)">${catTotalQty}</td><td colspan="4"></td></tr><tr class="summary-row summary-grand"><td colspan="2" style="font-weight:700;color:var(--primary)">${condLabel} Total (All Categories)</td><td class="qty-strong" style="color:var(--primary)">${grandTotalQty}</td><td colspan="4"></td></tr>`
-        : `<tr class="summary-row summary-grand"><td colspan="2" style="font-weight:700;color:var(--primary)">${condLabel} Total (All Categories)</td><td class="qty-strong" style="color:var(--primary)">${grandTotalQty}</td><td colspan="4"></td></tr>`;
-      tbody.innerHTML += summaryHtml;
-    }
-
-    tbody.innerHTML += condFilter
- ? `<tr class="rpt-total-row"><td>Total</td><td></td><td class="qty-strong">${totalQty}</td><td colspan="4"></td></tr>`
- : `<tr class="rpt-total-row"><td>Total</td><td></td><td class="qty-strong"><span class="muted">&mdash;</span></td><td colspan="4"></td></tr>`;
-} else {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="7">No items found. Try adjusting the filters.</td></tr>`;
+    tbody.innerHTML += `<tr class="rpt-total-row"><td>Total Entries: ${filtered.length}</td><td colspan="2"></td><td class="qty-strong" style="${totalNetChange > 0 ? 'color:var(--green)' : totalNetChange < 0 ? 'color:var(--red)' : ''}">${totalNetChange > 0 ? '+' + totalNetChange : totalNetChange} net</td><td colspan="5"></td></tr>`;
+  } else {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="9">No stock history entries found. Try adjusting the filters.</td></tr>`;
   }
   renderPager("inv", filtered.length, renderInventory);
-const __invTbl = document.querySelector("#inventoryBody") ? document.querySelector("#inventoryBody").closest("table") : null;
-/* The Stock Change column is renamed to "Quantity" while a condition filter is on.
-   It is found by name, not by data-sort-col: those numbers move whenever a column
-   is added or removed, and pinning one here once made this rewrite the Location
-   header instead. */
-const __invQth = __invTbl ? [...__invTbl.querySelectorAll("thead th[data-sort-col]")].find(th => /^(stock change|quantity)$/i.test(th.textContent.trim())) : null;
-if (__invQth) { const __arr = __invQth.querySelector(".sort-arrow"); const __gl = __arr ? __arr.textContent : ""; __invQth.innerHTML = (condFilter ? "Quantity" : "Stock Change") + ' <span class="sort-arrow">' + __gl + '</span>'; }
   rebuildDropdowns();
   syncComboboxes();
 }
 
 function __invExportData() {
-  const cats = getCategories();
-  const locs = getLocations();
-const condKeys = ["good", "poor", "damaged"];
-  const condLabels = ["Good", "Damaged", "Scrap"];
-  const rows = __invFiltered().map(i => {
-    const cat = cats.find(c => c.id === i.categoryId);
-    const loc = locs.find(l => l.id === i.locationId);
-    const cc = i.conditionCounts || {};
-    const total = condKeys.reduce((s, k) => s + (cc[k] || 0), 0);
-    const condTxt = condKeys.map((k, idx) => (cc[k] || 0) ? `${cc[k]} ${condLabels[idx]}` : null).filter(Boolean).join(", ") || "\u2014";
-    const status = total === 0 ? "Out of Stock" : total <= i.minStock ? "Low Stock" : "In Stock";
-    return [i.name, cat ? cat.name : "", total, i.unit, i.minStock, loc ? loc.name : "", condTxt, status, i.createdAt ? fmtDate(i.createdAt) : "\u2014"];
+  const filtered = __invFiltered();
+  const rows = filtered.map(e => {
+    const i = e.item;
+    const cat = e.cat;
+    const loc = e.loc;
+    const whenStr = (e.date ? (e.date.includes("-") && e.date.length === 10 ? fmtDate(e.date) : e.date) : "") + (e.time ? " " + e.time : "");
+    const typeLabel = __hTypeLabel[e.type] || e.type;
+    const qtyNum = Number(e.qty) || 0;
+    const qtyStr = qtyNum > 0 ? "+" + qtyNum : String(qtyNum);
+    const details = [e.person ? ("To: " + e.person + (e.ref ? " (" + e.ref + ")" : "")) : null, e.remarks, e.user ? ("By: " + e.user) : null].filter(Boolean).join(" | ");
+    return [
+      whenStr || "\u2014",
+      i.name,
+      cat ? cat.name : "",
+      typeLabel,
+      qtyStr,
+      e.prev,
+      e.balance,
+      loc ? loc.name : "",
+      details || "\u2014"
+    ];
   });
   const dist = getDistricts().find(d => d.id === activeDistrictId);
   return {
-    title: "Inventory Report",
-    subtitle: (dist ? dist.name + " \u00b7 " : "") + "Generated " + new Date().toLocaleString() + " (" + rows.length + " item" + (rows.length === 1 ? "" : "s") + ")",
-    cols: ["Item Name", "Category", "Quantity", "Unit", "Min Stock", "Location", "Condition", "Status", "Date Added"],
+    title: "Stock History Report",
+    subtitle: (dist ? dist.name + " \u00b7 " : "") + "Generated " + new Date().toLocaleString() + " (" + rows.length + " change" + (rows.length === 1 ? "" : "s") + ")",
+    cols: ["Date & Time", "Item Name", "Category", "Action", "Stock Change", "Prev Qty", "Balance", "Location", "Details"],
     rows,
-    fileName: "inventory-report"
+    fileName: "stock-history-report"
   };
 }
 
@@ -3349,8 +3408,31 @@ async function saveItem(e) {
       if (quantity < held) return toast(`Total quantity cannot be less than currently issued/damaged/lost units (${held}).`, "error");
       const __prevQty = item.quantity || 0;
       const __delta = quantity - __prevQty;
+      const prevName = item.name || "";
+      const prevCatId = item.categoryId || "";
+      const prevUnit = item.unit || "";
+      const prevMinStock = item.minStock || 0;
+      const prevLocId = item.locationId || "";
       const prevCc = item.conditionCounts || { good: __prevQty, poor: 0, damaged: 0 };
       const ccChanged = prevCc.good !== good || prevCc.poor !== poor || prevCc.damaged !== damaged;
+
+      const detailChanges = [];
+      if (prevName !== name) detailChanges.push(`Name: "${prevName}" \u2192 "${name}"`);
+      if (prevCatId !== categoryId) {
+        const cats = getCategories();
+        const oldCat = (cats.find(c => c.id === prevCatId) || {}).name || prevCatId;
+        const newCat = (cats.find(c => c.id === categoryId) || {}).name || categoryId;
+        detailChanges.push(`Category: "${oldCat}" \u2192 "${newCat}"`);
+      }
+      if (prevUnit !== unit) detailChanges.push(`Unit: "${prevUnit}" \u2192 "${unit}"`);
+      if (prevMinStock !== minStock) detailChanges.push(`Min stock: ${prevMinStock} \u2192 ${minStock}`);
+      if (prevLocId !== locationId) {
+        const locs = getLocations();
+        const oldLoc = (locs.find(l => l.id === prevLocId) || {}).name || prevLocId;
+        const newLoc = (locs.find(l => l.id === locationId) || {}).name || locationId;
+        detailChanges.push(`Location: "${oldLoc}" \u2192 "${newLoc}"`);
+      }
+
       Object.assign(item, { name, categoryId, unit, quantity, minStock, locationId, conditionCounts, updatedAt: Date.now() });
 
       if (editPhotos.length) {
@@ -3359,9 +3441,14 @@ async function saveItem(e) {
 
       if (__delta !== 0) {
         itemHistoryPush(item, { type: __delta > 0 ? "STOCK_IN" : "ADJUST", qty: __delta, person: "", ref: "", date: histDate, time: histTime, remarks: "Stock updated from " + __prevQty + " to " + quantity + " (" + (__delta > 0 ? "+" : "") + __delta + " added/reduced)", photos: photoRefs.length ? photoRefs : undefined });
-      } else if (ccChanged) {
-        itemHistoryPush(item, { type: "ADJUST", qty: 0, person: "", ref: "", date: histDate, time: histTime, remarks: "Condition breakdown updated: Good: " + good + ", Damaged: " + poor + ", Scrap: " + damaged, photos: photoRefs.length ? photoRefs : undefined });
-      } else if (photoRefs.length) {
+      }
+      if (ccChanged) {
+        itemHistoryPush(item, { type: "ADJUST", qty: 0, person: "", ref: "", date: histDate, time: histTime, remarks: "Condition breakdown updated: Good: " + good + ", Damaged: " + poor + ", Scrap: " + damaged });
+      }
+      if (detailChanges.length) {
+        itemHistoryPush(item, { type: "ADJUST", qty: 0, person: "", ref: "", date: histDate, time: histTime, remarks: "Item details updated: " + detailChanges.join("; ") });
+      }
+      if (photoRefs.length) {
         itemHistoryPush(item, { type: "ADJUST", qty: 0, person: "", ref: "", date: histDate, time: histTime, remarks: "Item photos uploaded (" + photoRefs.length + " file" + (photoRefs.length === 1 ? "" : "s") + ")", photos: photoRefs });
       }
       __audit("Item Updated", `"${name}" — qty ${quantity} (${good}G/${poor}P/${damaged}D)`, { entity: "Item" });
@@ -4060,6 +4147,7 @@ function __citSave(id) {
   const old = item.name;
   item.name = name;
   item.updatedAt = Date.now();
+  itemHistoryPush(item, { type: "ADJUST", qty: 0, date: todayStr(), time: nowTimeStr(), remarks: 'Item renamed from "' + old + '" to "' + name + '"' });
   saveItems(items);
   __audit("Item Renamed", '"' + old + '" to "' + name + '"', { entity: "Item" });
   toast("Item renamed.", "success");
@@ -9337,7 +9425,7 @@ function __allocStockFiltered() {
   const q = (($("#allocStockSearch") || {}).value || "").toLowerCase();
   const terms = q.split(/\s+/).filter(Boolean);
   const catF = (typeof __msMatches === "function") ? __msMatches($("#allocStockCat")) : (($("#allocStockCat") || {}).value || "");
-  let pool = getItems().filter(i => !i.isDeleted);
+  let pool = getItems().filter(i => !i.isDeleted && !__isConsumableItem(i));
   if (isAdmin() && currentUser) {
     if (__invStockLoc === "own") pool = pool.filter(i => i.locationId === currentUser.locationId);
     else if (__invStockLoc !== "all") pool = pool.filter(i => i.locationId === __invStockLoc);
@@ -9405,16 +9493,96 @@ function renderAllocStock() {
     const st = allocStatusOfItem(i);
     const loc = i.locationId ? locations.find(l => l.id === i.locationId) : null;
     const unitCell = allMode ? "<td>" + esc(loc ? loc.name : "") + "</td>" : "";
+    const avail = availableQty(i);
     const acts = actDD([
       { label: "View", attrs: `data-alloc-action="view" data-id="${i.id}"` },
       ...(canEditItem(i) ? [
         { label: "Update", attrs: `data-alloc-action="edit" data-id="${i.id}"` }
+      ] : []),
+      ...(canEditItem(i) && avail > 0 ? [
+        { label: "Mark Lost", cls: "act-dd-del", attrs: `data-alloc-action="loss" data-id="${i.id}"` }
       ] : [])
     ]);
     return `<tr><td>${baseNo + idx + 1}</td><td class="item-name">${__ipLink(i)}</td>${unitCell}<td class="qty-strong">${i.quantity || 0}</td><td class="qty-strong" style="color:var(--green)">${availableQty(i)}</td><td class="qty-strong" style="color:var(--primary)">${i.allotted || 0}</td><td class="qty-strong" style="color:var(--red)">${i.lostReturned || 0}</td><td class="qty-strong" style="color:var(--amber)">${(i.conditionCounts || {}).poor || 0}</td><td class="qty-strong" style="color:var(--red)">${(i.conditionCounts || {}).damaged || 0}</td><td><span class="status-badge ${st.cls}">${st.label}</span></td><td class="actions-cell">${acts}</td></tr>`;
   }).join("") +
     `<tr class="rpt-total-row"><td></td><td class="rpt-total-label">Total</td>${allMode ? "<td></td>" : ""}<td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavailable}</td><td class="qty-strong">${tallot}</td><td class="qty-strong">${tloss}</td><td class="qty-strong">${tdamaged}</td><td class="qty-strong">${tscrap}</td><td colspan="2"></td></tr>`;
   renderPager("allocStock", rows.length, renderAllocStock);
+}
+
+let __invLossItemId = null;
+
+function openInvLoss(itemId) {
+  const item = getItems().find(i => i.id === itemId);
+  if (!item) return toast("Item not found.", "error");
+  if (!canEditItem(item) || isDevAdmin()) return toast(__rbacLockMsg(), "error");
+  const avail = availableQty(item);
+  if (avail <= 0) return toast("No available quantity to mark lost. Available quantity: 0", "error");
+  __invLossItemId = itemId;
+  $("#ilItem").value = item.name;
+  $("#ilAvail").value = String(avail);
+  $("#ilQty").value = "";
+  $("#ilQty").max = String(avail);
+  $("#ilRemarks").value = "";
+  openModal("#invLossModal");
+  setTimeout(() => $("#ilQty")?.focus(), 50);
+}
+
+function saveInvLoss(e) {
+  e.preventDefault();
+  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
+  const items = getItems();
+  const item = items.find(i => i.id === __invLossItemId);
+  if (!item) return toast("Item not found.", "error");
+  if (!canEditItem(item)) return toast(__rbacLockMsg(), "error");
+
+  const avail = availableQty(item);
+  const qty = Math.floor(Number($("#ilQty").value));
+  if (!isFinite(qty) || qty <= 0) return toast("Lost quantity must be a positive whole number.", "error");
+  if (qty > avail) return toast("Insufficient available quantity. Available quantity: " + avail + " | Requested quantity: " + qty, "error");
+
+  const remarks = ($("#ilRemarks").value || "").trim();
+  const date = todayStr();
+  const time = nowTimeStr();
+
+  // Deduct from available by increasing lostReturned counter
+  item.lostReturned = (item.lostReturned || 0) + qty;
+
+  // Deduct from conditionCounts (good first, then poor, then damaged)
+  if (!item.conditionCounts) {
+    item.conditionCounts = { good: Math.max(0, (item.quantity || 0) - qty), poor: 0, damaged: 0 };
+  } else {
+    let remDeduct = qty;
+    if (item.conditionCounts.good > 0) {
+      const take = Math.min(item.conditionCounts.good, remDeduct);
+      item.conditionCounts.good -= take;
+      remDeduct -= take;
+    }
+    if (remDeduct > 0 && item.conditionCounts.poor > 0) {
+      const take = Math.min(item.conditionCounts.poor, remDeduct);
+      item.conditionCounts.poor -= take;
+      remDeduct -= take;
+    }
+    if (remDeduct > 0 && item.conditionCounts.damaged > 0) {
+      const take = Math.min(item.conditionCounts.damaged, remDeduct);
+      item.conditionCounts.damaged -= take;
+      remDeduct -= take;
+    }
+  }
+  item.updatedAt = Date.now();
+
+  itemHistoryPush(item, {
+    type: "LOSS",
+    qty: -qty,
+    date,
+    time,
+    remarks: remarks || ("Marked " + qty + " " + (item.unit || "pcs") + " lost from stock")
+  });
+
+  saveItems(items);
+  __audit("Item Stock Lost", `"${item.name}" x${qty} marked lost from stock by ${currentUser ? (currentUser.name || currentUser.username) : "User"}`, { entity: "Item" });
+  closeModals();
+  render();
+  toast(`Marked ${qty} ${item.unit || "pcs"} of "${item.name}" as lost.`, "success");
 }
 
 function __allocListFiltered() {
@@ -12193,6 +12361,7 @@ if (e.target.closest("[data-ccat-edit]")) startEditConsCat(parseInt(e.target.clo
     $$("[data-invt]").forEach(x => x.classList.toggle("active", x.dataset.invt === __invTab));
     $$("[data-inv-tab]").forEach(p => p.classList.toggle("hidden", p.dataset.invTab !== __invTab));
     if (__invTab === "stock") renderAllocStock();
+    else if (__invTab === "history") renderInventory();
   }));
 
   $("#allocOpenBtn")?.addEventListener("click", openAllotModal);
@@ -12339,8 +12508,9 @@ if (e.target.closest("[data-ccat-edit]")) startEditConsCat(parseInt(e.target.clo
     if (!btn) return;
     if (btn.dataset.allocAction === "view") openAllocItemDetail(btn.dataset.id);
     else if (btn.dataset.allocAction === "edit") { const it = getItems().find(i => i.id === btn.dataset.id); if (it) openItemModal(it); }
-    /* row Adjust action removed (2026.09.87) */
+    else if (btn.dataset.allocAction === "loss") openInvLoss(btn.dataset.id);
   });
+  $("#invLossForm")?.addEventListener("submit", saveInvLoss);
   $("#allocBody")?.addEventListener("click", e => {
     const el = e.target.closest("[data-alloc-action]");
     if (!el) return;
