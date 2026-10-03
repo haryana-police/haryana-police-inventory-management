@@ -8,7 +8,7 @@
 <!-- Both stylesheets are versioned: without the query the browser keeps
      serving the old file from its own cache, so a CSS fix appears to do
      nothing until a hard refresh. Bump these when either file changes. -->
-<link rel="stylesheet" href="styles.css?v=2026.09.272">
+<link rel="stylesheet" href="styles.css?v=2026.09.273">
   <script>
     (function () {
       try { if (localStorage.getItem("hpi_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
@@ -475,7 +475,17 @@
         <div class="table-wrap">
           <table id="invHistoryTable">
             <thead>
-              <tr><th class="sortable" data-sort-col="0" tabindex="0" aria-sort="none">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="1" tabindex="0" aria-sort="none">Stock Change <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="2" tabindex="0" aria-sort="none">Location <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="3" tabindex="0" aria-sort="none" title="Sort by Good quantity">Condition <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="4" tabindex="0" aria-sort="none" title="Sort by status (Out of Stock first)">Status <span class="sort-arrow"></span></th><th class="sortable" data-sort-col="5" tabindex="0" aria-sort="none">Last Updated <span class="sort-arrow"></span></th><th>Actions</th></tr>
+              <tr>
+                <th class="sortable" data-sort-col="0" tabindex="0" aria-sort="none">Date &amp; Time <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort-col="1" tabindex="0" aria-sort="none">Item Name <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort-col="2" tabindex="0" aria-sort="none">Action / Type <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort-col="3" tabindex="0" aria-sort="none">Stock Change <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort-col="4" tabindex="0" aria-sort="none">Prev Qty <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort-col="5" tabindex="0" aria-sort="none">New Balance <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort-col="6" tabindex="0" aria-sort="none">Location <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort-col="7" tabindex="0" aria-sort="none">Done By / Remarks <span class="sort-arrow"></span></th>
+                <th>Actions</th>
+              </tr>
             </thead>
 <tbody id="inventoryBody"></tbody>
           </table>
@@ -3247,7 +3257,7 @@
 <script src="api-client.js?v=2026.09.212"></script>
   <script src="enter-to-submit.js?v=2026.09.253"></script>
   <script src="cat-multiselect.js?v=2026.09.253"></script>
-  <script src="app.js?v=2026.09.286"></script>
+  <script src="app.js?v=2026.09.288"></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
 <script src="item-profile.js?v=2026.09.265"></script>
 <script src="person-profile.js?v=2026.09.213"></script>
@@ -3347,6 +3357,28 @@
     </form>
   </div>
 </div>
+<!-- Inventory: Mark Stock as Lost -->
+<div class="modal-backdrop hidden" id="invLossModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Mark Item Quantity as Lost</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="invLossForm">
+      <div class="form-row">
+        <div class="form-group"><label>Item</label><input type="text" id="ilItem" readonly></div>
+        <div class="form-group"><label>Available Quantity</label><input type="text" id="ilAvail" readonly></div>
+      </div>
+      <div class="form-group"><label>Lost Quantity *</label><input type="number" id="ilQty" min="1" step="1" required></div>
+      <div class="form-group"><label>Remarks</label><textarea id="ilRemarks" rows="2" placeholder="Reason for loss / optional remarks..."></textarea></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close>Cancel</button>
+        <button type="submit" class="btn btn-red">Mark as Lost</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Consumable: Loss -->
 <div class="modal-backdrop hidden" id="consLossModal">
   <div class="modal">

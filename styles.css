@@ -2697,13 +2697,16 @@ td .cat-badge { white-space: nowrap; }
 #allocStockTable thead th:nth-child(2),
 #allocStockTable tbody td.item-name { min-width: 130px; }
 
-/* Stock History: slightly reduced width for Item Name column */
+/* Stock History: column widths for individual change history */
 #invHistoryTable thead th:first-child,
-#invHistoryTable tbody td.item-name,
-[data-inv-tab="history"] table thead th:first-child,
-[data-inv-tab="history"] table tbody td.item-name {
-  width: 210px;
-  max-width: 230px;
+#invHistoryTable tbody td:first-child {
+  min-width: 135px;
+  white-space: nowrap;
+}
+#invHistoryTable thead th:nth-child(2),
+#invHistoryTable tbody td.item-name {
+  min-width: 160px;
+  max-width: 220px;
 }
 
 /* ---- Multi-select checkbox combobox (Any Category) --------------------------
