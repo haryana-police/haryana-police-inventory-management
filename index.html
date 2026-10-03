@@ -1333,7 +1333,7 @@
                   <th>Work Type</th>
                   <th>Work Done / Description</th>
                   <th>Location / Unit</th>
-                  <th>Done By (Officer)</th>
+                  <th>Done By / Recorded By</th>
                   <th>Participants</th>
                   <th>Photos</th>
                   <th style="text-align:center;">Actions</th>
@@ -3248,7 +3248,7 @@
 <script src="api-client.js?v=2026.09.212"></script>
   <script src="enter-to-submit.js?v=2026.09.253"></script>
   <script src="cat-multiselect.js?v=2026.09.253"></script>
-  <script src="app.js?v=2026.09.283"></script>
+  <script src="app.js?v=2026.09.284"></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
 <script src="item-profile.js?v=2026.09.265"></script>
 <script src="person-profile.js?v=2026.09.213"></script>
@@ -3699,25 +3699,8 @@
           </div>
 
           <div class="form-group">
-            <label for="shramOfficerRole" style="font-weight:600;display:block;margin-bottom:6px;">Conducted By (Officer Role) <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
-            <select id="shramOfficerRole" class="form-control" required style="width:100%;height:38px;">
-              <option value="Line Officer">Line Officer (Police Line / लाइन ऑफिसर)</option>
-              <option value="Station Officer">Station Officer (Police Station / थाना प्रभारी)</option>
-              <option value="SHO">SHO / Inspector (थानाध्यक्ष)</option>
-              <option value="MHC">MHC / Munshi (मुंशी)</option>
-              <option value="Sub-Inspector">Sub-Inspector (उप-निरीक्षक / चौकी प्रभारी)</option>
-              <option value="Other">Other Officer (अन्य अधिकारी)</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="shramOfficerName" style="font-weight:600;display:block;margin-bottom:6px;">Officer In-Charge Name <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
-            <input type="text" id="shramOfficerName" class="form-control" placeholder="e.g. Insp. Rajesh Kumar" required style="width:100%;height:38px;">
-          </div>
-
-          <div class="form-group">
-            <label for="shramOfficerBelt" style="font-weight:600;display:block;margin-bottom:6px;">Belt No. / PNO / ID (Optional)</label>
-            <input type="text" id="shramOfficerBelt" class="form-control" placeholder="e.g. 542/GGN" style="width:100%;height:38px;">
+            <label for="shramRecordedByDisplay" style="font-weight:600;display:block;margin-bottom:6px;">Done By / Recorded By (दर्जकर्ता अधिकारी)</label>
+            <input type="text" id="shramRecordedByDisplay" class="form-control" readonly tabindex="-1" style="width:100%;height:38px;background:var(--bg-alt,#f1f5f9);cursor:not-allowed;" title="Auto-filled from logged-in user">
           </div>
 
           <div class="form-group">
