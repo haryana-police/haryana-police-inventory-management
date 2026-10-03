@@ -2700,7 +2700,29 @@ td .cat-badge { white-space: nowrap; }
 /* Stock History: column widths for individual change history */
 #invHistoryTable thead th:first-child,
 #invHistoryTable tbody td:first-child {
-  min-width: 135px;
+  width: 95px;
+  min-width: 90px;
+  max-width: 105px;
+  padding: 6px 8px;
+}
+#invHistoryTable thead th:first-child {
+  white-space: nowrap;
+}
+#invHistoryTable .inv-hist-datetime {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.25;
+}
+#invHistoryTable .inv-hist-date {
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--text);
+  white-space: nowrap;
+}
+#invHistoryTable .inv-hist-time {
+  font-size: 0.72rem;
+  color: var(--muted);
   white-space: nowrap;
 }
 #invHistoryTable thead th:nth-child(2),
