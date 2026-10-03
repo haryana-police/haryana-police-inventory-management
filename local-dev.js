@@ -117,6 +117,31 @@ function readBody(req) {
 }
 
 // ---------- API handler ----------
+let _cachedApiHandler = null;
+let _lastApiMtime = 0;
+
+function getApiHandler() {
+  let apiMtime = 0;
+  try {
+    const apiDir = path.join(PROJECT_DIR, 'api');
+    for (const f of fs.readdirSync(apiDir)) {
+      if (f.endsWith('.js')) {
+        const stat = fs.statSync(path.join(apiDir, f));
+        if (stat.mtimeMs > apiMtime) apiMtime = stat.mtimeMs;
+      }
+    }
+  } catch (e) {}
+
+  if (!_cachedApiHandler || apiMtime > _lastApiMtime) {
+    for (const k of Object.keys(require.cache)) {
+      if (k.includes(path.join('api', ''))) delete require.cache[k];
+    }
+    _cachedApiHandler = require(path.join(PROJECT_DIR, 'api', 'index.js'));
+    _lastApiMtime = apiMtime;
+  }
+  return _cachedApiHandler;
+}
+
 function handleApi(req, res, pathname) {
   const rest = pathname === '/api' ? '' : pathname.slice('/api/'.length);
   const seg = rest.split('/').filter(Boolean); // handler decodes parts itself
@@ -127,10 +152,7 @@ function handleApi(req, res, pathname) {
   query.path = seg;
   req.query = query;
   const p = (req.method !== 'GET' && req.method !== 'HEAD') ? readBody(req).then(b => { req.body = b; req._body = true; }) : Promise.resolve({}).then(b => { req.body = b; req._body = true; });
-  for (const k of Object.keys(require.cache)) {
-    if (k.includes(path.join('api', ''))) delete require.cache[k];
-  }
-  const handler = require(path.join(PROJECT_DIR, 'api', 'index.js'));
+  const handler = getApiHandler();
   return p.then(() => handler(req, res));
 }
 
