@@ -572,7 +572,7 @@
       dashboard: "Dashboard",
       allotments: "Allotments",
       inspections: "Inspections",
-      shramdaan: "Shram Daan",
+      shramdaan: "Shramdaan",
       maintenance: "Maintenance",
       documents: "Documents",
       reports: "Reports"
