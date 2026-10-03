@@ -5452,6 +5452,84 @@ function exportShramExcel() { excelReport(__shramExportData()); toast("Excel exp
 function exportShramWord() { wordReport(__shramExportData()); toast("Word document exported.", "success"); }
 function exportShramPDF() { pdfReport(__shramExportData()); toast("PDF exported.", "success"); }
 
+const __SHRAM_STAT_COLS = ["Date & Time", "Work Type", "Description / Work Done", "Location / Unit", "Participants", "Photos"];
+
+function __shramStatRows(drives) {
+  return drives.map(d => [
+    (d.date || "") + (d.time ? " " + d.time : ""),
+    d.workTypeLabel || d.workType || "Other",
+    d.description || "-",
+    d.locationName || "-",
+    Number(d.participants) || 1,
+    (d.photos && d.photos.length) ? d.photos.length : 0
+  ]);
+}
+
+const __SHRAM_STAT_BUILDERS = {
+  all: () => {
+    const list = getShramDaanList();
+    return {
+      title: "All Shramdaan Drives",
+      cols: __SHRAM_STAT_COLS,
+      rows: __shramStatRows(list)
+    };
+  },
+  gardening: () => {
+    const list = getShramDaanList().filter(d => (d.workType || "").toLowerCase() === "gardening");
+    return {
+      title: "Gardening (बागवानी) Drives",
+      cols: __SHRAM_STAT_COLS,
+      rows: __shramStatRows(list)
+    };
+  },
+  cleaning: () => {
+    const list = getShramDaanList().filter(d => (d.workType || "").toLowerCase() === "cleaning");
+    return {
+      title: "Cleaning (सफ़ाई अभियान) Drives",
+      cols: __SHRAM_STAT_COLS,
+      rows: __shramStatRows(list)
+    };
+  },
+  planting: () => {
+    const list = getShramDaanList().filter(d => (d.workType || "").toLowerCase() === "planting");
+    return {
+      title: "Tree Planting (पौधारोपण) Drives",
+      cols: __SHRAM_STAT_COLS,
+      rows: __shramStatRows(list)
+    };
+  },
+  fatigue: () => {
+    const list = getShramDaanList().filter(d => (d.workType || "").toLowerCase() === "fatigue");
+    return {
+      title: "Fatigue (फटीक / शारीरिक श्रम) Drives",
+      cols: __SHRAM_STAT_COLS,
+      rows: __shramStatRows(list)
+    };
+  }
+};
+
+function openShramStatDetail(key) {
+  const def = __SHRAM_STAT_BUILDERS[key] ? __SHRAM_STAT_BUILDERS[key]() : null;
+  if (!def) return;
+  const dist = getDistricts().find(d => d.id === activeDistrictId);
+  __statDetail = {
+    title: def.title,
+    subtitle: (dist ? dist.name + " \u00b7 " : "") + "Generated " + new Date().toLocaleString() + " (" + def.rows.length + " drive" + (def.rows.length === 1 ? "" : "s") + ")",
+    cols: def.cols,
+    rows: def.rows,
+    fileName: "shramdaan-" + key
+  };
+  __statFilter = "";
+  __pgReset("statDetail");
+  $("#statDetailTitle").textContent = def.title;
+  $("#statDetailSubtitle").textContent = __statDetail.subtitle;
+  $("#statDetailHead").innerHTML = "<tr>" + def.cols.map(c => `<th>${esc(c)}</th>`).join("") + "</tr>";
+  const s = $("#statSearch");
+  if (s) s.value = "";
+  renderStatDetail("");
+  openModal("#statDetailModal");
+}
+
 /* Setup Shramdaan Listeners (Delegated on document for 100% reliability) */
 function initShramDaanListeners() {
   if (initShramDaanListeners.__done) return;
@@ -5507,7 +5585,7 @@ function initShramDaanListeners() {
       return;
     }
 
-    // 5. Stat card filter
+    // 5. Stat card click -> Open drill-down details modal with full data
     const statCard = e.target.closest("#shramStats .stat-card");
     if (statCard) {
       const f = statCard.dataset.shramFilter || "all";
@@ -5515,6 +5593,7 @@ function initShramDaanListeners() {
       const tf = $("#shramTypeFilter");
       if (tf) tf.value = f === "all" ? "" : f;
       renderShramDaan();
+      openShramStatDetail(f);
       return;
     }
 
