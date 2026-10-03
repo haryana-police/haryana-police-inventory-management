@@ -424,7 +424,6 @@ const __SORT_DEFS = {
       r => r.workType || "",
       r => r.description || "",
       r => r.locationName || "",
-      r => r.officerName || "",
       r => Number(r.participants) || 0,
       r => (r.photos ? r.photos.length : 0),
       null /* Actions */
@@ -1664,6 +1663,7 @@ document.addEventListener("click", function (e) {
   if (b && !b.classList.contains("hidden") && e.target === b) {
     if (b.id === "catItemsModal") { returnToCatModal(); return; }
     if (b.id === "consCitModal") { returnToConsCatModal(); return; }
+    if (b.id === "camModal") { closeCamOnly(); b.classList.add("hidden"); return; }
     closeModals();
     return;
   }
@@ -5004,10 +5004,6 @@ function renderShramDaan() {
             <td>
               <span style="font-weight:550;">${esc(r.locationName || "-")}</span>
             </td>
-            <td>
-              <div style="font-weight:600;">${esc(r.officerName || "-")}</div>
-              <div style="font-size:11px;color:var(--text-muted);">${esc(r.officerRole || "")} ${r.officerBelt ? `(${esc(r.officerBelt)})` : ""}</div>
-            </td>
             <td style="text-align:center;">
               <span class="badge" style="background:var(--primary-050);color:var(--primary);font-weight:600;padding:3px 8px;border-radius:12px;">${r.participants || 1}</span>
             </td>
@@ -5021,7 +5017,7 @@ function renderShramDaan() {
         `;
       }).join("");
     } else {
-      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted);">No Shramdaan records found. Click "+ Record Shramdaan" to add one.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted);">No Shramdaan records found. Click "+ Record Shramdaan" to add one.</td></tr>`;
     }
     renderPager("shram", filtered.length, renderShramDaan);
   }
@@ -5104,8 +5100,9 @@ function __shramStampPhoto(photo, cb) {
       const dateStr = $("#shramDate")?.value || new Date().toISOString().slice(0, 10);
       const timeStr = $("#shramTime")?.value || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const officerStr = currentUser ? ((currentUser.rank ? currentUser.rank + " " : "") + (currentUser.name || "Police Officer")) : "Police Officer";
+      const locDisplay = $("#shramLocationDisplay");
       const locEl = $("#shramLocation");
-      const unitStr = locEl && locEl.selectedIndex >= 0 ? locEl.options[locEl.selectedIndex].text : "";
+      const unitStr = (locDisplay && locDisplay.value) || (locEl && locEl.selectedIndex >= 0 ? locEl.options[locEl.selectedIndex].text : "");
 
       const stampLine1 = "HARYANA POLICE - SHRAMDAAN DRIVE";
       const stampLine2 = "DATE: " + dateStr + " " + timeStr + (unitStr ? " | " + unitStr : "") + " | BY: " + officerStr;
@@ -5182,29 +5179,23 @@ function openShramDaanModal() {
     __shramPhotos = [];
     __shramRenderPhotoPreviews();
 
-    // Populate Location options and default to logged-in user's location
-    const locSel = $("#shramLocation");
-    if (locSel) {
-      const locs = typeof getLocations === "function" ? getLocations() : [];
-      locSel.innerHTML = `<option value="">-- Select Location / Unit --</option>` +
-        locs.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
-      
-      const defaultLocId = (currentUser && currentUser.locationId) || (typeof getVisibleLocationId === "function" ? getVisibleLocationId() : "");
-      if (defaultLocId && locs.some(l => l.id === defaultLocId)) {
-        locSel.value = defaultLocId;
-      } else if (locs.length > 0) {
-        locSel.value = locs[0].id;
-      }
+    // Default Location / Unit from logged-in user
+    const locs = typeof getLocations === "function" ? getLocations() : [];
+    let defaultLoc = null;
+    const defaultLocId = (currentUser && currentUser.locationId) || (typeof getVisibleLocationId === "function" ? getVisibleLocationId() : "");
+    if (defaultLocId) {
+      defaultLoc = locs.find(l => l.id === defaultLocId);
     }
+    if (!defaultLoc && locs.length > 0) {
+      defaultLoc = locs[0];
+    }
+    const locName = defaultLoc ? defaultLoc.name : ((currentUser && (currentUser.unit || currentUser.locationName)) || "Haryana Police Unit");
+    const locId = defaultLoc ? defaultLoc.id : (defaultLocId || "unit_default");
 
-    // Display Done By / Recorded By automatically from logged-in user
-    const recEl = $("#shramRecordedByDisplay");
-    if (recEl) {
-      const roleTxt = currentUser ? ((typeof ROLE_LABELS !== "undefined" && ROLE_LABELS[currentUser.role]) || currentUser.role || "") : "Officer";
-      const nameTxt = currentUser ? ((currentUser.rank ? currentUser.rank + " " : "") + (currentUser.name || "User")) : "Officer";
-      const beltTxt = currentUser ? (currentUser.beltNumber || currentUser.pno || currentUser.beltNo || "") : "";
-      recEl.value = `${nameTxt}${roleTxt ? ` (${roleTxt})` : ""}${beltTxt ? ` [Belt: ${beltTxt}]` : ""}`;
-    }
+    const locDisplay = $("#shramLocationDisplay");
+    if (locDisplay) locDisplay.value = locName;
+    const locHidden = $("#shramLocation");
+    if (locHidden) locHidden.value = locId;
 
     const now = new Date();
     const dEl = $("#shramDate"); if (dEl) dEl.value = now.toISOString().slice(0, 10);
@@ -5231,10 +5222,9 @@ async function saveShramDaanEntry(e) {
     return toast("Please specify the custom work type.", "error");
   }
 
-  const locationId = $("#shramLocation")?.value;
-  if (!locationId) return toast("Please select a Location / Unit.", "error");
-  const locObj = getLocations().find(l => l.id === locationId);
-  const locationName = locObj ? locObj.name : "Location";
+  const locationId = $("#shramLocation")?.value || (currentUser ? currentUser.locationId : "");
+  const locObj = typeof getLocations === "function" ? getLocations().find(l => l.id === locationId) : null;
+  const locationName = $("#shramLocationDisplay")?.value || (locObj ? locObj.name : "Location / Unit");
 
   // Auto-filled from logged-in user
   const officerName = currentUser ? ((currentUser.rank ? currentUser.rank + " " : "") + (currentUser.name || "User")) : "Officer";
@@ -5334,9 +5324,6 @@ function openShramDaanDetailModal(id) {
     </div>
 
     <div class="demand-detail-grid" style="margin-bottom:16px;">
-      <div><span class="stat-label">Done By / Recorded By</span><b>${esc(drive.officerName || drive.recordedByName || '-')}</b></div>
-      <div><span class="stat-label">Officer Role / Designation</span><b>${esc(drive.officerRole || drive.recordedByRole || '-')}</b></div>
-      ${drive.officerBelt ? `<div><span class="stat-label">Belt No. / PNO</span><b>${esc(drive.officerBelt)}</b></div>` : ''}
       <div><span class="stat-label">Location / Unit</span><b>${esc(drive.locationName || '-')}</b></div>
       <div><span class="stat-label">Personnel Involved</span><b>${drive.participants || 1} Persons</b></div>
       <div><span class="stat-label">Photos Attached</span><b>${photos.length} Photo${photos.length === 1 ? '' : 's'}</b></div>
@@ -5416,14 +5403,13 @@ function printShramSlip(id) {
           <tr><th>Work Type</th><td><b>${esc(drive.workTypeLabel || drive.workType)}</b> ${drive.customType ? `(${esc(drive.customType)})` : ''}</td></tr>
           <tr><th>Date &amp; Time</th><td>${esc(drive.date)} at ${esc(drive.time)}</td></tr>
           <tr><th>Location / Unit</th><td>${esc(drive.locationName || '-')}</td></tr>
-          <tr><th>Done By / Recorded By</th><td><b>${esc(drive.officerName || drive.recordedByName || '-')}</b> (${esc(drive.officerRole || '')}${drive.officerBelt ? `, ${esc(drive.officerBelt)}` : ''})</td></tr>
           <tr><th>Personnel Involved</th><td>${drive.participants || 1} Police Personnel</td></tr>
         </table>
         <div><b>Work Done Description:</b></div>
         <div class="desc">${esc(drive.description || '-')}</div>
         ${drive.photos && drive.photos.length ? `<div><b>Attached Verified Photos (${drive.photos.length}):</b></div><div style="margin-top:8px;">${photosHtml}</div>` : ''}
         <div class="sign-row">
-          <div class="sign-box">Done By / Recorded By<br><b>${esc(drive.officerName || drive.recordedByName || 'Officer')}</b><br>${esc(drive.officerRole || '')}</div>
+          <div class="sign-box">Officer In-Charge / Unit<br><b>${esc(drive.locationName || 'Haryana Police')}</b></div>
           <div class="sign-box">Verified By<br><b>Supervisory Officer</b><br>Haryana Police</div>
         </div>
         <script>setTimeout(function(){ window.print(); }, 400);</script>
@@ -5448,7 +5434,6 @@ function __shramExportData() {
     d.workTypeLabel || d.workType,
     d.description || "-",
     d.locationName || "-",
-    (d.officerName || d.recordedByName || "-") + (d.officerRole ? " (" + d.officerRole + ")" : ""),
     String(d.participants || 1),
     String(d.photos ? d.photos.length : 0)
   ]);
@@ -5456,7 +5441,7 @@ function __shramExportData() {
   return {
     title: "Shramdaan Activity Report",
     subtitle: (dist ? dist.name + " \u00b7 " : "") + "Generated " + new Date().toLocaleString() + " (" + rows.length + " drive" + (rows.length === 1 ? "" : "s") + ")",
-    cols: ["Date & Time", "Work Type", "Description / Work Done", "Location / Unit", "Done By / Recorded By", "Participants", "Photos"],
+    cols: ["Date & Time", "Work Type", "Description / Work Done", "Location / Unit", "Participants", "Photos"],
     rows,
     fileName: "shramdaan-report"
   };
@@ -6950,6 +6935,8 @@ function __attTargetPush(ctx, photo) {
 async function openCam(ctx) {
   __camCtx = ctx;
   __camFacing = "environment";
+  const camEl = $("#camModal");
+  if (camEl) camEl.style.zIndex = "100050";
   openModal("#camModal");
   const hint = $("#camHint");
   hint.textContent = "Starting camera…";
