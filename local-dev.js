@@ -244,6 +244,19 @@ server.on('error', e => {
   }
 });
 
+process.on('uncaughtException', err => {
+  console.error('[local-dev] Uncaught exception:', err && (err.stack || err.message || err));
+});
+process.on('unhandledRejection', reason => {
+  console.error('[local-dev] Unhandled rejection:', reason && (reason.stack || reason.message || reason));
+});
+process.on('beforeExit', code => {
+  console.log('[local-dev] beforeExit with code:', code);
+});
+process.on('exit', code => {
+  console.log('[local-dev] exit with code:', code);
+});
+
 ensureVendorBinaries(); // fire-and-forget: never blocks server start
 
 let currentPort = PORT;
