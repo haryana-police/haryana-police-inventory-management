@@ -791,12 +791,12 @@
         <input type="search" id="devDauSearch" placeholder="Search by username, name, role, location...">
         <select id="devDauType" class="dev-type-sel">
           <option value="">Search by Type: All</option>
-          <option value="user">General User</option>
+          <option value="user">Office</option>
           <option value="mhc">MHC</option>
-          <option value="tsi">TSI</option>
-          <option value="station">Station Manager</option>
-          <option value="staff">Staff</option>
-          <option value="post">Police Post</option>
+          <option value="tsi" hidden style="display:none;">TSI</option>
+          <option value="station" hidden style="display:none;">Station Manager</option>
+          <option value="staff" hidden style="display:none;">Staff</option>
+          <option value="post" hidden style="display:none;">Police Post</option>
         </select>
       </div>
       <div class="dev-table-wrap"><table class="dev-table"><thead><tr>
@@ -823,7 +823,7 @@
           </div>
           <button type="button" class="btn btn-primary" id="adminAddUserBtn">+ Add New User</button>
         </div>
-        <div class="dev-toolbar"><input type="search" id="adminUserSearch" placeholder="Search by username, name, role, district, location..."><select id="adminUserType" class="dev-type-sel"><option value="">Search by Type: All</option><option value="admin">District Admin</option><option value="user">User</option><option value="mhc">MHC</option><option value="tsi">TSI</option><option value="station">Station</option><option value="staff">Staff</option><option value="post">Post</option></select></div>
+        <div class="dev-toolbar"><input type="search" id="adminUserSearch" placeholder="Search by username, name, role, district, location..."><select id="adminUserType" class="dev-type-sel"><option value="">Search by Type: All</option><option value="admin">District Admin</option><option value="user">Office</option><option value="mhc">MHC</option><option value="tsi" hidden style="display:none;">TSI</option><option value="station" hidden style="display:none;">Station</option><option value="staff" hidden style="display:none;">Staff</option><option value="post" hidden style="display:none;">Post</option></select></div>
         <div class="dev-table-wrap"><table class="dev-table"><thead><tr><th>Username</th><th>Display Name</th><th>Mobile</th><th>Role</th><th>District</th><th>Location</th><th>Actions</th></tr></thead><tbody id="adminUsersBody"></tbody></table></div>
         <div class="dev-toolbar" style="margin-top:10px"><span id="adminUsersCount" class="dev-empty"></span></div>
       </section>
@@ -2625,15 +2625,15 @@
           <div class="form-group">
             <label for="nuRole">Role</label>
             <select id="nuRole">
-              <option value="user">General User</option>
+              <option value="user">Office</option>
               <option value="mhc">MHC</option>
-              <option value="tsi">TSI</option>
-              <option value="station">Station Manager</option>
-              <option value="staff">Staff</option>
-              <option value="post">Police Post</option>
               <option value="admin">District Admin</option>
               <option value="ig" data-dev-only>Inspector General</option>
               <option value="devadmin" data-dev-only>Developer Admin</option>
+              <option value="tsi" hidden disabled style="display:none;">TSI</option>
+              <option value="station" hidden disabled style="display:none;">Station Manager</option>
+              <option value="staff" hidden disabled style="display:none;">Staff</option>
+              <option value="post" hidden disabled style="display:none;">Police Post</option>
             </select>
           </div>
           <div class="form-group">
@@ -2869,12 +2869,12 @@
       <div class="form-group">
         <label for="raUserType">Requested Role</label>
         <select id="raUserType" required>
-          <option value="user">General User</option>
+          <option value="user">Office</option>
           <option value="mhc">MHC</option>
-          <option value="tsi">TSI</option>
-          <option value="station">Station Manager</option>
-          <option value="staff">Staff</option>
-          <option value="post">Police Post</option>
+          <option value="tsi" hidden disabled style="display:none;">TSI</option>
+          <option value="station" hidden disabled style="display:none;">Station Manager</option>
+          <option value="staff" hidden disabled style="display:none;">Staff</option>
+          <option value="post" hidden disabled style="display:none;">Police Post</option>
         </select>
       </div>
       <div class="forgot-pass-result hidden" id="raResult">
@@ -3269,7 +3269,7 @@
 <script src="api-client.js?v=2026.09.212"></script>
   <script src="enter-to-submit.js?v=2026.09.253"></script>
   <script src="cat-multiselect.js?v=2026.09.253"></script>
-  <script src="app.js?v=2026.10.051"></script>
+  <script src="app.js?v=2026.10.061"></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
 <script src="item-profile.js?v=2026.10.051"></script>
 <script src="person-profile.js?v=2026.09.213"></script>
@@ -3639,15 +3639,15 @@
         <div class="form-group">
           <label for="duRole">Role <span class="req">*</span></label>
           <select id="duRole">
-            <option value="user">General User</option>
+            <option value="user">Office</option>
             <option value="mhc">MHC</option>
-            <option value="tsi">TSI</option>
-            <option value="station">Station Manager</option>
-            <option value="staff">Staff</option>
-            <option value="post">Police Post</option>
             <option value="admin">District Admin</option>
             <option value="ig">Inspector General</option>
             <option value="devadmin">Developer Admin</option>
+            <option value="tsi" hidden disabled style="display:none;">TSI</option>
+            <option value="station" hidden disabled style="display:none;">Station Manager</option>
+            <option value="staff" hidden disabled style="display:none;">Staff</option>
+            <option value="post" hidden disabled style="display:none;">Police Post</option>
           </select>
         </div>
         <div class="form-group">

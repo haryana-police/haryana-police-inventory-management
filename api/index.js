@@ -1,4 +1,4 @@
-﻿// Local API - Haryana Police Inventory
+// Local API - Haryana Police Inventory
 // Document-store style: the whole app state is stored as one JSON blob
 // in a single file (local-data/db.json). This matches how the frontend uses
 // localStorage (loadData / saveData with a central JSON cache).
@@ -58,7 +58,7 @@ const DEMO_PASSWORD = 'hp@123';
 // installation still answers to DEMO_PASSWORD alone.
 const DEMO_DATA_PASSWORD = 'demo@123';
 const DEMO_SEED_ACCOUNTS = [
-  'developer', 'admin', 'admin2', 'user', 'fbd_user', 'mhc', 'fbd_mhc', 'station',
+  'developer', 'admin', 'admin2', 'user', 'fbd_user', 'mhc', 'fbd_mhc',
   'it.staff.gurugramdist', 'mto.staff.gurugramdist',
   'it.staff.faridabaddis', 'mto.staff.faridabaddis',
   'it.staff.panipatdistr', 'mto.staff.panipatdistr',
@@ -80,11 +80,11 @@ try { pool.syncDemoAccounts(DEMO_PASSWORD); } catch (e) { console.warn('[demo-sy
 const ROLE_LABELS = {
   devadmin: 'Developer Admin', ig: 'Inspector General', admin: 'District Admin',
   station: 'Station Manager', staff: 'Staff', mhc: 'MHC', tsi: 'TSI', post: 'Police Post',
-  user: 'General User', itstaff: 'Computer/IT Staff', mtostaff: 'MTO Staff',
+  user: 'Office', itstaff: 'Computer/IT Staff', mtostaff: 'MTO Staff',
 };
 
 // Display order on the login page, and the accent colour each role gets.
-const DEMO_ROLE_ORDER = ['devadmin', 'ig', 'admin', 'station', 'user', 'mhc', 'post', 'itstaff', 'mtostaff'];
+const DEMO_ROLE_ORDER = ['devadmin', 'ig', 'admin', 'user', 'mhc', 'itstaff', 'mtostaff'];
 const DEMO_ROLE_ACCENT = {
   devadmin: 'violet', ig: 'gold', admin: 'blue', station: 'teal', user: 'amber',
   mhc: 'green', post: 'rose', itstaff: 'cyan', mtostaff: 'indigo',
@@ -120,6 +120,7 @@ async function listDemoAccounts() {
     const u = users.find(x => x && String(x.username || '').toLowerCase() === seed.username);
     if (!u) continue;
     const role = u.role || 'user';
+    if (['tsi', 'post', 'staff', 'station'].includes(role)) continue;
     out.push({
       username: u.username,
       name: u.name || u.username,

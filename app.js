@@ -148,7 +148,8 @@ const DEFAULT_USERS = [
   { id: "u7", username: "fbd_mhc", password: "mhc123", role: "mhc", name: "MHC Officer - Faridabad", mobile: "9876543217", districtId: "dist_2", locationId: "fbd_mhc", createdAt: Date.now() },
 ];
 
-const ROLE_LABELS = { devadmin: "Developer Admin", ig: "Inspector General", admin: "District Admin", station: "Station Manager", staff: "Staff", mhc: "MHC", tsi: "TSI", post: "Police Post", user: "General User", itstaff: "Computer/IT Staff", mtostaff: "MTO Staff" };
+const ROLE_LABELS = { devadmin: "Developer Admin", ig: "Inspector General", admin: "District Admin", station: "Station Manager", staff: "Staff", mhc: "MHC", tsi: "TSI", post: "Police Post", user: "Office", itstaff: "Computer/IT Staff", mtostaff: "MTO Staff" };
+const HIDDEN_ROLES = ["tsi", "post", "staff", "station"];
 
 /* ---- DISTRICT SCOPE (mirrors api/_rbac.js) ----
    Every role sits inside a set of districts. Most hold exactly one, through
@@ -1288,6 +1289,7 @@ function __renderDemoCards(accounts) {
   const s = __demoShell();
   if (!s.list) return;
   s.list.innerHTML = "";
+  accounts = (accounts || []).filter(a => !HIDDEN_ROLES.includes(a.role));
   if (!accounts || !accounts.length) {
     s.list.innerHTML = '<div class="demo-empty">No demo accounts are available on this server. '
       + "Use the sign-in form on the left.</div>";
@@ -4482,6 +4484,9 @@ function openUsersModal() {
   $("#cancelUserEdit").style.display = "none";
   $("#nuEditId").value = "";
   $("#addUserForm").reset();
+  document.querySelectorAll('#nuRole option').forEach(opt => {
+    if (HIDDEN_ROLES.includes(opt.value)) { opt.hidden = true; opt.disabled = true; opt.style.display = "none"; }
+  });
   buildIgDistrictPicker([]);
   syncIgRow();
   renderUsers();
@@ -4502,6 +4507,13 @@ function startEditUser(id) {
   $("#nuPassword").value = "";
   $("#nuName").value = user.name;
   $("#nuMobile").value = user.mobile;
+  document.querySelectorAll('#nuRole option').forEach(opt => {
+    if (HIDDEN_ROLES.includes(opt.value)) { opt.hidden = true; opt.disabled = true; opt.style.display = "none"; }
+  });
+  if (HIDDEN_ROLES.includes(user.role)) {
+    const curOpt = document.querySelector('#nuRole option[value="' + user.role + '"]');
+    if (curOpt) { curOpt.hidden = false; curOpt.disabled = false; curOpt.style.display = ""; }
+  }
   $("#nuRole").value = user.role;
   $("#nuDistrict").value = user.districtId;
   buildIgDistrictPicker(Array.isArray(user.districtIds) ? user.districtIds : []);
@@ -4516,6 +4528,9 @@ function cancelUserEdit() {
   $("#cancelUserEdit").style.display = "none";
   $("#nuEditId").value = "";
   $("#addUserForm").reset();
+  document.querySelectorAll('#nuRole option').forEach(opt => {
+    if (HIDDEN_ROLES.includes(opt.value)) { opt.hidden = true; opt.disabled = true; opt.style.display = "none"; }
+  });
   buildIgDistrictPicker([]);
   syncIgRow();
 }
@@ -13862,6 +13877,7 @@ const __I18N = {
   "Name":"\u0928\u093e\u092e",
   "Role":"\u092d\u0942\u092e\u093f\u0915\u093e",
   "General User":"\u0938\u093e\u092e\u093e\u0928\u094d\u092f \u0909\u092a\u092f\u094b\u0917\u0915\u0930\u094d\u0924\u093e",
+  "Office":"\u0915\u093e\u0930\u094d\u092f\u093e\u0932\u092f",
   "District Admin":"\u091c\u093f\u0932\u093e \u092a\u094d\u0930\u0936\u093e\u0938\u0915",
   "Developer Admin":"\u0921\u0947\u0935\u0932\u092a\u0930 \u092a\u094d\u0930\u0936\u093e\u0938\u0915",
   "Station Manager":"\u0925\u093e\u0928\u093e \u092a\u094d\u0930\u092d\u093e\u0930\u0940",
@@ -14190,6 +14206,7 @@ const __I18N_ITEMS = {
   "District Admin":"जिला प्रशासक",
   "Developer Admin":"डेवलपर प्रशासक",
   "General User":"सामान्य उपयोगकर्ता",
+  "Office":"कार्यालय",
   "Station Manager":"स्टेशन प्रबंधक",
   "User":"उपयोगकर्ता",
   "Users":"उपयोगकर्ता",
@@ -17332,14 +17349,23 @@ function openDevUserModal(editId, presetDistrictId) {
   $("#devUserErr").textContent = "";
   $("#devUserForm").reset();
   const rSel = $("#duRole");
-  if (rSel && isDevAdmin()) {
-    Array.from(rSel.options).forEach(opt => { opt.hidden = false; opt.disabled = false; });
+  if (rSel) {
+    Array.from(rSel.options).forEach(opt => {
+      const isHiddenRole = HIDDEN_ROLES.includes(opt.value);
+      opt.hidden = isHiddenRole;
+      opt.disabled = isHiddenRole;
+      opt.style.display = isHiddenRole ? "none" : "";
+    });
   }
   $("#duEditId").value = editId || "";
   if (editId) {
     const user = getUsers().find(u => u.id === editId);
     if (!user) return toast("User not found.", "error");
     if (!isDevAdmin() && (user.role === "ig" || user.role === "devadmin")) return toast("You cannot manage higher authority accounts.", "error");
+    if (HIDDEN_ROLES.includes(user.role) && rSel) {
+      const curOpt = rSel.querySelector('option[value="' + user.role + '"]');
+      if (curOpt) { curOpt.hidden = false; curOpt.disabled = false; curOpt.style.display = ""; }
+    }
     $("#devUserTitle").textContent = "Edit User";
     $("#devUserSubmit").textContent = "Update User";
     $("#duUsername").value = user.username;
@@ -17459,10 +17485,19 @@ function openAdminUserModal(editId) {
     if (rSel) {
       Array.from(rSel.options).forEach(opt => {
         const higher = (opt.value === 'admin' || opt.value === 'devadmin' || opt.value === 'ig');
-        opt.hidden = higher;
-        opt.disabled = higher;
+        const isHiddenRole = HIDDEN_ROLES.includes(opt.value);
+        opt.hidden = higher || isHiddenRole;
+        opt.disabled = higher || isHiddenRole;
+        opt.style.display = (higher || isHiddenRole) ? "none" : "";
       });
-      if (rSel.value === 'admin' || rSel.value === 'devadmin' || rSel.value === 'ig') {
+      if (editId) {
+        const target = getUsers().find(u => u.id === editId);
+        if (target && HIDDEN_ROLES.includes(target.role)) {
+          const curOpt = rSel.querySelector('option[value="' + target.role + '"]');
+          if (curOpt) { curOpt.hidden = false; curOpt.disabled = false; curOpt.style.display = ""; }
+        }
+      }
+      if (rSel.value === 'admin' || rSel.value === 'devadmin' || rSel.value === 'ig' || (HIDDEN_ROLES.includes(rSel.value) && !editId)) {
         rSel.value = 'user';
         duSyncRole();
       }
