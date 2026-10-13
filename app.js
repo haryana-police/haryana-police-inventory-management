@@ -4103,28 +4103,59 @@ function photoChipsHtml(h) {
 
 
 /* ==================== CATEGORIES ==================== */
+function __catCreatorDisplayName(c) {
+  if (!c) return "System";
+  if (c.createdBy) {
+    const u = (typeof getUsers === "function" ? getUsers() : []).find(x => x && x.id === c.createdBy);
+    if (u && u.name) return u.name;
+  }
+  if (c.createdByUsername) {
+    const u = (typeof getUsers === "function" ? getUsers() : []).find(x => x && String(x.username || "").toLowerCase() === String(c.createdByUsername).toLowerCase());
+    if (u && u.name) return u.name;
+  }
+  if (c.createdByName) return c.createdByName;
+  const activeDistId = typeof __activeCatDistrictId === "function" ? __activeCatDistrictId() : (typeof activeDistrictId !== "undefined" ? activeDistrictId : "");
+  const adminUser = (typeof getUsers === "function" ? getUsers() : []).find(u => u && u.districtId === activeDistId && u.role === "admin");
+  return (adminUser && adminUser.name) || "District Admin";
+}
+
+function __isCatCreator(c) {
+  if (!c || !currentUser || isDevAdmin()) return false;
+  if (c.createdBy) {
+    return String(c.createdBy) === String(currentUser.id);
+  }
+  if (c.createdByUsername) {
+    return String(c.createdByUsername).toLowerCase() === String(currentUser.username || "").toLowerCase();
+  }
+  const activeDistId = typeof __activeCatDistrictId === "function" ? __activeCatDistrictId() : (typeof activeDistrictId !== "undefined" ? activeDistrictId : "");
+  const adminUser = (typeof getUsers === "function" ? getUsers() : []).find(u => u && u.districtId === activeDistId && u.role === "admin");
+  if (adminUser && String(adminUser.id) === String(currentUser.id)) return true;
+  return false;
+}
+
 function renderCatList() {
   const box = $("#catList");
   const cats = getCategories();
   const items = getAllDistrictItems();
-  // The three buttons sit in the row itself, beside the name, rather than
-  // behind one "Actions" menu. actDD() collapses anything longer than one
-  // button into a dropdown, so reaching Edit or Delete on a category meant
-  // two clicks through a menu that also had to open the right way up near the
-  // bottom of the list. The data-* attributes are unchanged, so the delegated
-  // click handler and startEditCat() - which swaps this very container for
-  // Save/Cancel - keep working exactly as before.
   const row = (c, idx, count, prefix) => {
+    const isCreator = __isCatCreator(c);
+    const creatorName = __catCreatorDisplayName(c);
     const canDelete = count === 0;
+    const actionsHtml = isCreator
+      ? `<button type="button" class="btn btn-sm btn-outline" data-${prefix}-items="${idx}">Items</button>` +
+        `<button type="button" class="btn btn-sm btn-outline" data-${prefix}-edit="${idx}">Edit</button>` +
+        `<button type="button" class="btn btn-sm btn-outline act-dd-del" data-${prefix}-del="${idx}"` +
+        (canDelete ? "" : ` disabled title="Remove items first"`) + `>Delete</button>`
+      : `<button type="button" class="btn btn-sm btn-outline" data-${prefix}-items="${idx}">Items</button>` +
+        `<span class="cat-view-only" title="Only ${esc(creatorName)} can edit or delete this category">View only</span>`;
     return `<div class="cat-list-row" data-idx="${idx}">` +
-      `<span class="cat-list-name">${esc(c.name)}</span>` +
+      `<div class="cat-list-info">` +
+        `<span class="cat-list-name">${esc(c.name)}</span>` +
+        `<span class="cat-list-creator" title="Created by ${esc(creatorName)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.75;flex-shrink:0"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${esc(creatorName)}</span>` +
+      `</div>` +
       `<span class="cat-list-count">${count} items</span>` +
-      `<div class="cat-list-actions">` +
-      `<button type="button" class="btn btn-sm btn-outline" data-${prefix}-items="${idx}">Items</button>` +
-      `<button type="button" class="btn btn-sm btn-outline" data-${prefix}-edit="${idx}">Edit</button>` +
-      `<button type="button" class="btn btn-sm btn-outline act-dd-del" data-${prefix}-del="${idx}"` +
-      (canDelete ? "" : ` disabled title="Remove items first"`) + `>Delete</button>` +
-      `</div></div>`;
+      `<div class="cat-list-actions">${actionsHtml}</div>` +
+      `</div>`;
   };
   box.innerHTML = cats.map((c, idx) => row(c, idx, items.filter(i => i.categoryId === c.id && !i.isDeleted).length, "cat")).join("");
 }
@@ -4133,7 +4164,10 @@ function startEditCat(idx) {
   const cats = getCategories();
   const c = cats[idx];
   if (!c) return;
-  const rows = $$(".cat-list-row");
+  if (!__isCatCreator(c)) {
+    return toast("Only the creator (" + __catCreatorDisplayName(c) + ") can edit this category.", "error");
+  }
+  const rows = $$("#catList .cat-list-row");
   const row = rows[idx];
   if (!row) return;
   const nameSpan = row.querySelector(".cat-list-name");
@@ -4146,11 +4180,16 @@ function startEditCat(idx) {
 function saveEditCat(idx) {
   if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const cats = getCategories();
+  const c = cats[idx];
+  if (!c) return;
+  if (!__isCatCreator(c)) {
+    return toast("Only the creator (" + __catCreatorDisplayName(c) + ") can edit this category.", "error");
+  }
   const name = ($("#catEditName") || {}).value.trim();
   if (!name) return toast("Enter a name.", "error");
-  if (cats.some((c, i) => i !== idx && c.name.toLowerCase() === name.toLowerCase())) return toast("Already exists.", "error");
+  if (cats.some((item, i) => i !== idx && item.name.toLowerCase() === name.toLowerCase())) return toast("Already exists.", "error");
   cats[idx].name = name;
-  saveCategories(cats); // per-district store (2026.09.213) — was clobbering the map with a flat array
+  saveCategories(cats);
   renderCatList();
   toast("Category updated.", "success");
 }
@@ -4284,7 +4323,15 @@ function addCategory() {
   if (!name) return toast("Enter a name.", "error");
   const cats = getCategories();
   if (cats.some(c => c.name.toLowerCase() === name.toLowerCase())) return toast("Already exists.", "error");
-  cats.push({ id: uid(), name });
+  const newCat = {
+    id: uid(),
+    name,
+    createdBy: currentUser ? currentUser.id : "",
+    createdByName: currentUser ? (currentUser.name || currentUser.username) : "",
+    createdByUsername: currentUser ? currentUser.username : "",
+    createdAt: Date.now()
+  };
+  cats.push(newCat);
   saveCategories(cats); // per-district store (2026.09.213) — was clobbering the map with a flat array
   renderCatList();
   toast(`Added: ${name}`, "success");
@@ -4295,7 +4342,11 @@ function deleteCategory(idx) {
   if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const cats = getCategories();
   const cat = cats[idx];
-  if (getAllDistrictItems().filter(i => i.categoryId === cat.id && !i.isDeleted).length > 0) return toast("Has items ? reassign first.", "error");
+  if (!cat) return;
+  if (!__isCatCreator(cat)) {
+    return toast("Only the creator (" + __catCreatorDisplayName(cat) + ") can delete this category.", "error");
+  }
+  if (getAllDistrictItems().filter(i => i.categoryId === cat.id && !i.isDeleted).length > 0) return toast("Has items — reassign first.", "error");
   cats.splice(idx, 1);
   saveCategories(cats); // per-district store (2026.09.213) — was clobbering the map with a flat array
   renderCatList();
@@ -14751,7 +14802,14 @@ function addConsCategory() {
   if (!name) return toast("Enter a name.", "error");
   const cats = getConsCats();
   if (cats.some(c => c.name.toLowerCase() === name.toLowerCase())) return toast("Already exists.", "error");
-  cats.push({ id: uid(), name });
+  cats.push({
+    id: uid(),
+    name,
+    createdBy: currentUser ? currentUser.id : "",
+    createdByName: currentUser ? (currentUser.name || currentUser.username) : "",
+    createdByUsername: currentUser ? currentUser.username : "",
+    createdAt: Date.now()
+  });
   saveConsCats(cats);
   renderConsCatList();
   toast("Added: " + name, "success");
@@ -14767,7 +14825,22 @@ function renderConsCatList() {
   const items = getConsItems(); // own district only (categories are district-scoped, 2026.09.212)
   box.innerHTML = cats.map((c, idx) => {
     const count = items.filter(i => i.categoryId === c.id && !i.isDeleted).length;
-    return '<div class="cat-list-row" data-idx="' + idx + '"><span class="cat-list-name">' + esc(c.name) + '</span><span class="cat-list-count">' + count + ' items</span><div class="cat-list-actions"><button class="btn btn-sm btn-outline" data-ccat-items="' + idx + '">Items</button><button class="btn btn-sm btn-outline" data-ccat-edit="' + idx + '">Edit</button><button class="btn btn-sm btn-outline act-dd-del" data-ccat-del="' + idx + '"' + (count > 0 ? ' disabled title="Remove items first"' : '') + '>Delete</button></div></div>';
+    const isCreator = __isCatCreator(c);
+    const creatorName = __catCreatorDisplayName(c);
+    const actionsHtml = isCreator
+      ? '<button class="btn btn-sm btn-outline" data-ccat-items="' + idx + '">Items</button>' +
+        '<button class="btn btn-sm btn-outline" data-ccat-edit="' + idx + '">Edit</button>' +
+        '<button class="btn btn-sm btn-outline act-dd-del" data-ccat-del="' + idx + '"' + (count > 0 ? ' disabled title="Remove items first"' : '') + '>Delete</button>'
+      : '<button class="btn btn-sm btn-outline" data-ccat-items="' + idx + '">Items</button>' +
+        '<span class="cat-view-only" title="Only ' + esc(creatorName) + ' can edit or delete this category">View only</span>';
+    return '<div class="cat-list-row" data-idx="' + idx + '">' +
+      '<div class="cat-list-info">' +
+        '<span class="cat-list-name">' + esc(c.name) + '</span>' +
+        '<span class="cat-list-creator" title="Created by ' + esc(creatorName) + '"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.75;flex-shrink:0"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' + esc(creatorName) + '</span>' +
+      '</div>' +
+      '<span class="cat-list-count">' + count + ' items</span>' +
+      '<div class="cat-list-actions">' + actionsHtml + '</div>' +
+      '</div>';
   }).join("");
 }
 function __consCitCurrent() { return __consCitCatId || null; }
@@ -14888,6 +14961,9 @@ function __ccitDelete(id) {
 function startEditConsCat(idx) {
   const c = getConsCats()[idx];
   if (!c) return;
+  if (!__isCatCreator(c)) {
+    return toast("Only the creator (" + __catCreatorDisplayName(c) + ") can edit this category.", "error");
+  }
   // $$(...), not $(...): $ is querySelector and hands back ONE element, so
   // indexing that single element by idx is always undefined and the row was
   // never found - which is why pressing Edit did nothing at all.
@@ -14914,9 +14990,14 @@ function saveEditConsCat(idx) {
   if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!__consCanManage()) return toast("You are not allowed to modify consumables.", "error");
   const cats = getConsCats();
+  const c = cats[idx];
+  if (!c) return;
+  if (!__isCatCreator(c)) {
+    return toast("Only the creator (" + __catCreatorDisplayName(c) + ") can edit this category.", "error");
+  }
   const name = (($("#consCatEditName") || {}).value || "").trim();
   if (!name) return toast("Enter a name.", "error");
-  if (cats.some((c, i) => i !== idx && c.name.toLowerCase() === name.toLowerCase())) return toast("Already exists.", "error");
+  if (cats.some((item, i) => i !== idx && item.name.toLowerCase() === name.toLowerCase())) return toast("Already exists.", "error");
   cats[idx].name = name;
   saveConsCats(cats);
   renderConsCatList();
@@ -14930,6 +15011,9 @@ function deleteConsCategory(idx) {
   const cats = getConsCats();
   const cat = cats[idx];
   if (!cat) return;
+  if (!__isCatCreator(cat)) {
+    return toast("Only the creator (" + __catCreatorDisplayName(cat) + ") can delete this category.", "error");
+  }
   if (getConsItems().filter(i => i.categoryId === cat.id && !i.isDeleted).length > 0) return toast("Has items. Remove or reassign items first.", "error"); // own district only (2026.09.212)
   cats.splice(idx, 1);
   saveConsCats(cats);

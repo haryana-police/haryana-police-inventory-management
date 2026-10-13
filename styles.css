@@ -713,12 +713,15 @@ td .nm-en:empty, td .nm-hi:empty { display: none; }
 .cat-list-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: .88rem; }
 .cat-list-row:last-child { border-bottom: none; }
 .cat-list-row:hover { background: var(--bg); }
-.cat-list-name { flex: 1; font-weight: 500; }
-.cat-list-count { font-size: .72rem; color: var(--muted); background: var(--bg); padding: 2px 8px; border-radius: 99px; }
-.cat-list-actions { display: flex; gap: 6px; }
+.cat-list-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cat-list-name { flex: 1; font-weight: 600; line-height: 1.25; }
+.cat-list-creator { font-size: .74rem; color: var(--muted); font-weight: 400; line-height: 1.2; display: inline-flex; align-items: center; gap: 4px; }
+.cat-view-only { font-size: .73rem; color: var(--muted); padding: 4px 8px; opacity: 0.75; user-select: none; }
+.cat-list-count { font-size: .72rem; color: var(--muted); background: var(--bg); padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+.cat-list-actions { display: flex; align-items: center; gap: 6px; }
 .cat-list-actions .btn { padding: 4px 10px; font-size: .75rem; }
 .cat-list-row.editing { background: rgba(30,58,95,.05); }
-.cat-edit-input { flex: 1; padding: 6px 10px; font-size: .86rem; border: 1px solid var(--primary); border-radius: 6px; outline: none; }
+.cat-edit-input { width: 100%; padding: 6px 10px; font-size: .86rem; border: 1px solid var(--primary); border-radius: 6px; outline: none; }
 
 /* ==================== USERS MANAGEMENT ==================== */
 .users-list { max-height: 280px; overflow-y: auto; margin: 16px 22px; }
