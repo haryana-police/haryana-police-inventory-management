@@ -20,6 +20,12 @@
 //     enforced HERE so the UI can never be bypassed by calling the API.
 const ITEM_STORE_KEY = 'hp_inventory.items';
 const DISTRIBUTION_KEY_PREFIX = 'hp_inventory.distributions_';
+const DEMAND_KEY_PREFIX = 'hp_inventory.demands_';
+const INSPECTION_KEY_PREFIX = 'hp_inventory.inspections_';
+const NOTIFICATION_KEY_PREFIX = 'hp_inventory.notifications_';
+const AUDIT_KEY_PREFIX = 'hp_inventory.audit_';
+const DOCUMENTS_KEY_PREFIX = 'hp_inventory.documents_';
+const TRANSACTIONS_KEY_PREFIX = 'hp_inventory.transactions_';
 
 // ---------------------------------------------------------------------------
 // DISTRICT SCOPE
@@ -690,9 +696,45 @@ function projectStateFor(user, state) {
       if (inScope(key.slice(SHRAMDAAN_KEY_PREFIX.length))) out[key] = value;
       continue;
     }
+    if (key.indexOf(DISTRIBUTION_KEY_PREFIX) === 0) {
+      const distId = key.slice(DISTRIBUTION_KEY_PREFIX.length);
+      if (inScope(distId)) {
+        out[key] = value;
+      } else {
+        const rel = dArr(value).filter((d) => d && (inScope(d.toDistrictId) || inScope(d.fromDistrictId)));
+        if (rel.length) out[key] = rel;
+      }
+      continue;
+    }
+    if (key.indexOf(DEMAND_KEY_PREFIX) === 0) {
+      const distId = key.slice(DEMAND_KEY_PREFIX.length);
+      if (inScope(distId)) {
+        out[key] = value;
+      } else {
+        const rel = dArr(value).filter((d) => d && (inScope(d.toDistrictId) || inScope(d.fromDistrictId)));
+        if (rel.length) out[key] = rel;
+      }
+      continue;
+    }
+    if (
+      key.indexOf(INSPECTION_KEY_PREFIX) === 0 ||
+      key.indexOf(NOTIFICATION_KEY_PREFIX) === 0 ||
+      key.indexOf(AUDIT_KEY_PREFIX) === 0 ||
+      key.indexOf(DOCUMENTS_KEY_PREFIX) === 0 ||
+      key.indexOf(TRANSACTIONS_KEY_PREFIX) === 0
+    ) {
+      const prefix = [
+        INSPECTION_KEY_PREFIX, NOTIFICATION_KEY_PREFIX, AUDIT_KEY_PREFIX,
+        DOCUMENTS_KEY_PREFIX, TRANSACTIONS_KEY_PREFIX
+      ].find((p) => key.indexOf(p) === 0);
+      if (inScope(key.slice(prefix.length))) out[key] = value;
+      continue;
+    }
     if (key.indexOf(D_SUFFIXED) >= 0) {
       const idx = key.indexOf(D_SUFFIXED);
-      if (inScope(key.slice(0, idx))) out[key] = value;
+      const distBefore = key.slice(0, idx);
+      const distAfter = key.slice(idx + 1);
+      if (inScope(distBefore) || inScope(distAfter)) out[key] = value;
       continue;
     }
     if (key === D_ITEM_PHOTOS_KEY || key === D_PERSON_PHOTOS_KEY) {
@@ -785,23 +827,75 @@ function restoreScopeFor(user, current, incoming) {
     if (D_PER_DISTRICT.indexOf(key) >= 0) {
       const src = dObj(cur);
       const bucket = Object.assign({}, dObj(out[key]));
+      const distExempt = (key === D_ITEMS_KEY) ? distributionExemptKeys(current, incoming) : null;
       for (const d of Object.keys(src)) {
         if (inScope(d)) continue;
-        bucket[d] = src[d];
+        if (key === D_ITEMS_KEY && distExempt && distExempt.size > 0) {
+          const curItems = dArr(src[d]);
+          const incItems = dArr(bucket[d]);
+          const incMap = new Map();
+          for (const it of incItems) { if (it && it.id) incMap.set(it.id, it); }
+          bucket[d] = curItems.map((it) => {
+            if (!it || !it.id) return it;
+            const nameLower = String(it.name || '').trim().toLowerCase();
+            const exactKey = d + '|' + (it.locationId || '') + '|' + nameLower;
+            const wildKey = d + '|*|' + nameLower;
+            if (distExempt.has(exactKey) || distExempt.has(wildKey)) {
+              if (incMap.has(it.id)) return incMap.get(it.id);
+            }
+            return it;
+          });
+        } else {
+          bucket[d] = src[d];
+        }
       }
       out[key] = bucket;
       continue;
     }
-    // Maintenance keys are per district too, but their name ends in
-    // "_dist_<id>", so the suffix rule below used to catch them first and treat
-    // the whole prefix - "hp_inventory.maintenance" - as if it were a district
-    // id. It never is, so the key always looked out of scope and the stored
-    // value was put back over whatever the client had sent. A maintenance
-    // request raised in the app was therefore discarded here, silently, before
-    // any rule could look at it - which is also why the maintenance gate never
-    // fired. The district is taken off the end of the key here and the same
-    // in-scope test applied to it, so a request for a district you belong to
-    // goes through and one for anywhere else does not.
+    if (key.indexOf(DISTRIBUTION_KEY_PREFIX) === 0) {
+      const distId = key.slice(DISTRIBUTION_KEY_PREFIX.length);
+      if (inScope(distId)) continue;
+      const curList = dArr(cur);
+      const incList = dArr(out[key]);
+      const incMap = new Map();
+      for (const d of incList) { if (d && d.id) incMap.set(d.id, d); }
+      const merged = curList.map((item) => {
+        if (!item || !item.id) return item;
+        if (inScope(item.toDistrictId) || inScope(item.fromDistrictId)) {
+          if (incMap.has(item.id)) return incMap.get(item.id);
+        }
+        return item;
+      });
+      for (const d of incList) {
+        if (d && d.id && !curList.some((x) => x && x.id === d.id)) {
+          if (inScope(d.toDistrictId) || inScope(d.fromDistrictId)) merged.push(d);
+        }
+      }
+      out[key] = merged;
+      continue;
+    }
+    if (key.indexOf(DEMAND_KEY_PREFIX) === 0) {
+      const distId = key.slice(DEMAND_KEY_PREFIX.length);
+      if (inScope(distId)) continue;
+      const curList = dArr(cur);
+      const incList = dArr(out[key]);
+      const incMap = new Map();
+      for (const d of incList) { if (d && d.id) incMap.set(d.id, d); }
+      const merged = curList.map((item) => {
+        if (!item || !item.id) return item;
+        if (inScope(item.toDistrictId) || inScope(item.fromDistrictId)) {
+          if (incMap.has(item.id)) return incMap.get(item.id);
+        }
+        return item;
+      });
+      for (const d of incList) {
+        if (d && d.id && !curList.some((x) => x && x.id === d.id)) {
+          if (inScope(d.toDistrictId) || inScope(d.fromDistrictId)) merged.push(d);
+        }
+      }
+      out[key] = merged;
+      continue;
+    }
     if (key.indexOf(MAINT_KEY_PREFIX) === 0) {
       const maintDistId = key.slice(MAINT_KEY_PREFIX.length);
       if (inScope(maintDistId)) continue;   // the caller's own district: theirs to change
@@ -814,9 +908,27 @@ function restoreScopeFor(user, current, incoming) {
       out[key] = cur;
       continue;
     }
+    if (
+      key.indexOf(INSPECTION_KEY_PREFIX) === 0 ||
+      key.indexOf(NOTIFICATION_KEY_PREFIX) === 0 ||
+      key.indexOf(AUDIT_KEY_PREFIX) === 0 ||
+      key.indexOf(DOCUMENTS_KEY_PREFIX) === 0 ||
+      key.indexOf(TRANSACTIONS_KEY_PREFIX) === 0
+    ) {
+      const prefix = [
+        INSPECTION_KEY_PREFIX, NOTIFICATION_KEY_PREFIX, AUDIT_KEY_PREFIX,
+        DOCUMENTS_KEY_PREFIX, TRANSACTIONS_KEY_PREFIX
+      ].find((p) => key.indexOf(p) === 0);
+      if (inScope(key.slice(prefix.length))) continue;
+      out[key] = cur;
+      continue;
+    }
     if (key.indexOf(D_SUFFIXED) >= 0) {
       const idx = key.indexOf(D_SUFFIXED);
-      if (!inScope(key.slice(0, idx))) out[key] = cur;
+      const distBefore = key.slice(0, idx);
+      const distAfter = key.slice(idx + 1);
+      if (inScope(distBefore) || inScope(distAfter)) continue;
+      out[key] = cur;
       continue;
     }
     if (key === D_ITEM_PHOTOS_KEY || key === D_PERSON_PHOTOS_KEY) {
