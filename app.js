@@ -6221,6 +6221,7 @@ function __distReceiverOptions() {
         const adminUser = (typeof getUsers === "function" ? getUsers() : []).find(u => u.districtId === d.id && u.role === "admin");
         if (adminUser && adminUser.locationId) locId = adminUser.locationId;
       }
+      if (!locId) locId = "admin_" + d.id;
       opts.push({ type: "admin", districtId: d.id, locationId: locId, label: "[ADMIN] " + d.name + " (District Admin)" });
     });
   } else {
@@ -8366,18 +8367,23 @@ function __fdLocOptions(distId) {
     const adminUser = (typeof getUsers === "function" ? getUsers() : []).find(u => u.districtId === distId && u.role === "admin");
     if (adminUser && adminUser.locationId) adminLocId = adminUser.locationId;
   }
-  const adminLabel = `[ADMIN] ${distName} (District Admin)`;
-  const adminOpt = adminLocId ? `<option value="${adminLocId}">[ADMIN] District Admin</option>` : "";
+  if (!adminLocId) adminLocId = "admin_" + distId;
+  const adminLabel = `[ADMIN] District Admin - ${distName}`;
 
   // If another district is selected, ONLY show that district's District Admin:
   if (!own) {
     return `<option value="${adminLocId}" selected>${esc(adminLabel)}</option>`;
   }
 
-  // If own district:
-  const units = locs.filter(l => l.type !== "district" && l.id !== adminLocId);
-  const unitOpts = units.map(l => `<option value="${l.id}">[${esc((l.type || "unit").toUpperCase())}] ${esc(l.name)}</option>`).join("");
-  return `<option value="">Select location / unit</option>` + adminOpt + unitOpts;
+  // If own district: show all locations/units under own district
+  const opts = [`<option value="">Select location / unit</option>`];
+  locs.forEach(l => {
+    const isHqAdmin = (l.id === adminLocId || l.type === "district");
+    const badge = isHqAdmin ? "ADMIN" : (l.type || "unit").toUpperCase();
+    const label = `[${badge}] ${l.name}${isHqAdmin ? " (District Admin)" : ""}`;
+    opts.push(`<option value="${l.id}">${esc(label)}</option>`);
+  });
+  return opts.join("");
 }
 
 function openDemandModal() {
@@ -8392,7 +8398,7 @@ function openDemandModal() {
   const allDistricts = getDistricts();
   const myDistId = (currentUser && currentUser.districtId) ? currentUser.districtId : activeDistrictId;
 
-  toSel.innerHTML = `<option value="">Select district</option>` + allDistricts.map(d => `<option value="${d.id}" ${d.id === myDistId ? 'selected' : ''}>${esc(d.name)}${d.id === myDistId ? ' (Your District)' : ''}</option>`).join("");
+  toSel.innerHTML = `<option value="">Select district</option>` + allDistricts.map(d => `<option value="${d.id}" ${d.id === myDistId ? 'selected' : ''}>${esc(d.name)}${d.id === myDistId ? ' (Your District)' : ' (District Admin)'}</option>`).join("");
   if (!isAdmin()) {
     const myDist = allDistricts.find(d => d.id === myDistId);
     toSel.innerHTML = `<option value="${myDistId || ""}">${esc(myDist ? myDist.name : "My District")}</option>`;
