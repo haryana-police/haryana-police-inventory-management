@@ -8,7 +8,7 @@
 <!-- Both stylesheets are versioned: without the query the browser keeps
      serving the old file from its own cache, so a CSS fix appears to do
      nothing until a hard refresh. Bump these when either file changes. -->
-<link rel="stylesheet" href="styles.css?v=2026.10.131">
+<link rel="stylesheet" href="styles.css?v=2026.10.132">
   <script>
     (function () {
       try { if (localStorage.getItem("hpi_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
@@ -1748,40 +1748,42 @@
 </div>
 <!-- View Item Modal (read-only) -->
 <div class="modal-backdrop hidden" id="viewItemModal">
-  <div class="modal">
+  <div class="modal modal-lg">
     <div class="modal-header">
       <h2>Item Details</h2>
       <button class="modal-close" data-close>&times;</button>
     </div>
-    <div class="form-group"><label>Item Name</label><div id="viName" style="font-weight:700;font-size:1.05rem"></div></div>
-    <div class="form-row">
-      <div class="form-group"><label>Category</label><div id="viCategory"></div></div>
-      <div class="form-group"><label>Unit</label><div id="viUnit"></div></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Total Quantity</label><div id="viQuantity" class="qty-strong"></div></div>
-      <div class="form-group"><label>Minimum Stock Alert</label><div id="viMinStock"></div></div>
-    </div>
-    <div class="form-group"><label>Location</label><div id="viLocation"></div></div>
-    <div class="form-group"><label>Condition Breakdown</label>
-      <div id="viCondBar" style="display:flex;gap:14px;flex-wrap:wrap">
-        <span><span class="cond-dot cond-dot-good"></span> Good: <strong id="viCondGood">0</strong></span>
-        <span><span class="cond-dot cond-dot-poor"></span> Damaged: <strong id="viCondPoor">0</strong></span>
-        <span><span class="cond-dot cond-dot-damaged"></span> Scrap: <strong id="viCondDamaged">0</strong></span>
+    <div class="modal-body">
+      <div class="form-group"><label>Item Name</label><div id="viName" style="font-weight:700;font-size:1.1rem"></div></div>
+      <div class="form-row">
+        <div class="form-group"><label>Category</label><div id="viCategory"></div></div>
+        <div class="form-group"><label>Unit</label><div id="viUnit"></div></div>
       </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Status</label><div><span class="status-badge" id="viStatus"></span></div></div>
-<div class="form-group" style="margin-top:16px">
-<label>Transaction History (Stock Changes)</label>
-<div class="table-wrap" style="padding:0">
-<table>
-<thead><tr><th>Date</th><th>Time</th><th>Transaction</th><th>Qty</th><th>Previous</th><th>New</th><th>By</th></tr></thead>
-<tbody id="viHistoryBody"></tbody>
-</table>
-</div>
-</div>
-      <div class="form-group"><label>Date Added</label><div id="viDate"></div></div>
+      <div class="form-row">
+        <div class="form-group"><label>Total Quantity</label><div id="viQuantity" class="qty-strong"></div></div>
+        <div class="form-group"><label>Minimum Stock Alert</label><div id="viMinStock"></div></div>
+      </div>
+      <div class="form-group"><label>Location</label><div id="viLocation"></div></div>
+      <div class="form-group"><label>Condition Breakdown</label>
+        <div id="viCondBar">
+          <span><span class="cond-dot cond-dot-good"></span> Good: <strong id="viCondGood">0</strong></span>
+          <span><span class="cond-dot cond-dot-poor"></span> Damaged: <strong id="viCondPoor">0</strong></span>
+          <span><span class="cond-dot cond-dot-damaged"></span> Scrap: <strong id="viCondDamaged">0</strong></span>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Status</label><div><span class="status-badge" id="viStatus"></span></div></div>
+        <div class="form-group"><label>Date Added</label><div id="viDate"></div></div>
+      </div>
+      <div class="form-group" style="margin-top:16px">
+        <label>Transaction History (Stock Changes)</label>
+        <div class="table-wrap" style="padding:0">
+          <table>
+            <thead><tr><th>Date</th><th>Time</th><th>Transaction</th><th>Qty</th><th>Previous</th><th>New</th><th>By</th></tr></thead>
+            <tbody id="viHistoryBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button type="button" class="btn btn-outline" data-close>Close</button>

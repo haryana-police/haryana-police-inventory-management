@@ -4532,6 +4532,45 @@ body.modal-open #appRoot {
 #demandActionModal .modal { max-width: min(1200px, calc(100vw - 32px)); width: calc(100vw - 32px); }
 
 #viewItemModal .modal { max-width: min(940px, calc(100vw - 32px)); }
+#viewItemModal .modal-body {
+  padding: 22px 28px;
+  overflow-y: auto;
+}
+#viewItemModal .form-group {
+  margin-bottom: 16px;
+}
+#viewItemModal .form-group label {
+  margin-bottom: 6px;
+  font-size: .74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--muted);
+}
+#viewItemModal #viName {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  padding: 2px 0 4px;
+}
+#viewItemModal #viCondBar {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+#viewItemModal .table-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+  margin-top: 6px;
+}
+#viewItemModal .modal-footer {
+  padding: 14px 28px;
+}
 
 /* The profile and camera dialogs are not .modal - they are their own boxes -
    so they are sized here too, otherwise they would keep the old width while
