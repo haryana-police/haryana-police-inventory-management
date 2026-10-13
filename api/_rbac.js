@@ -655,23 +655,37 @@ function projectStateFor(user, state) {
   for (const key of Object.keys(state)) {
     const value = state[key];
     if (key === D_USER_KEY) {
-      out[key] = dArr(value).filter((u) => inScope(u && u.districtId) || (selfId && u && u.id === selfId));
+      out[key] = dArr(value).filter((u) => inScope(u && u.districtId) || (selfId && u && u.id === selfId) || (user && (user.role === 'admin' || user.role === 'ig') && u && u.role === 'admin'));
       continue;
     }
-    // The district list is a flat array, not the {districtId: [...]} shape the
-    // rule below expects, so it is filtered here rather than there. It had no
-    // rule at all and fell through to the default, so it was returned whole to
-    // whoever asked: an Inspector General, who is entitled to the districts in
-    // their own range, was shown every district in the state. The same list is
-    // what the Districts page reads, so it is also what told them their range
-    // had no district under it - they were reading a list that was not theirs
-    // to judge, and could not find their own districts in someone else's.
+    // For District Admin, IG, devadmin: allow viewing other districts so cross-district demands
+    // and distribution can target other districts.
     if (key === D_DISTRICTS_KEY) {
-      out[key] = dArr(value).filter((d) => inScope(d && d.id));
+      if (user && (user.role === 'admin' || user.role === 'devadmin' || user.role === 'ig')) {
+        out[key] = dArr(value);
+      } else {
+        out[key] = dArr(value).filter((d) => inScope(d && d.id));
+      }
       continue;
     }
     if (key === D_PERSONS_KEY || key === D_ALLOTMENTS_KEY || key === D_ACCESS_REQUESTS_KEY) {
       out[key] = dArr(value).filter((r) => inScope(r && r.districtId));
+      continue;
+    }
+    if (key === D_LOCATIONS_KEY) {
+      const src = dObj(value);
+      const bucket = {};
+      for (const d of allowed) if (Object.prototype.hasOwnProperty.call(src, d)) bucket[d] = src[d];
+      if (user && (user.role === 'admin' || user.role === 'devadmin' || user.role === 'ig')) {
+        for (const distId of Object.keys(src)) {
+          if (!bucket[distId]) {
+            const locList = dArr(src[distId]);
+            const hqs = locList.filter(l => l && (l.type === 'district' || l.type === 'otherHq' || /hq|admin|store|line/i.test(l.name)));
+            bucket[distId] = hqs.length ? hqs : (locList[0] ? [locList[0]] : []);
+          }
+        }
+      }
+      out[key] = bucket;
       continue;
     }
     if (D_PER_DISTRICT.indexOf(key) >= 0) {
