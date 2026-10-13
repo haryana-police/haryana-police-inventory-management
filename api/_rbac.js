@@ -480,6 +480,7 @@ function authorizeMaintenanceWrites(user, writes) {
     const cur = w.item || {};
     const from = prev.status;
     const to = cur.status;
+    if (from === to) continue; // Unchanged status is a harmless no-op, not a transition
     const transition = (from || '') + '->' + (to || '');
     if (transition === 'pending->under_process') {
       // Specialist requests (Computer/IT / Vehicle) must ONLY be processed by their assigned staff user.
@@ -944,7 +945,26 @@ function restoreScopeFor(user, current, incoming) {
         out[key] = cur;
         continue;
       }
-      out[key] = __stitchUnique(dArr(cur), dArr(out[key]));
+      const curList = dArr(cur);
+      const incList = dArr(out[key]);
+      const curById = new Map(curList.map(r => [r && r.id, r]));
+      const incById = new Map(incList.map(r => [r && r.id, r]));
+      const merged = [];
+      for (const item of curList) {
+        if (!item || !item.id) { merged.push(item); continue; }
+        const inc = incById.get(item.id);
+        if (inc && inc.status !== item.status) {
+          merged.push(inc);
+        } else {
+          merged.push(item);
+        }
+      }
+      for (const inc of incList) {
+        if (inc && inc.id && !curById.has(inc.id)) {
+          merged.push(inc);
+        }
+      }
+      out[key] = merged;
       continue;
     }
     if (key.indexOf(SHRAMDAAN_KEY_PREFIX) === 0) {
@@ -1026,7 +1046,7 @@ function diffMaintenanceWrites(prevState, nextState) {
       if (!id || !rec) continue;
       const before = prevById.get(id);
       if (!before) writes.adds.push({ districtId, item: rec, kind: 'maintenance' });
-      else if (stableStringify(before) !== stableStringify(rec)) {
+      else if (before.status !== rec.status) {
         writes.edits.push({ districtId, item: rec, prev: before, kind: 'maintenance' });
       }
     }

@@ -3707,6 +3707,30 @@
   </div>
 </div>
 
+<!-- ========== LOGOUT CONFIRMATION MODAL ========== -->
+<div class="modal-backdrop hidden" id="logoutConfirmModal">
+  <div class="modal modal-sm" style="max-width:420px; text-align:center;">
+    <div class="modal-header" style="justify-content:center; position:relative; border-bottom:none; padding:22px 20px 8px;">
+      <div style="width:54px; height:54px; border-radius:50%; background:rgba(239,68,68,0.12); color:var(--red,#ef4444); display:flex; align-items:center; justify-content:center; font-size:24px; margin:0 auto 6px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+      </div>
+      <button type="button" class="modal-close" data-close style="position:absolute; right:14px; top:14px;">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:0 24px 20px; text-align:center;">
+      <h3 style="margin:0 0 8px; font-size:1.18rem; font-weight:750; color:var(--text);">Confirm Logout</h3>
+      <p style="margin:0; font-size:0.92rem; color:var(--muted); line-height:1.45;">Are you sure you want to logout? / क्या आप लॉग आउट करना चाहते हैं?</p>
+    </div>
+    <div class="modal-footer" style="justify-content:center; gap:12px; padding:14px 24px 20px; border-top:1px solid var(--border); background:transparent;">
+      <button type="button" class="btn btn-outline" data-close style="min-width:105px; padding:8px 18px; font-weight:600;">Cancel</button>
+      <button type="button" class="btn btn-red" id="logoutConfirmOkBtn" style="min-width:105px; padding:8px 18px; font-weight:600;">OK</button>
+    </div>
+  </div>
+</div>
+
 <!-- ========== SHRAMDAAN RECORD MODAL ========== -->
 <div class="modal-backdrop hidden" id="shramDaanModal">
   <div class="modal modal-lg">

@@ -1438,6 +1438,10 @@ function canSeeAllLocations() { return isDevAdmin(); }
 function canSeeAllDistrictLocations() { return isAdmin(); }
 function getVisibleLocationId() { if (isAdmin()) return null; return currentUser ? currentUser.locationId : null; }
 
+function confirmLogout() {
+  openModal("#logoutConfirmModal");
+}
+
 function logout() {
   const t = getToken();
   currentUser = null;
@@ -7756,6 +7760,8 @@ function openMaintProcess(id) {
   if (r.status !== "pending") return toast("This request is no longer pending.", "error");
   const rm = $("#maintProcessRemark");
   if (rm) rm.value = "";
+  const btn = $("#maintProcessSubmitBtn");
+  if (btn) { btn.disabled = false; btn.textContent = "Proceed to Process"; }
   $("#maintProcessSummary").innerHTML = __maintSummaryHtml(r);
   $("#maintProcessPhotos").innerHTML = __maintThumbsHtml(r, true);
   openModal("#maintProcessModal");
@@ -7765,6 +7771,8 @@ function openMaintProcess(id) {
 function submitMaintProcess(e) {
   e.preventDefault();
   if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
+  const btn = $("#maintProcessSubmitBtn");
+  if (btn && btn.disabled) return;
   const r = __getActMaintenance();
   if (!r) return toast("Maintenance request could not be found.", "error");
   if (!__maintActionableBy(r)) return toast("You are not authorised to process this request.", "error");
@@ -7774,6 +7782,7 @@ function submitMaintProcess(e) {
   const list = (loadData(`maintenance_${storeId}`) || []);
   const fresh = list.find(x => x.id === r.id);
   if (!fresh || fresh.status !== "pending") { __maintSnapshotClear(); return toast("This request is no longer pending.", "error"); }
+  if (btn) { btn.disabled = true; btn.textContent = "Processing..."; }
   const now = Date.now();
   fresh.status = "under_process";
   fresh.remark = remark || fresh.remark || "";
@@ -7807,6 +7816,8 @@ function openMaintApprove(id) {
   if (r.status !== "under_process") return toast("This request is not under process.", "error");
   const rm = $("#maintApproveRemark");
   if (rm) rm.value = "";
+  const btn = $("#maintApproveSubmitBtn");
+  if (btn) { btn.disabled = false; btn.textContent = "Approve & Complete"; }
   $("#maintApproveSummary").innerHTML = __maintSummaryHtml(r);
   $("#maintApprovePhotos").innerHTML = __maintThumbsHtml(r, true);
   openModal("#maintApproveModal");
@@ -7816,6 +7827,8 @@ function openMaintApprove(id) {
 function submitMaintApprove(e) {
   e.preventDefault();
   if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
+  const btn = $("#maintApproveSubmitBtn");
+  if (btn && btn.disabled) return;
   const r = __getActMaintenance();
   if (!r) return toast("Maintenance request could not be found.", "error");
   if (!__maintActionableBy(r)) return toast("You are not authorised to approve this request.", "error");
@@ -7825,6 +7838,7 @@ function submitMaintApprove(e) {
   const list = (loadData(`maintenance_${storeId}`) || []);
   const fresh = list.find(x => x.id === r.id);
   if (!fresh || fresh.status !== "under_process") { __maintSnapshotClear(); return toast("This request is no longer under process.", "error"); }
+  if (btn) { btn.disabled = true; btn.textContent = "Completing..."; }
   const now = Date.now();
   fresh.status = "completed";
   fresh.completedBy = currentUser ? currentUser.name : "Unit";
@@ -7898,10 +7912,18 @@ function __maintFiltered() {
       const hay = [r.mntNo || "MR-", r.requestingUnitName, __maintTypeLabel(r), r.description, r.requestToUserName || r.requestToDistrictAdminName, r.requestingUserName, r.requestedDate].join(" ").toLowerCase();
       if (!hay.includes(q.toLowerCase())) return false;
     }
-    if (dateFrom && r.createdAt < new Date(dateFrom).getTime()) return false;
-    if (dateTo && r.createdAt >= new Date(dateTo).getTime() + 86400000) return false;
+    const createdTime = typeof r.createdAt === 'number' ? r.createdAt : new Date(r.createdAt || 0).getTime();
+    if (dateFrom && createdTime < new Date(dateFrom).getTime()) return false;
+    if (dateTo && createdTime >= new Date(dateTo).getTime() + 86400000) return false;
     return true;
-  }).sort((a, b) => b.createdAt - a.createdAt);
+  }).sort((a, b) => {
+    const numA = parseInt((a.mntNo || '').replace(/\D/g, ''), 10) || 0;
+    const numB = parseInt((b.mntNo || '').replace(/\D/g, ''), 10) || 0;
+    if (numA !== numB) return numB - numA;
+    const timeA = typeof a.createdAt === 'number' ? a.createdAt : new Date(a.createdAt || 0).getTime();
+    const timeB = typeof b.createdAt === 'number' ? b.createdAt : new Date(b.createdAt || 0).getTime();
+    return timeB - timeA;
+  });
 }
 
 function renderMaintenance() {
@@ -12309,7 +12331,11 @@ async function init() {
   $("#raDistrict")?.addEventListener("change", updateRALocationDropdown);
   $("#requestAccessForm")?.addEventListener("submit", submitAccessRequest);
 
-  $("#logoutBtn").addEventListener("click", logout);
+  $("#logoutBtn")?.addEventListener("click", confirmLogout);
+  $("#logoutConfirmOkBtn")?.addEventListener("click", () => {
+    closeModals();
+    logout();
+  });
   $("#districtSelect")?.addEventListener("change", e => switchDistrict(e.target.value));
 
   $$(".sidebar-link").forEach(t => t.addEventListener("click", () => switchTab(t.dataset.tab)));
