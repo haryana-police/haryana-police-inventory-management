@@ -1564,6 +1564,7 @@ function openModal(id) {
 }
 
 function closeModals() {
+  $("#distToChecks")?.classList.add("hidden");
   $$(".modal-backdrop").forEach(m => {
     m.classList.add("hidden");
     __resetElementScrollToTop(m);
@@ -12543,7 +12544,17 @@ if (e.target.classList.contains("dist-check-all")) {
     __distUpdateToLabel();
   });
   $("#distToSearch")?.addEventListener("input", e => __distRenderChecks(e.target.value));
-  $("#distToDropBtn")?.addEventListener("click", () => $("#distToChecks")?.classList.toggle("hidden"));
+  $("#distToDropBtn")?.addEventListener("click", e => {
+    e.stopPropagation();
+    $("#distToChecks")?.classList.toggle("hidden");
+  });
+  document.addEventListener("click", e => {
+    const panel = $("#distToChecks");
+    if (!panel || panel.classList.contains("hidden")) return;
+    if (!e.target.closest(".dist-dd")) {
+      panel.classList.add("hidden");
+    }
+  });
   $("#distributionForm")?.addEventListener("submit", saveDistribution);
   $("#distApproveSubmitBtn")?.addEventListener("click", approveDistribution);
   $("#distRejectForm")?.addEventListener("submit", doDistReject);
