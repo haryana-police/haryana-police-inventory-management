@@ -4522,6 +4522,9 @@ body.modal-open #appRoot {
 #distDetailModal .modal,
 #maintDetailModal .modal { max-width: min(1140px, calc(100vw - 32px)); }
 
+#maintProcessModal .modal,
+#maintApproveModal .modal { max-width: min(780px, calc(100vw - 32px)); width: calc(100vw - 32px); }
+
 #demandFulfillModal .modal,
 #demandReviewModal .modal { max-width: min(1180px, calc(100vw - 32px)); width: calc(100vw - 32px); }
 
