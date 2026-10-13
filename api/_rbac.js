@@ -452,9 +452,15 @@ function authorizeMaintenanceWrites(user, writes) {
         'New maintenance requests must start with status "pending".',
         { id: r.id, status: r.status });
     }
-    if (!r.requestToDistrictAdminId) {
+    const isSpecialist = (r.maintenanceType === 'computer_it' || r.maintenanceType === 'vehicle');
+    if (!isSpecialist && !r.requestToDistrictAdminId) {
       return fail(403, 'RBAC_MAINT_CREATE_FORBIDDEN',
         'Every maintenance request must name the receiving district administrator.',
+        { id: r.id });
+    }
+    if (isSpecialist && !r.requestToUserId) {
+      return fail(403, 'RBAC_MAINT_CREATE_FORBIDDEN',
+        'Specialist maintenance requests (Computer/IT and Vehicle) must name the assigned staff recipient.',
         { id: r.id });
     }
   }
@@ -466,17 +472,20 @@ function authorizeMaintenanceWrites(user, writes) {
     const to = cur.status;
     const transition = (from || '') + '->' + (to || '');
     if (transition === 'pending->under_process') {
-      // The receiving district admin OR the routed staff user (Computer/IT /
-      // MTO) may start work on a request.
-      const isDistAdmin = user.role === 'admin' && user.districtId === prev.districtId;
+      // Specialist requests (Computer/IT / Vehicle) must ONLY be processed by their assigned staff user.
+      // Other types are processed by the receiving district admin.
+      const isSpecialist = (prev.maintenanceType === 'computer_it' || prev.maintenanceType === 'vehicle');
+      const isDistAdmin = user.role === 'admin' && user.districtId === prev.districtId && !isSpecialist;
       const isRoutedStaff = (user.role === 'itstaff' || user.role === 'mtostaff')
         && user.districtId === prev.districtId
         && prev.requestToUserId === user.id;
       if (!isDistAdmin && !isRoutedStaff) {
         return fail(403, 'RBAC_MAINT_PROCESS_FORBIDDEN',
-          (user.role === 'admin' || user.role === 'itstaff' || user.role === 'mtostaff')
-            ? 'You may only process maintenance requests routed to you inside your own district (' + (prev.districtId || '') + ').'
-            : 'Only the receiving district administrator or the routed staff user may process a maintenance request.',
+          isSpecialist
+            ? 'Only the assigned staff user may process this maintenance request.'
+            : ((user.role === 'admin' || user.role === 'itstaff' || user.role === 'mtostaff')
+              ? 'You may only process maintenance requests routed to you inside your own district (' + (prev.districtId || '') + ').'
+              : 'Only the receiving district administrator or the routed staff user may process a maintenance request.'),
           { id: prev.id, transition });
       }
     } else if (transition === 'under_process->completed') {
@@ -703,7 +712,16 @@ function projectStateFor(user, state) {
     // request the app accepted could not be seen afterwards. The district is
     // taken off the end of the key instead.
     if (key.indexOf(MAINT_KEY_PREFIX) === 0) {
-      if (inScope(key.slice(MAINT_KEY_PREFIX.length))) out[key] = value;
+      if (inScope(key.slice(MAINT_KEY_PREFIX.length))) {
+        if (user && user.role === 'admin') {
+          // District Admin must not see computer_it or vehicle requests (unless raised by themselves)
+          out[key] = dArr(value).filter(r => (r && r.requestingUserId === user.id) || (r && r.maintenanceType !== 'computer_it' && r.maintenanceType !== 'vehicle'));
+        } else if (user && (user.role === 'itstaff' || user.role === 'mtostaff')) {
+          out[key] = dArr(value).filter(r => r && (r.requestToUserId === user.id || r.requestingUserId === user.id));
+        } else {
+          out[key] = value;
+        }
+      }
       continue;
     }
     if (key.indexOf(SHRAMDAAN_KEY_PREFIX) === 0) {
