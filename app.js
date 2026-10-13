@@ -1555,12 +1555,33 @@ function __resetPageScrollToTop() {
   } catch (e) {}
 }
 
+function __enforceDateInputsMax(container) {
+  try {
+    const root = container || document;
+    const today = todayStr();
+    const dateInputs = root.querySelectorAll('input[type="date"]');
+    dateInputs.forEach(inp => {
+      inp.max = today;
+      const id = (inp.id || "").toLowerCase();
+      const isFilter = id.includes("from") || id.includes("to") || id.includes("filter");
+      if (!isFilter) {
+        if (!inp.value || inp.value > today) {
+          inp.value = today;
+        }
+      } else if (inp.value && inp.value > today) {
+        inp.value = today;
+      }
+    });
+  } catch (e) {}
+}
+
 function openModal(id) {
   const el = $(id);
   if (!el) return;
   el.classList.remove("hidden");
   __resetElementScrollToTop(el);
   setTimeout(() => __resetElementScrollToTop(el), 10);
+  __enforceDateInputsMax(el);
 }
 
 function closeModals() {
@@ -1858,6 +1879,7 @@ function render() {
   try { renderDevPagesTick(); } catch (e) { }
   try { applyTableHeaders(); } catch (e) { }
   try { __cleanDOMMojibake(); } catch (e) { }
+  try { __enforceDateInputsMax(document); } catch (e) { }
   const badge = $("#notifBadge");
   if (badge) {
     const count = getUnreadCount();
@@ -3234,7 +3256,8 @@ function openItemModal(item) {
   $("#fUnit").value = item ? item.unit : "pcs";
   $("#fMinStock").value = item ? item.minStock : 5;
   $("#fItemId").value = item ? item.id : "";
-  $("#fDate").value = todayStr();
+  const fdEl = $("#fDate");
+  if (fdEl) { fdEl.value = todayStr(); fdEl.max = todayStr(); }
   $("#fTime").value = nowTimeStr();
 
 const cc = item ? (item.conditionCounts || { good: 0, poor: 0, damaged: 0 }) : { good: 0, poor: 0, damaged: 0 };
@@ -3409,6 +3432,8 @@ async function saveItem(e) {
   const items = getItems();
   const histDate = ($("#fDate") && $("#fDate").value) || todayStr();
   const histTime = ($("#fTime") && $("#fTime").value) || nowTimeStr();
+  if (histDate > todayStr()) return toast("Future date is not allowed. Please select today or a past date.", "error");
+  if (histDate === todayStr() && histTime > nowTimeStr()) return toast("Future time is not allowed. Please select current or past time.", "error");
 
   if (id) {
     const item = items.find(i => i.id === id);
@@ -4878,7 +4903,11 @@ function openInspectionModal(insp) {
   $("#fiItem").value = insp ? insp.itemName : "";
   $("#fiInspectedBy").value = insp ? insp.inspectedBy : "";
   $("#fiType").value = insp ? insp.type : "routine";
-  $("#fiDate").value = insp ? insp.date : new Date().toISOString().slice(0, 10);
+  const fiDateEl = $("#fiDate");
+  if (fiDateEl) {
+    fiDateEl.value = (insp && insp.date) ? insp.date : todayStr();
+    fiDateEl.max = todayStr();
+  }
   $("#fiFindings").value = insp ? (insp.findings || "") : "";
   $("#fiRecommendations").value = insp ? (insp.recommendations || "") : "";
   $("#fiStatus").value = insp ? (insp.status || "completed") : "completed";
@@ -4912,6 +4941,7 @@ async function saveInspection(e) {
   const recommendations = $("#fiRecommendations").value.trim();
   const status = $("#fiStatus").value;
   if (!itemName || !inspectedBy || !date || !locationId) return toast("Please fill all required fields.", "error");
+  if (date > todayStr()) return toast("Future date is not allowed. Please select today or a past date.", "error");
 
   let __inspectAtts = [];
   if ((__attStore.inspect || []).length) { try { __inspectAtts = await __attUploadAll("inspect"); } catch (e) { return; } }
@@ -5465,7 +5495,7 @@ function openShramDaanModal() {
     if (locHidden) locHidden.value = locId;
 
     const now = new Date();
-    const dEl = $("#shramDate"); if (dEl) dEl.value = now.toISOString().slice(0, 10);
+    const dEl = $("#shramDate"); if (dEl) { dEl.value = todayStr(); dEl.max = todayStr(); }
     const tEl = $("#shramTime"); if (tEl) {
       const hh = String(now.getHours()).padStart(2, "0");
       const mm = String(now.getMinutes()).padStart(2, "0");
@@ -5501,6 +5531,8 @@ async function saveShramDaanEntry(e) {
   const date = $("#shramDate")?.value;
   const time = $("#shramTime")?.value;
   if (!date || !time) return toast("Please select Date and Time.", "error");
+  if (date > todayStr()) return toast("Future date is not allowed. Please select today or a past date.", "error");
+  if (date === todayStr() && time > nowTimeStr()) return toast("Future time is not allowed. Please select current or past time.", "error");
 
   const participants = Number($("#shramParticipants")?.value) || 1;
   const description = $("#shramDescription")?.value.trim();
@@ -10447,7 +10479,8 @@ function openAllotModal() {
   const alMob = $("#alMobile"); if (alMob) alMob.value = "";
   $("#alRemarks").value = "";
   ["alPerson", "alRank", "alBelt", "alPosting", "alDate", "alTime", "alRemarks"].forEach(id => { const el = $("#" + id); if (el) { el.disabled = false; el.style.opacity = ""; } });
-  $("#alDate").value = todayStr();
+  const alDateEl = $("#alDate");
+  if (alDateEl) { alDateEl.value = todayStr(); alDateEl.max = todayStr(); }
   $("#alTime").value = nowTimeStr();
   const addBtn = $("#alAddItemRow");
   if (addBtn) addBtn.style.display = "";
@@ -10546,6 +10579,8 @@ async function saveAllotment(e) {
   if (!/^\d{10}$/.test(mobile)) { __alMobileValidate(true); return toast("Mobile number must be exactly 10 digits.", "error"); }
   const date = $("#alDate").value || todayStr();
   const time = $("#alTime").value || nowTimeStr();
+  if (date > todayStr()) return toast("Future date is not allowed. Please select today or a past date.", "error");
+  if (date === todayStr() && time > nowTimeStr()) return toast("Future time is not allowed. Please select current or past time.", "error");
   const remarks = $("#alRemarks").value.trim();
   if (!name || !belt) return toast("Fill all person details.", "error");
   /* Rank/Post + Posting inputs removed from dialog (2026.09.187) — auto-fill
@@ -10751,8 +10786,8 @@ function openReturnModal(id) {
   $("#rtSummary").innerHTML = `<div class="return-summary-row"><span>Person:</span><b>${esc(a.name)} (BELT: ${esc(a.beltNo)})</b></div><div class="return-summary-row"><span>Item:</span><b>${esc(a.itemName)}</b></div><div class="return-summary-row"><span>Issued:</span><b>${a.qtyAllotted}</b></div><div class="return-summary-row"><span>Remaining to return:</span><b style="color:var(--primary)">${rem}</b></div>`;
   $("#rtQty").value = rem;
   $("#rtQty").max = rem;
-  if (rem <= 1) $("#rtQty").min = 1;
-  $("#rtDate").value = todayStr();
+  const rtDateEl = $("#rtDate");
+  if (rtDateEl) { rtDateEl.value = todayStr(); rtDateEl.max = todayStr(); }
   $("#rtTime").value = nowTimeStr();
   $("#rtCondition").value = "good";
   $("#rtRemarks").value = "";
@@ -10767,6 +10802,8 @@ function saveReturn(e) {
   const qty = parseInt($("#rtQty").value, 10);
   const date = $("#rtDate").value || todayStr();
   const time = $("#rtTime").value || nowTimeStr();
+  if (date > todayStr()) return toast("Future date is not allowed. Please select today or a past date.", "error");
+  if (date === todayStr() && time > nowTimeStr()) return toast("Future time is not allowed. Please select current or past time.", "error");
   const condition = $("#rtCondition").value;
   const remarks = $("#rtRemarks").value.trim();
   if (!qty || qty < 1) return toast("Enter a valid return quantity.", "error");
@@ -10920,7 +10957,8 @@ function openRecoveryModal(id) {
   qtyEl.value = 1;
   qtyEl.max = recoverable;
   $("#rcMode").value = "";
-  $("#rcDate").value = todayStr();
+  const rcDateEl = $("#rcDate");
+  if (rcDateEl) { rcDateEl.value = todayStr(); rcDateEl.max = todayStr(); }
   $("#rcTime").value = nowTimeStr();
   $("#rcRemarks").value = "";
   $("#rcError").textContent = "";
@@ -10955,8 +10993,10 @@ function submitRecovery(e) {
     if (!mode) return __allocFieldErr(err, "Mode of recovery is required.");
     const date = ($("#rcDate").value || "").trim();
     if (!date) return __allocFieldErr(err, "Date is required.");
+    if (date > todayStr()) return __allocFieldErr(err, "Future date is not allowed. Please select today or a past date.");
     const time = ($("#rcTime").value || "").trim();
     if (!time) return __allocFieldErr(err, "Time is required.");
+    if (date === todayStr() && time > nowTimeStr()) return __allocFieldErr(err, "Future time is not allowed. Please select current or past time.");
 
     const a = getAllotments().find(x => x.id === __allocRecoveryId);
     if (!a) return toast("Issue record not found.", "error");
@@ -10998,7 +11038,8 @@ function openAdjustStock(presetItemId) {
   $("#ajQty").value = 1;
   $("#ajTotal").value = "";
   $("#ajRemarks").value = "";
-  $("#ajDate").value = todayStr();
+  const ajDateEl = $("#ajDate");
+  if (ajDateEl) { ajDateEl.value = todayStr(); ajDateEl.max = todayStr(); }
   $("#ajTime").value = nowTimeStr();
   openModal("#adjustModal");
 }
@@ -11012,6 +11053,8 @@ function saveAdjust(e) {
   const total = parseInt($("#ajTotal").value, 10);
   const date = $("#ajDate").value || todayStr();
   const time = $("#ajTime").value || nowTimeStr();
+  if (date > todayStr()) return toast("Future date is not allowed. Please select today or a past date.", "error");
+  if (date === todayStr() && time > nowTimeStr()) return toast("Future time is not allowed. Please select current or past time.", "error");
   const remarks = $("#ajRemarks").value.trim();
   if (!itemId) return toast("Select an item.", "error");
 
@@ -18383,3 +18426,33 @@ document.addEventListener("click", (e) => {
     closeAllRowCombos();
   }
 });
+
+/* Global Date Policy: enforce max date = today and restrict future dates across all date inputs */
+document.addEventListener("DOMContentLoaded", () => {
+  __enforceDateInputsMax(document);
+});
+window.addEventListener("focus", () => {
+  __enforceDateInputsMax(document);
+});
+
+document.addEventListener("change", (e) => {
+  if (e.target && e.target.type === "date") {
+    const today = todayStr();
+    if (e.target.value && e.target.value > today) {
+      e.target.value = today;
+      if (typeof toast === "function") {
+        toast("Future date is not allowed. Date reset to today.", "error");
+      }
+    }
+  }
+}, true);
+
+document.addEventListener("input", (e) => {
+  if (e.target && e.target.type === "date") {
+    const today = todayStr();
+    if (e.target.value && e.target.value > today) {
+      e.target.value = today;
+    }
+  }
+}, true);
+
