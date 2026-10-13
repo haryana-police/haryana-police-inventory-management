@@ -4,7 +4,18 @@
   "description": "Haryana Police Inventory Management System - fully local (Node.js + file database)",
   "main": "local-dev.js",
   "scripts": {
-    "start": "node local-dev.js"
+    "start": "node local-dev.js --filedb",
+    "dev": "node local-dev.js --filedb",
+    "seed": "node make-demo-data.js && node merge-demo-users.js",
+    "seed:demo": "node make-demo-data.js",
+    "seed:users": "node merge-demo-users.js",
+    "migrate": "node apply-tables.js && node add-ig-fbd.js && node clean-users.js",
+    "migrate:sessions": "node cleanup-sessions.js --apply",
+    "migrate:passwords": "node reset-passwords.js",
+    "test": "node verify-save.js && node check-inv-tables.js && node check-history.js",
+    "test:buttons": "node test-buttons-only.js",
+    "test:tables": "node test-overlay-tables.js",
+    "test:rows": "node test-rowcount.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3"

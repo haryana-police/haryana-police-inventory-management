@@ -31,7 +31,7 @@ const demoPhone = (seed, i) => '98765' + String(10000 + ((seed * 37 + i * 91) % 
 const ROLE_LABEL = {
   devadmin: 'Developer Admin', ig: 'IG', admin: 'District Admin', mhc: 'MHC Officer',
   station: 'Station Manager', itstaff: 'Computer/IT Staff', mtostaff: 'MTO Staff',
-  post: 'Police Post', user: 'General Staff', tsi: 'TSI', staff: 'Staff',
+  post: 'Police Post', user: 'Office', tsi: 'TSI', staff: 'Staff',
 };
 
 (async () => {

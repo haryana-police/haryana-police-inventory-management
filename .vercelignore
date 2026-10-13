@@ -1,4 +1,9 @@
-local-data/
+local-data/db-BEFORE-*.json
+local-data/db.backup-*.json
+local-data/db.before-import.json
+local-data/backups/
+local-data/prod-*.json
+local-data/prod-backups/
 node_modules/
 .git
 .github
@@ -7,12 +12,4 @@ node_modules/
 *.bak*
 *.tmp
 backups/
-apply-tables.js
-check-history.js
-check-inv-tables.js
-cleanup-sessions.js
-measure-heads.js
-shot-history.js
-shots.js
-verify-save.js
 *-audit.html
