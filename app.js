@@ -3798,10 +3798,54 @@ function openAddStockModal(preset) {
       }
     }
   }
-  $("#asDate").value = todayStr();
-  $("#asTime").value = nowTimeStr();
+  const today = todayStr();
+  const nowTime = nowTimeStr();
+  const dEl = $("#asDate");
+  const tEl = $("#asTime");
+  if (dEl) {
+    dEl.max = today;
+    dEl.value = today;
+  }
+  if (tEl) {
+    tEl.max = nowTime;
+    tEl.value = nowTime;
+  }
   $("#asRemarks").value = "";
   openModal("#addStockModal");
+}
+
+function __syncAddStockDateTimeMax() {
+  const dEl = $("#asDate");
+  const tEl = $("#asTime");
+  if (!dEl || !tEl) return;
+  const today = todayStr();
+  const nowTime = nowTimeStr();
+  dEl.max = today;
+  if (dEl.value && dEl.value > today) {
+    dEl.value = today;
+    toast("Future date is not allowed. Selected today.", "warning");
+  }
+  if (dEl.value === today) {
+    tEl.max = nowTime;
+    if (tEl.value && tEl.value > nowTime) {
+      tEl.value = nowTime;
+      toast("Future time is not allowed. Selected current time.", "warning");
+    }
+  } else {
+    tEl.removeAttribute("max");
+  }
+}
+
+function __syncAddStockTime() {
+  const dEl = $("#asDate");
+  const tEl = $("#asTime");
+  if (!dEl || !tEl) return;
+  const today = todayStr();
+  const nowTime = nowTimeStr();
+  if (dEl.value === today && tEl.value && tEl.value > nowTime) {
+    tEl.value = nowTime;
+    toast("Future time is not allowed. Selected current time.", "warning");
+  }
 }
 function addAsRow() {
   const box = $("#asRows"); if (!box) return;
@@ -3963,6 +4007,10 @@ async function saveAddStock(e) {
   if (!canManageItems()) return toast("You do not have permission to add stock.", "error");
   const date = ($("#asDate").value || "").trim() || todayStr();
   const time = ($("#asTime").value || "").trim() || nowTimeStr();
+  const today = todayStr();
+  const nowTime = nowTimeStr();
+  if (date > today) return toast("Future date is not allowed. Please select today or a past date.", "error");
+  if (date === today && time > nowTime) return toast("Future time is not allowed. Please select current or past time.", "error");
   const remarks = ($("#asRemarks").value || "").trim();
   const rows = $$("#asRows .as-item-row");
   if (!rows.length) return toast("Add at least one item.", "error");
@@ -9441,7 +9489,10 @@ function persistAlloc(items, allotments, persons) {
   if (persons) savePersons(persons);
 }
 
-function todayStr() { return new Date().toISOString().slice(0, 10); }
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
 function nowTimeStr() { const d = new Date(); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
 
 let __allocTab = "allotted"; // stock tab moved to Inventory
@@ -12512,6 +12563,10 @@ if (e.target.closest("[data-ccat-edit]")) startEditConsCat(parseInt(e.target.clo
   $("#asAddItemBtn")?.addEventListener("click", addAsRow);
   $("#asRows")?.addEventListener("click", __asRowsClick);
   $("#asRows")?.addEventListener("change", __asRowsChange);
+  $("#asDate")?.addEventListener("change", __syncAddStockDateTimeMax);
+  $("#asDate")?.addEventListener("input", __syncAddStockDateTimeMax);
+  $("#asTime")?.addEventListener("change", __syncAddStockTime);
+  $("#asTime")?.addEventListener("input", __syncAddStockTime);
   
   $("#locOwnBtn")?.addEventListener("click", () => setInvStockLoc("own"));
   $("#locAllSel")?.addEventListener("change", () => setInvStockLoc(($("#locAllSel") || {}).value || "all"));
@@ -15729,10 +15784,47 @@ function openConsAdd() {
   $("#consRows").innerHTML = "";
   addConsRow();
   $("#consRemarks").value = "";
-  const d = $("#consDate"); if (d) d.value = todayStr();
-  const t = $("#consTime"); if (t) t.value = nowTimeStr();
+  const today = todayStr();
+  const nowTime = nowTimeStr();
+  const d = $("#consDate"); if (d) { d.max = today; d.value = today; }
+  const t = $("#consTime"); if (t) { t.max = nowTime; t.value = nowTime; }
   openModal("#consAddModal");
 }
+
+function __syncConsDateTimeMax() {
+  const dEl = $("#consDate");
+  const tEl = $("#consTime");
+  if (!dEl || !tEl) return;
+  const today = todayStr();
+  const nowTime = nowTimeStr();
+  dEl.max = today;
+  if (dEl.value && dEl.value > today) {
+    dEl.value = today;
+    toast("Future date is not allowed. Selected today.", "warning");
+  }
+  if (dEl.value === today) {
+    tEl.max = nowTime;
+    if (tEl.value && tEl.value > nowTime) {
+      tEl.value = nowTime;
+      toast("Future time is not allowed. Selected current time.", "warning");
+    }
+  } else {
+    tEl.removeAttribute("max");
+  }
+}
+
+function __syncConsTime() {
+  const dEl = $("#consDate");
+  const tEl = $("#consTime");
+  if (!dEl || !tEl) return;
+  const today = todayStr();
+  const nowTime = nowTimeStr();
+  if (dEl.value === today && tEl.value && tEl.value > nowTime) {
+    tEl.value = nowTime;
+    toast("Future time is not allowed. Selected current time.", "warning");
+  }
+}
+
 function saveConsAdd(e) {
   e.preventDefault();
   if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
@@ -15759,6 +15851,10 @@ function saveConsAdd(e) {
   const remarks = $("#consRemarks").value.trim();
   const date = $("#consDate") ? $("#consDate").value : todayStr();
   const time = $("#consTime") ? $("#consTime").value : nowTimeStr();
+  const today = todayStr();
+  const nowTime = nowTimeStr();
+  if (date > today) return toast("Future date is not allowed. Please select today or a past date.", "error");
+  if (date === today && time > nowTime) return toast("Future time is not allowed. Please select current or past time.", "error");
   const items = getConsItems();
   const txns = getConsTxns();
   let added = 0;
@@ -16394,6 +16490,10 @@ $$("#consStockExportMenu [data-export]").forEach(b => b.addEventListener("click"
 $("#consAddItemBtn")?.addEventListener("click", addConsRow);
 $("#consRows")?.addEventListener("click", __consRowsClick);
 $("#consRows")?.addEventListener("change", __consRowsChange);
+$("#consDate")?.addEventListener("change", __syncConsDateTimeMax);
+$("#consDate")?.addEventListener("input", __syncConsDateTimeMax);
+$("#consTime")?.addEventListener("change", __syncConsTime);
+$("#consTime")?.addEventListener("input", __syncConsTime);
   $("#consDistForm")?.addEventListener("submit", saveConsDist);
   $("#consLossForm")?.addEventListener("submit", saveConsLoss);
   $("#consEditForm")?.addEventListener("submit", saveConsEdit);
