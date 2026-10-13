@@ -9528,11 +9528,14 @@ function updateStockSortHeader() {
 
 function __allocStockSorted(rows) {
   const cats = getCategories();
+  const locations = getLocations();
   const { key, dir } = __allocStockSort;
   const catName = i => (cats.find(c => c.id === i.categoryId) || {}).name || "";
+  const locName = i => (locations.find(l => l.id === i.locationId) || {}).name || "";
   rows.sort((a, b) => {
     let av, bv;
     if (key === "name") { av = a.name; bv = b.name; }
+    else if (key === "location") { av = locName(a); bv = locName(b); }
     else if (key === "category") { av = catName(a); bv = catName(b); }
     else if (key === "total") { av = a.quantity || 0; bv = b.quantity || 0; }
     else if (key === "available") { av = availableQty(a); bv = availableQty(b); }
@@ -9575,7 +9578,7 @@ function __allocStockFiltered() {
 }
 
 const __STOCK_HEAD_STD = '<tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th class="sortable" data-sort="status">Status <span class="sort-arrow"></span></th><th>Actions</th></tr>';
-const __STOCK_HEAD_ALL = '<tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th>Unit</th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th class="sortable" data-sort="status">Status <span class="sort-arrow"></span></th><th>Actions</th></tr>';
+const __STOCK_HEAD_ALL = '<tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort="location">Locations <span class="sort-arrow"></span></th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th class="sortable" data-sort="status">Status <span class="sort-arrow"></span></th><th>Actions</th></tr>';
 function renderStockLocToggle() {
   const seg = $("#allocStockLocToggle");
   if (!seg) return;
@@ -10748,19 +10751,28 @@ function openAllocPersonDetail(beltNo) {
 /* ---- Exports ---- */
 function __allocStockExportData() {
   const cats = getCategories();
+  const locations = getLocations();
+  const allMode = isAdmin() && __invStockLoc !== "own";
   const dist = getDistricts().find(d => d.id === activeDistrictId);
   const rows = __allocStockFiltered().map(i => {
     const cat = cats.find(c => c.id === i.categoryId);
+    const loc = i.locationId ? locations.find(l => l.id === i.locationId) : null;
     const st = allocStatusOfItem(i);
+    if (allMode) {
+      return [i.name, loc ? loc.name : "", cat ? cat.name : "", i.quantity || 0, availableQty(i), i.allotted || 0, i.lostReturned || 0, (i.damagedReturned || 0), st.label];
+    }
     return [i.name, cat ? cat.name : "", i.quantity || 0, availableQty(i), i.allotted || 0, i.lostReturned || 0, (i.damagedReturned || 0), st.label];
   });
-  const ttotal = rows.reduce((a, r) => a + (r[2] || 0), 0);
-  const tavail = rows.reduce((a, r) => a + (r[3] || 0), 0);
-  const tallot = rows.reduce((a, r) => a + (r[4] || 0), 0);
-  const tloss = rows.reduce((a, r) => a + (r[5] || 0), 0);
-  const tdamaged = rows.reduce((a, r) => a + (r[6] || 0), 0);
-  rows.push(["Total", "", ttotal, tavail, tallot, tloss, tdamaged, ""]);
-  return { title: "Issued Items \u2014 Item Stock Report", subtitle: (dist ? dist.name + " \u00b7 " : "") + "Generated " + new Date().toLocaleString(), cols: ["Item Name", "Category", "Total Qty", "Available", "Issued", "Loss", "Damaged", "Status"], rows, fileName: "allotment-item-stock" };
+  const ttotal = rows.reduce((a, r) => a + (r[allMode ? 3 : 2] || 0), 0);
+  const tavail = rows.reduce((a, r) => a + (r[allMode ? 4 : 3] || 0), 0);
+  const tallot = rows.reduce((a, r) => a + (r[allMode ? 5 : 4] || 0), 0);
+  const tloss = rows.reduce((a, r) => a + (r[allMode ? 6 : 5] || 0), 0);
+  const tdamaged = rows.reduce((a, r) => a + (r[allMode ? 7 : 6] || 0), 0);
+  rows.push(["Total", ...(allMode ? [""] : []), "", ttotal, tavail, tallot, tloss, tdamaged, ""]);
+  const cols = allMode
+    ? ["Item Name", "Locations", "Category", "Total Qty", "Available", "Issued", "Loss", "Damaged", "Status"]
+    : ["Item Name", "Category", "Total Qty", "Available", "Issued", "Loss", "Damaged", "Status"];
+  return { title: "Issued Items \u2014 Item Stock Report", subtitle: (dist ? dist.name + " \u00b7 " : "") + "Generated " + new Date().toLocaleString(), cols, rows, fileName: "allotment-item-stock" };
 }
 
 function __allocListExportData() {
