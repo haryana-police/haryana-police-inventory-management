@@ -431,6 +431,16 @@ function authorizeMaintenanceWrites(user, writes) {
         + 'Please raise ' + label + ' from the requesting unit instead, or change the type to Computer/IT or Vehicle.',
         { maintenanceType: r.maintenanceType, allowed: ADMIN_ROUTED_TYPES, id: r.id });
     }
+    if (user.role === 'itstaff' && r.maintenanceType === 'computer_it') {
+      return fail(403, 'RBAC_MAINT_TYPE_FORBIDDEN',
+        'Computer/IT Staff cannot raise Computer/IT maintenance requests.',
+        { maintenanceType: r.maintenanceType, id: r.id });
+    }
+    if (user.role === 'mtostaff' && r.maintenanceType === 'vehicle') {
+      return fail(403, 'RBAC_MAINT_TYPE_FORBIDDEN',
+        'MTO Staff cannot raise Vehicle maintenance requests.',
+        { maintenanceType: r.maintenanceType, id: r.id });
+    }
   }
 
   for (const w of writes.adds) {

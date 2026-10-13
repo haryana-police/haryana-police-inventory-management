@@ -7266,14 +7266,25 @@ const __MAINT_TYPE_OPTIONS_HTML = '<option value="">Select type...</option>'
    keeps the full list. The server enforces the same rule; this only keeps the
    form from offering a choice that is going to be refused. */
 const __MAINT_ADMIN_TYPES = ["computer_it", "vehicle"];
+const __MAINT_ALL_TYPES = ["plumber", "electrician", "carpenter", "mason", "computer_it", "vehicle", "other"];
 function __maintAllowedTypes() {
-  return currentUser && currentUser.role === "admin" ? __MAINT_ADMIN_TYPES : null;
+  if (!currentUser) return null;
+  if (currentUser.role === "admin") return __MAINT_ADMIN_TYPES;
+  if (currentUser.role === "itstaff") return __MAINT_ALL_TYPES.filter(t => t !== "computer_it");
+  if (currentUser.role === "mtostaff") return __MAINT_ALL_TYPES.filter(t => t !== "vehicle");
+  return null;
 }
 function __maintTypeAllowed(type) {
   const allowed = __maintAllowedTypes();
   return !allowed || !type || allowed.indexOf(type) >= 0;
 }
 function __maintTypeRefusal(type) {
+  if (currentUser && currentUser.role === "itstaff" && type === "computer_it") {
+    return "Computer/IT Staff cannot raise Computer/IT maintenance requests.";
+  }
+  if (currentUser && currentUser.role === "mtostaff" && type === "vehicle") {
+    return "MTO Staff cannot raise Vehicle maintenance requests.";
+  }
   const shown = type === "other" && ($("#maintTypeOther") || {}).value
     ? '"' + String($("#maintTypeOther").value).trim() + '"'
     : (type ? '"' + type + '"' : "that type");
@@ -7281,20 +7292,14 @@ function __maintTypeRefusal(type) {
     + "because any other type is routed back to the District Admin themselves. "
     + "Please raise " + shown + " from the requesting unit instead, or change the type.";
 }
-// Narrows the type dropdown to exactly what this account may pick. For a
-// District Admin the other types are not shown at all rather than shown and
-// greyed out: a list of choices that cannot be chosen is a worse answer than a
-// short list. The dropdown is restored to the full list for everyone else, so
-// signing in as a different role in the same tab does not leave it short.
+// Narrows the type dropdown to exactly what this account may pick.
 function __maintApplyTypeOptions() {
   const sel = $("#maintType");
   if (!sel) return;
   const allowed = __maintAllowedTypes();
   if (!allowed) {
-    if (sel.dataset.narrowed === "1") {
-      sel.innerHTML = __MAINT_TYPE_OPTIONS_HTML;
-      delete sel.dataset.narrowed;
-    }
+    sel.innerHTML = __MAINT_TYPE_OPTIONS_HTML;
+    delete sel.dataset.narrowed;
     return;
   }
   // The labels are read out of the full list rather than typed again here, so
