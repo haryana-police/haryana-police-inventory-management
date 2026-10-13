@@ -6465,6 +6465,9 @@ function __distApplyTransfer(d) {
         || fromList.find(i => !i.isDeleted && (i.name || "").trim().toLowerCase() === String(it.itemName).trim().toLowerCase());
     }
     if (!src) return false;
+    it.fromItemId = src.id;
+    it.fromLocationId = src.locationId || it.fromLocationId || "";
+    it.toLocationId = targetLocId;
 
     // Deduct stock from sender
     let cc = src.conditionCounts || { good: src.quantity || 0, poor: 0, damaged: 0 };
@@ -6756,10 +6759,6 @@ function approveDistribution() {
   const list = (loadData(`distributions_${storeId}`) || []);
   const fresh = list.find(x => x.id === d.id);
   if (!fresh || fresh.status !== "pending") { __actDistStoreId = null; __actDistId = null; return toast("This distribution is no longer pending.", "error"); }
-
-  const ok = __distApplyTransfer(fresh);
-  if (!ok) return toast("Stock transfer could not be completed. No changes were saved.", "error");
-
   fresh.status = "completed";
   fresh.transferred = true;
   fresh.toLocationId = fresh.toLocationId || d.toLocationId;
@@ -6767,6 +6766,15 @@ function approveDistribution() {
   fresh.approvedBy = reviewer;
   fresh.approvedAt = Date.now();
   fresh.updatedAt = Date.now();
+  __saveDistributionsFor(storeId, list);
+
+  const ok = __distApplyTransfer(fresh);
+  if (!ok) {
+    fresh.status = "pending";
+    fresh.transferred = false;
+    __saveDistributionsFor(storeId, list);
+    return toast("Stock transfer could not be completed. No changes were saved.", "error");
+  }
   __saveDistributionsFor(storeId, list);
 
   const itemSummary = (fresh.items || []).map(x => x.qty + " x " + x.itemName).join(", ");
@@ -6881,20 +6889,24 @@ function __distFiltered() {
 
 function __syncCompletedDistributionsStock() {
   if (!activeDistrictId) return;
-  const list = loadData(`distributions_${activeDistrictId}`) || [];
-  let updated = false;
-  list.forEach(d => {
-    if (d.status === "completed" && !d.transferred) {
-      const ok = __distApplyTransfer(d);
-      if (ok) {
-        d.transferred = true;
-        updated = true;
+  const distIds = [activeDistrictId];
+  if (currentUser && currentUser.districtId && !distIds.includes(currentUser.districtId)) distIds.push(currentUser.districtId);
+  distIds.forEach(did => {
+    const list = loadData(`distributions_${did}`) || [];
+    let updated = false;
+    list.forEach(d => {
+      if (d.status === "completed" && !d.transferred) {
+        const ok = __distApplyTransfer(d);
+        if (ok) {
+          d.transferred = true;
+          updated = true;
+        }
       }
+    });
+    if (updated) {
+      saveData(`distributions_${did}`, list);
     }
   });
-  if (updated) {
-    saveData(`distributions_${activeDistrictId}`, list);
-  }
 }
 
 function renderDistribution() {

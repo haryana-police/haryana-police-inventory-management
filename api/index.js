@@ -1046,7 +1046,7 @@ function validateAllocState(state) {
         const verdict = authorizeItemWrites(
           { id: user.id, username: user.username, role: user.role, locationId: user.locationId, districtId: user.districtId, districtIds: user.districtIds },
           diffItemWrites({ [ITEM_STORE_KEY]: prevAll }, { [ITEM_STORE_KEY]: nextAll }),
-          { freshInstall: usersNow.length === 0, prevState: { [ITEM_STORE_KEY]: prevAll }, nextState: { [ITEM_STORE_KEY]: nextAll } }
+          { freshInstall: usersNow.length === 0, prevState: stateNow, nextState: { ...stateNow, [ITEM_STORE_KEY]: nextAll } }
         );
         if (!verdict.ok) {
           console.warn('[rbac] inventory key-write denied:',
