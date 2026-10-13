@@ -930,8 +930,11 @@ function restoreScopeFor(user, current, incoming) {
     }
     if (key.indexOf(MAINT_KEY_PREFIX) === 0) {
       const maintDistId = key.slice(MAINT_KEY_PREFIX.length);
-      if (inScope(maintDistId)) continue;   // the caller's own district: theirs to change
-      out[key] = cur;                      // someone else's: put back what was stored
+      if (!inScope(maintDistId)) {
+        out[key] = cur;
+        continue;
+      }
+      out[key] = __stitchUnique(dArr(cur), dArr(out[key]));
       continue;
     }
     if (key.indexOf(SHRAMDAAN_KEY_PREFIX) === 0) {
