@@ -6141,7 +6141,7 @@ function __allVisibleDistributions() {
   });
   const locId = getVisibleLocationId();
   if (!locId) return combined;
-  return combined.filter(x => x.fromLocationId === locId || x.toLocationId === locId);
+  return combined.filter(x => x.fromLocationId === locId || x.toLocationId === locId || (currentUser && x.toUserId === currentUser.id));
 }
 
 function saveDistributions(list) {
@@ -6408,14 +6408,60 @@ function __distSimulate(d) {
 }
 
 /* Execute the stock transfer: deduct from sender, add (find-or-create) to receiver. */
-function __distApplyTransfer(d, items) {
+function __distApplyTransfer(d) {
+  if (!d || !d.fromDistrictId || !d.toDistrictId) return false;
+
+  // Resolve target location ID
+  let targetLocId = d.toLocationId || "";
+  // 1. If currently approving user is the recipient or belongs to destination district/unit:
+  if (!targetLocId && currentUser && currentUser.locationId && (!currentUser.districtId || currentUser.districtId === d.toDistrictId)) {
+    targetLocId = currentUser.locationId;
+  }
+  // 2. If d.toUserId is set, check that user's locationId:
+  if (!targetLocId && d.toUserId) {
+    const toUser = (typeof getUsers === "function" ? getUsers() : []).find(u => u.id === d.toUserId);
+    if (toUser && toUser.locationId) targetLocId = toUser.locationId;
+  }
+  // 3. Fall back to destination district's HQ location:
+  if (!targetLocId) {
+    const distLocs = getLocationsForDistrict(d.toDistrictId);
+    const hqLoc = distLocs.find(l => (l.type === "district" || l.type === "otherHq" || /hq|store|line/i.test(l.name)));
+    targetLocId = (hqLoc || distLocs[0] || {}).id || "";
+  }
+  d.toLocationId = targetLocId;
+  if (!d.toLocationName && targetLocId) {
+    const locObj = (getLocationsForDistrict(d.toDistrictId) || []).find(l => l.id === targetLocId);
+    if (locObj) d.toLocationName = locObj.name;
+  }
+
+  const all = getAllItems() || {};
+  const fromDistId = d.fromDistrictId;
+  const toDistId = d.toDistrictId;
+  if (!all[fromDistId]) all[fromDistId] = [];
+  if (!all[toDistId]) all[toDistId] = [];
+
+  const fromList = all[fromDistId];
+  // If same district, toList MUST reference fromList so both source and destination share the same array
+  const toList = (fromDistId === toDistId) ? fromList : all[toDistId];
+
   for (const it of (d.items || [])) {
     const q = Number(it.qty) || 0;
-    const src = __distFindFromItem(d, it);
+    if (q <= 0) continue;
+
+    // Find source item in fromList
+    let src = it.fromItemId ? fromList.find(i => i.id === it.fromItemId) : null;
+    if (src && (src.name || "").trim().toLowerCase() !== String(it.itemName).trim().toLowerCase()) src = null;
+    if (!src) {
+      src = fromList.find(i => !i.isDeleted && i.locationId === it.fromLocationId && (i.name || "").trim().toLowerCase() === String(it.itemName).trim().toLowerCase())
+        || fromList.find(i => !i.isDeleted && (i.name || "").trim().toLowerCase() === String(it.itemName).trim().toLowerCase());
+    }
     if (!src) return false;
+
+    // Deduct stock from sender
     let cc = src.conditionCounts || { good: src.quantity || 0, poor: 0, damaged: 0 };
     let remaining = q;
-    const order = it.condition === "good" || it.condition === "poor" || it.condition === "damaged" ? [it.condition] : ["good", "poor", "damaged"];
+    const condKey = (it.condition === "good" || it.condition === "poor" || it.condition === "damaged") ? it.condition : "good";
+    const order = [condKey, "good", "poor", "damaged"].filter((v, i, a) => a.indexOf(v) === i);
     for (const c of order) {
       if (remaining <= 0) break;
       const take = Math.min(remaining, cc[c] || 0);
@@ -6427,27 +6473,57 @@ function __distApplyTransfer(d, items) {
     src.quantity = Math.max(0, (cc.good || 0)) + Math.max(0, (cc.poor || 0)) + Math.max(0, (cc.damaged || 0));
     src.updatedAt = Date.now();
 
-    const toList = getItemsForDistrict(d.toDistrictId);
-    let dst = toList.find(i => i.name.toLowerCase() === String(it.itemName).toLowerCase() && (!d.toLocationId || i.locationId === d.toLocationId));
+    if (typeof itemHistoryPush === "function") {
+      itemHistoryPush(src, {
+        type: "DISPATCH",
+        qty: -q,
+        person: __distReceiverName(d),
+        ref: d.distNo || "DIST",
+        date: todayStr(),
+        time: nowTimeStr(),
+        remarks: `Distributed ${q} (${condKey}) to ${__distReceiverName(d)}`
+      });
+    }
+
+    // Find or create destination item in toList with targetLocId
+    let dst = toList.find(i => !i.isDeleted && i.locationId === targetLocId && (i.name || "").trim().toLowerCase() === String(it.itemName).trim().toLowerCase());
     if (!dst) {
       dst = {
-        id: uid(), name: it.itemName, categoryId: it.categoryId || "", unit: it.unit || "pcs",
-        quantity: 0, minStock: 0, locationId: d.toLocationId || "",
-        conditionCounts: { good: 0, poor: 0, damaged: 0 }, createdAt: Date.now(),
+        id: uid(),
+        name: it.itemName,
+        categoryId: it.categoryId || src.categoryId || "",
+        unit: it.unit || src.unit || "pcs",
+        quantity: 0,
+        minStock: 0,
+        locationId: targetLocId,
+        conditionCounts: { good: 0, poor: 0, damaged: 0 },
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       };
       toList.push(dst);
     }
-    const dcc = dst.conditionCounts || { good: 0, poor: 0, damaged: 0 };
-    const targetCond = it.condition === "good" || it.condition === "poor" || it.condition === "damaged" ? it.condition : "good";
-    dcc[targetCond] = (dcc[targetCond] || 0) + q;
+    const dcc = dst.conditionCounts || { good: dst.quantity || 0, poor: 0, damaged: 0 };
+    dcc[condKey] = (dcc[condKey] || 0) + q;
     dst.conditionCounts = dcc;
     dst.quantity = Math.max(0, (dcc.good || 0)) + Math.max(0, (dcc.poor || 0)) + Math.max(0, (dcc.damaged || 0));
     dst.updatedAt = Date.now();
     it.toItemId = dst.id;
+
+    if (typeof itemHistoryPush === "function") {
+      itemHistoryPush(dst, {
+        type: "STOCK_IN",
+        qty: q,
+        person: d.fromUserName || "Sender",
+        ref: d.distNo || "DIST",
+        date: todayStr(),
+        time: nowTimeStr(),
+        remarks: `Received via Distribution ${d.distNo || ""} from ${d.fromUserName || "Sender"}${d.fromLocationName ? " (" + d.fromLocationName + ")" : ""}`
+      });
+    }
   }
-  const all = getAllItems();
-  all[d.fromDistrictId] = getItemsForDistrict(d.fromDistrictId);
-  all[d.toDistrictId] = getItemsForDistrict(d.toDistrictId);
+
+  all[fromDistId] = fromList;
+  all[toDistId] = toList;
   saveAllItems(all);
   return true;
 }
@@ -6563,8 +6639,8 @@ async function saveDistribution(e) {
       toDistrictId: target.districtId,
       toDistrictName: targetDist ? targetDist.name : "",
       toName: target.type === "admin" ? (targetDist ? targetDist.name : "") + " (Admin)" : (targetLoc ? targetLoc.name : ""),
-      toLocationId: target.locationId,
-      toLocationName: targetLoc ? targetLoc.name : "",
+      toLocationId: target.locationId || (receiver ? receiver.locationId : null),
+      toLocationName: targetLoc ? targetLoc.name : (receiver && receiver.locationId ? (__devLocName ? __devLocName(target.districtId, receiver.locationId) : "") : ""),
       toUserId: receiver ? receiver.id : null,
       toUserName: receiver ? receiver.name : "",
       items,
@@ -6672,10 +6748,12 @@ function approveDistribution() {
   const fresh = list.find(x => x.id === d.id);
   if (!fresh || fresh.status !== "pending") { __actDistStoreId = null; __actDistId = null; return toast("This distribution is no longer pending.", "error"); }
 
-  const ok = __distApplyTransfer(fresh, getAllItems());
+  const ok = __distApplyTransfer(fresh);
   if (!ok) return toast("Stock transfer could not be completed. No changes were saved.", "error");
 
   fresh.status = "completed";
+  fresh.transferred = true;
+  fresh.toLocationId = fresh.toLocationId || d.toLocationId;
   fresh.approveRemark = remark;
   fresh.approvedBy = reviewer;
   fresh.approvedAt = Date.now();
@@ -6792,7 +6870,26 @@ function __distFiltered() {
   }).sort((a, b) => b.d.createdAt - a.d.createdAt);
 }
 
+function __syncCompletedDistributionsStock() {
+  if (!activeDistrictId) return;
+  const list = loadData(`distributions_${activeDistrictId}`) || [];
+  let updated = false;
+  list.forEach(d => {
+    if (d.status === "completed" && !d.transferred) {
+      const ok = __distApplyTransfer(d);
+      if (ok) {
+        d.transferred = true;
+        updated = true;
+      }
+    }
+  });
+  if (updated) {
+    saveData(`distributions_${activeDistrictId}`, list);
+  }
+}
+
 function renderDistribution() {
+  __syncCompletedDistributionsStock();
   const filtered = __distFiltered();
   const tbody = $("#distBody");
   if (!tbody) return;
