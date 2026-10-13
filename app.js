@@ -6163,34 +6163,43 @@ function nextDistNo() {
 
 function __distHQLocation(districtId) {
   const locs = getLocationsForDistrict(districtId);
-  return locs.find(l => l.type === "district") || locs[0] || null;
+  return locs.find(l => l.type === "district") || locs.find(l => l.type === "otherHq" || /hq|admin|store|line/i.test(l.name)) || locs[0] || null;
 }
 
 function __distReceiverOptions() {
   if (!currentUser) return [];
   const opts = [];
-  const myLocId = getVisibleLocationId() || currentUser.locationId;
+  const myDistId = (currentUser && currentUser.districtId) ? currentUser.districtId : activeDistrictId;
+  const myLocId = (currentUser ? currentUser.locationId : null) || getVisibleLocationId();
   const isAdminUser = isAdmin();
-  // Own-district units (excluding own unit + the HQ/admin unit, which is
-  // offered as the "[ADMIN]" option below instead).
-  getLocationsForDistrict(activeDistrictId).forEach(l => {
-    if (l.id === myLocId) return;
-    if (l.type === "district") return;
-    opts.push({ type: "unit", districtId: activeDistrictId, locationId: l.id, label: "[UNIT] " + l.name });
-  });
+
   if (isAdminUser) {
-    // District admin: other district admins only (their own district is
-    // represented by the unit list above).
+    // District admin: all units in own district (excluding own HQ location)
+    getLocationsForDistrict(myDistId).forEach(l => {
+      if (myLocId && l.id === myLocId) return;
+      opts.push({ type: "unit", districtId: myDistId, locationId: l.id, label: "[UNIT] " + l.name });
+    });
+    // AND other district admins:
     getDistricts().forEach(d => {
-      if (d.id === activeDistrictId) return;
+      if (d.id === myDistId) return;
       const hq = __distHQLocation(d.id);
-      opts.push({ type: "admin", districtId: d.id, locationId: hq ? hq.id : "", label: "[ADMIN] " + d.name + " (District Admin)" });
+      let locId = hq ? hq.id : "";
+      if (!locId) {
+        const adminUser = (typeof getUsers === "function" ? getUsers() : []).find(u => u.districtId === d.id && u.role === "admin");
+        if (adminUser && adminUser.locationId) locId = adminUser.locationId;
+      }
+      opts.push({ type: "admin", districtId: d.id, locationId: locId, label: "[ADMIN] " + d.name + " (District Admin)" });
     });
   } else {
-    // Unit user: their own district's admin.
-    const hq = __distHQLocation(activeDistrictId);
-    const ownDist = getDistricts().find(d => d.id === activeDistrictId);
-    opts.push({ type: "admin", districtId: activeDistrictId, locationId: hq ? hq.id : "", label: "[ADMIN] " + (ownDist ? ownDist.name : "") + " (District Admin)" });
+    // Unit user: own district's peer units and own district's admin
+    getLocationsForDistrict(myDistId).forEach(l => {
+      if (l.id === myLocId) return;
+      if (l.type === "district") return;
+      opts.push({ type: "unit", districtId: myDistId, locationId: l.id, label: "[UNIT] " + l.name });
+    });
+    const hq = __distHQLocation(myDistId);
+    const ownDist = getDistricts().find(d => d.id === myDistId);
+    opts.push({ type: "admin", districtId: myDistId, locationId: hq ? hq.id : "", label: "[ADMIN] " + (ownDist ? ownDist.name : "") + " (District Admin)" });
   }
   return opts;
 }
@@ -8298,17 +8307,32 @@ function __fdAssigneeInfo() {
 }
 
 function __fdLocOptions(distId) {
+  if (!distId) return `<option value="">Select location / unit</option>`;
   const locs = getLocationsForDistrict(distId);
-  const hq = locs.find(l => l.type === 'district');
-  const units = locs.filter(l => l.type !== 'district');
-  const own = distId === activeDistrictId;
-  const unitOpts = units.map(l => `<option value="${l.id}">[${esc(l.type.toUpperCase())}] ${esc(l.name)}</option>`).join("");
-  const adminOpt = hq ? `<option value="${hq.id}">[ADMIN] District Admin</option>` : "";
-  if (isAdmin()) {
-    if (own) return `<option value="">Select location</option>` + unitOpts;
-    return `<option value="">Select location</option>` + adminOpt;
+  const myDistId = (currentUser && currentUser.districtId) ? currentUser.districtId : activeDistrictId;
+  const own = (distId === myDistId);
+  const targetDist = getDistricts().find(d => d.id === distId);
+  const distName = targetDist ? targetDist.name : "District";
+
+  let hq = locs.find(l => l.type === "district");
+  if (!hq) hq = locs.find(l => l.type === "otherHq" || /hq|admin|store|line/i.test(l.name)) || locs[0];
+  let adminLocId = hq ? hq.id : "";
+  if (!adminLocId) {
+    const adminUser = (typeof getUsers === "function" ? getUsers() : []).find(u => u.districtId === distId && u.role === "admin");
+    if (adminUser && adminUser.locationId) adminLocId = adminUser.locationId;
   }
-  return `<option value="">Select location</option>` + adminOpt + unitOpts;
+  const adminLabel = `[ADMIN] ${distName} (District Admin)`;
+  const adminOpt = adminLocId ? `<option value="${adminLocId}">[ADMIN] District Admin</option>` : "";
+
+  // If another district is selected, ONLY show that district's District Admin:
+  if (!own) {
+    return `<option value="${adminLocId}" selected>${esc(adminLabel)}</option>`;
+  }
+
+  // If own district:
+  const units = locs.filter(l => l.type !== "district" && l.id !== adminLocId);
+  const unitOpts = units.map(l => `<option value="${l.id}">[${esc((l.type || "unit").toUpperCase())}] ${esc(l.name)}</option>`).join("");
+  return `<option value="">Select location / unit</option>` + adminOpt + unitOpts;
 }
 
 function openDemandModal() {
@@ -8321,18 +8345,21 @@ function openDemandModal() {
   const toSel = $("#fdDemandTo");
   const toLocSel = $("#fdDemandToLocation");
   const allDistricts = getDistricts();
-  toSel.innerHTML = `<option value="">Select district</option>` + allDistricts.map(d => `<option value="${d.id}" ${d.id === activeDistrictId ? 'selected' : ''}>${esc(d.name)}${d.id === activeDistrictId ? ' (Your District)' : ''}</option>`).join("");
+  const myDistId = (currentUser && currentUser.districtId) ? currentUser.districtId : activeDistrictId;
+
+  toSel.innerHTML = `<option value="">Select district</option>` + allDistricts.map(d => `<option value="${d.id}" ${d.id === myDistId ? 'selected' : ''}>${esc(d.name)}${d.id === myDistId ? ' (Your District)' : ''}</option>`).join("");
   if (!isAdmin()) {
-    const myDist = allDistricts.find(d => d.id === activeDistrictId);
-    toSel.innerHTML = `<option value="${activeDistrictId || ""}">${esc(myDist ? myDist.name : "My District")}</option>`;
+    const myDist = allDistricts.find(d => d.id === myDistId);
+    toSel.innerHTML = `<option value="${myDistId || ""}">${esc(myDist ? myDist.name : "My District")}</option>`;
     toSel.disabled = true;
   } else {
     toSel.disabled = false;
   }
-  toLocSel.innerHTML = __fdLocOptions(activeDistrictId);
+  toLocSel.innerHTML = __fdLocOptions(myDistId);
   toLocSel.disabled = false;
 
   __fdAssigneeInfo();
+  if (typeof __fdAvailable === "function") __fdAvailable();
 
   const __fdTs = $("#fdTypeStock"); const __fdTc = $("#fdTypeCons"); if (__fdTs) __fdTs.checked = true; if (__fdTc) __fdTc.checked = false;
   const body = $("#fdItemsBody");
@@ -12427,17 +12454,20 @@ $("#inspSearch")?.addEventListener("input", renderInspections);
     const locSel = $("#fdDemandToLocation");
     const distId = this.value;
     if (!distId) {
-      locSel.innerHTML = `<option value="">Select location</option>`;
+      locSel.innerHTML = `<option value="">Select location / unit</option>`;
       locSel.disabled = true;
       __fdAssigneeInfo();
+      if (typeof __fdAvailable === "function") __fdAvailable();
       return;
     }
     locSel.innerHTML = __fdLocOptions(distId);
     locSel.disabled = false;
     __fdAssigneeInfo();
+    if (typeof __fdAvailable === "function") __fdAvailable();
   });
   $("#fdDemandToLocation")?.addEventListener("change", function() {
     __fdAssigneeInfo();
+    if (typeof __fdAvailable === "function") __fdAvailable();
   });
   $("#demandForm").addEventListener("submit", saveDemand);
   $("#demandSearch")?.addEventListener("input", renderDemands);
