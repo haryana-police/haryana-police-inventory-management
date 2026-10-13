@@ -7115,17 +7115,27 @@ const MAINT_TYPE_LABELS = {
 function __maintRouteTarget(typeVal) {
   const role = typeVal === "computer_it" ? "itstaff" : typeVal === "vehicle" ? "mtostaff" : null;
   if (!role) return null;
-  return getUsers().find(u => u.role === role && u.districtId === activeDistrictId) || null;
+  const targetDistId = (currentUser && currentUser.districtId) || activeDistrictId;
+  return getUsers().find(u => u.role === role && u.districtId === targetDistId) || null;
 }
 
 function __maintUpdateRequestTo() {
   const typeVal = ($("#maintType") || {}).value || "";
-  const admin = getUsers().find(u => u.districtId === activeDistrictId && u.role === "admin");
+  const targetDistId = (currentUser && currentUser.districtId) || activeDistrictId;
+  const admin = getUsers().find(u => u.districtId === targetDistId && u.role === "admin");
   const routed = __maintRouteTarget(typeVal);
   const rt = $("#maintRequestTo");
-  if (rt) rt.value = routed
-    ? (routed.name || routed.username) + (routed.role === "itstaff" ? " (Computer/IT Staff)" : " (MTO Staff)")
-    : (admin ? "District Admin \u2014 " + (admin.name || admin.username) : "\u2014");
+  if (rt) {
+    if (routed) {
+      rt.value = (routed.name || routed.username) + (routed.role === "itstaff" ? " (Computer/IT Staff)" : " (MTO Staff)");
+    } else if (typeVal === "computer_it") {
+      rt.value = "Computer/IT Staff";
+    } else if (typeVal === "vehicle") {
+      rt.value = "MTO Staff";
+    } else {
+      rt.value = admin ? "District Admin \u2014 " + (admin.name || admin.username) : "\u2014";
+    }
+  }
 }
 
 function __maintTypeLabel(r) {
@@ -7175,6 +7185,10 @@ function __allVisibleMaintenance() {
     return __maintenanceInStore(currentUser.districtId || activeDistrictId).filter(x => x.requestToUserId === currentUser.id || x.requestingUserId === currentUser.id);
   }
   const list = __maintenanceInStore(activeDistrictId);
+  if (currentUser && currentUser.role === "admin") {
+    // District Admin must not see specialist requests (computer_it / vehicle) unless raised by themselves
+    return list.filter(x => (x.requestingUserId === currentUser.id || (x.maintenanceType !== "computer_it" && x.maintenanceType !== "vehicle")));
+  }
   const locId = getVisibleLocationId();
   if (!locId) return list;
   return list.filter(x => x.requestingUnitId === locId);
@@ -7210,6 +7224,7 @@ function __maintActionableBy(r) {
     return r.districtId === currentUser.districtId && r.requestToUserId === currentUser.id;
   }
   if (r.status === "pending") {
+    if (r.maintenanceType === "computer_it" || r.maintenanceType === "vehicle") return false;
     return currentUser.role === "admin" && r.requestToDistrictAdminId === currentUser.id;
   }
   if (r.status === "under_process") {
@@ -7297,8 +7312,9 @@ function __maintApplyTypeOptions() {
 function openMaintenanceModal() {
   if (!currentUser) return toast("Please login first.", "error");
   if (!__maintCanCreate()) return toast("Only requesting units can raise maintenance requests.", "error");
-  const admin = getUsers().find(u => u.districtId === activeDistrictId && u.role === "admin");
-  if (!admin) return toast("No District Admin is configured for this district yet. Contact the Developer Admin.", "error");
+  const userDistId = (currentUser && currentUser.districtId) || activeDistrictId;
+  const admin = getUsers().find(u => u.districtId === userDistId && u.role === "admin");
+  if (!admin && !__maintAllowedTypes()) return toast("No District Admin is configured for this district yet. Contact the Developer Admin.", "error");
   const locId = getVisibleLocationId() || currentUser.locationId;
   const loc = getLocations().find(l => l.id === locId);
   if (!loc) return toast("Your unit location could not be found. Contact the Developer Admin.", "error");
@@ -7531,13 +7547,24 @@ async function saveMaintenanceRequest(e) {
   const time = "";
   const remark = "";
 
-  const admin = getUsers().find(u => u.districtId === activeDistrictId && u.role === "admin");
-  if (!admin) return toast("District Admin for this district not configured.", "error");
+  const userDistId = (currentUser && currentUser.districtId) || activeDistrictId;
+  const admin = getUsers().find(u => u.districtId === userDistId && u.role === "admin");
   const routed = __maintRouteTarget(typeVal);
   const locId = getVisibleLocationId() || currentUser.locationId;
   const loc = getLocations().find(l => l.id === locId);
   if (!loc) return toast("Your unit location could not be found.", "error");
   if (!typeVal) return toast("Please select a maintenance type.", "error");
+
+  const isSpecialist = (typeVal === "computer_it" || typeVal === "vehicle");
+  if (typeVal === "vehicle" && !routed) {
+    return toast("No MTO Staff is configured for this district yet.", "error");
+  }
+  if (typeVal === "computer_it" && !routed) {
+    return toast("No Computer/IT Staff is configured for this district yet.", "error");
+  }
+  if (!isSpecialist && !admin) {
+    return toast("District Admin for this district not configured.", "error");
+  }
   // Checked here as well as in the dropdown, because the dropdown only stops a
   // type being picked - it cannot stop a form that was already open when the
   // account changed, or a value put there by anything else.
@@ -7568,17 +7595,17 @@ async function saveMaintenanceRequest(e) {
     const r = {
       id: uid(),
       mntNo: nextMaintNo(),
-      districtId: activeDistrictId,
-      districtName: (getDistricts().find(dd => dd.id === activeDistrictId) || {}).name || "",
+      districtId: userDistId,
+      districtName: (getDistricts().find(dd => dd.id === userDistId) || {}).name || "",
       requestingUnitId: locId,
       requestingUnitName: loc.name,
       requestingUserId: currentUser.id,
       requestingUserName: currentUser.name || currentUser.username,
-      requestToDistrictAdminId: admin.id,
-      requestToDistrictAdminName: admin.name || admin.username,
-      requestToUserId: routed ? routed.id : admin.id,
-      requestToUserName: routed ? (routed.name || routed.username) : (admin.name || admin.username),
-      requestToUserRole: routed ? routed.role : "admin",
+      requestToDistrictAdminId: isSpecialist ? null : (admin ? admin.id : null),
+      requestToDistrictAdminName: isSpecialist ? "" : (admin ? (admin.name || admin.username) : ""),
+      requestToUserId: isSpecialist ? (routed ? routed.id : null) : (admin ? admin.id : null),
+      requestToUserName: isSpecialist ? (routed ? (routed.name || routed.username) : "") : (admin ? (admin.name || admin.username) : ""),
+      requestToUserRole: isSpecialist ? (routed ? routed.role : "") : "admin",
       maintenanceType: typeVal,
       customType: typeVal === "other" ? customType : "",
       description: desc,
@@ -7598,13 +7625,14 @@ async function saveMaintenanceRequest(e) {
     saveMaintenance(getMaintenance());
 
     __audit("Maintenance Request Created", `${r.mntNo} \u2014 ${__maintTypeLabel(r)} (${r.requestingUnitName}) to ${r.requestToUserName || r.requestToDistrictAdminName}`, { entity: "Maintenance" });
+    const targetUserId = isSpecialist ? (routed ? routed.id : null) : (admin ? admin.id : null);
     addNotification(r.districtId, {
       type: "maintenance_received",
       title: "New Maintenance Request",
       message: `New maintenance request ${r.mntNo} from ${r.requestingUnitName}: ${__maintTypeLabel(r)} on ${__maintDateLabel(date)} at ${__maintTimeLabel(time)}.`,
       fromDistrictId: r.districtId,
       maintenanceId: r.id,
-      targetUserId: r.requestToUserId || r.requestToDistrictAdminId,
+      targetUserId: targetUserId,
       targetLocId: null,
     });
 
@@ -7895,7 +7923,9 @@ if (addMaintBtn) {
           ? `<button type="button" class="btn btn-sm btn-primary" data-action="maint-process" data-id="${r.id}">Process</button>`
           : `<button type="button" class="btn btn-sm btn-green" data-action="maint-approve" data-id="${r.id}">Approve</button>`;
       } else if (r.status === "pending") {
-        btns = `<span style="font-size:.72rem;color:var(--amber)">Awaiting admin</span>`;
+        const isSpec = (r.maintenanceType === "computer_it" || r.maintenanceType === "vehicle");
+        const awaitingLabel = isSpec ? (r.maintenanceType === "vehicle" ? "Awaiting MTO staff" : "Awaiting IT staff") : "Awaiting admin";
+        btns = `<span style="font-size:.72rem;color:var(--amber)">${awaitingLabel}</span>`;
       } else if (r.status === "under_process") {
         btns = `<span style="font-size:.72rem;color:var(--primary)">In progress</span>`;
       }
