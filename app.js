@@ -8088,6 +8088,7 @@ function __demandActionableBy(d) {
 }
 
 function renderDemands() {
+  if (typeof __syncApprovedDemandsStock === "function") __syncApprovedDemandsStock();
   const demands = __allVisibleDemands();
 
   const filtered = __demandFiltered();
@@ -8351,7 +8352,7 @@ async function saveDemand(e) {
     assigneeId,
     assigneeName: assignee ? assignee.name : "",
     requestedFromDistrict: activeDistrictId,
-    requestedFromLocation: getVisibleLocationId() || "",
+    requestedFromLocation: (currentUser && currentUser.locationId) || getVisibleLocationId() || "",
     demandToDistrict,
     demandToDistrictName: toDist ? toDist.name : "",
     demandToLocation,
@@ -8771,6 +8772,170 @@ function rejectDemandReview() {
   if (restore <= 0 || confirm(msg)) __commitDemandReview("reject");
 }
 
+function __receiveDemandStock(d, it, incomingQty, remark) {
+  if (!d || !it || incomingQty <= 0) return false;
+
+  const targetDistId = d.requestedFromDistrict || d.districtId || (currentUser ? currentUser.districtId : null) || activeDistrictId;
+  if (!targetDistId) return false;
+
+  let targetLocId = d.requestedFromLocation || "";
+  if (!targetLocId && currentUser && currentUser.locationId && (!currentUser.districtId || currentUser.districtId === targetDistId)) {
+    targetLocId = currentUser.locationId;
+  }
+  if (!targetLocId && d.requestedById) {
+    const reqUser = getUsers().find(u => u.id === d.requestedById);
+    if (reqUser && reqUser.locationId) targetLocId = reqUser.locationId;
+  }
+  if (!targetLocId) {
+    const distLocs = getLocationsForDistrict(targetDistId);
+    const hqLoc = distLocs.find(l => (l.type === "district" || l.type === "otherHq" || /hq|store|line/i.test(l.name)));
+    targetLocId = (hqLoc || distLocs[0] || {}).id || "";
+  }
+
+  const isCons = it.itemType === "cons" || d.itemType === "cons";
+  const date = todayStr();
+  const time = nowTimeStr();
+  const sourceInfo = d.demandToDistrictName ? (" from " + d.demandToDistrictName) : "";
+  const histRemark = `Received via Demand ${d.demandNo || "DEM"}${sourceInfo}${remark ? " \u2014 " + remark : ""}`;
+
+  if (isCons) {
+    const consMap = loadData("consumable_items") || {};
+    const consItems = Array.isArray(consMap[targetDistId]) ? consMap[targetDistId] : [];
+    let cItem = consItems.find(x => !x.isDeleted && (x.name || "").trim().toLowerCase() === (it.itemName || "").trim().toLowerCase());
+    if (!cItem) {
+      cItem = {
+        id: uid(),
+        categoryId: it.categoryId || "",
+        name: it.itemName,
+        unit: it.unit || "pcs",
+        minStock: 5,
+        photoUrl: "",
+        condition: it.condition || "Good",
+        remarks: "",
+        createdAt: Date.now()
+      };
+      consItems.push(cItem);
+    }
+    consMap[targetDistId] = consItems;
+    saveData("consumable_items", consMap);
+
+    const txnMap = loadData("consumable_txns") || {};
+    const consTxns = Array.isArray(txnMap[targetDistId]) ? txnMap[targetDistId] : [];
+    consTxns.unshift({
+      id: uid(),
+      type: "ADD",
+      itemId: cItem.id,
+      itemName: cItem.name,
+      categoryId: cItem.categoryId,
+      qty: incomingQty,
+      date,
+      time,
+      byName: currentUser ? (currentUser.name || currentUser.username) : "System",
+      byId: currentUser ? currentUser.id : "",
+      remarks: histRemark,
+      createdAt: Date.now()
+    });
+    txnMap[targetDistId] = consTxns;
+    saveData("consumable_txns", txnMap);
+    return true;
+  }
+
+  // Regular Item Stock
+  const all = getAllItems();
+  const items = Array.isArray(all[targetDistId]) ? all[targetDistId] : [];
+  let item = items.find(i =>
+    !i.isDeleted &&
+    i.locationId === targetLocId &&
+    (i.name || "").trim().toLowerCase() === (it.itemName || "").trim().toLowerCase()
+  );
+
+  const cond = (it.condition === "poor" || it.condition === "damaged") ? it.condition : "good";
+
+  if (item) {
+    if (!item.conditionCounts) {
+      item.conditionCounts = { good: item.quantity || 0, poor: 0, damaged: 0 };
+    }
+    item.conditionCounts[cond] = (item.conditionCounts[cond] || 0) + incomingQty;
+    item.quantity = (item.conditionCounts.good || 0) + (item.conditionCounts.poor || 0) + (item.conditionCounts.damaged || 0);
+    item.updatedAt = Date.now();
+    itemHistoryPush(item, {
+      type: "STOCK_IN",
+      qty: incomingQty,
+      person: d.demandToDistrictName || "Supply",
+      ref: d.demandNo || "DEM",
+      date,
+      time,
+      remarks: histRemark
+    });
+  } else {
+    const refItem = items.find(i => !i.isDeleted && (i.name || "").trim().toLowerCase() === (it.itemName || "").trim().toLowerCase())
+      || (all[d.demandToDistrict] || []).find(i => !i.isDeleted && (i.name || "").trim().toLowerCase() === (it.itemName || "").trim().toLowerCase());
+
+    const cc = { good: 0, poor: 0, damaged: 0 };
+    cc[cond] = incomingQty;
+    const allCats = getCategories();
+    const matchedCat = it.categoryId ? allCats.find(c => c.id === it.categoryId) : null;
+    const catId = matchedCat ? matchedCat.id : (refItem && refItem.categoryId ? refItem.categoryId : ((allCats[0] || {}).id || ""));
+
+    item = {
+      id: uid(),
+      name: it.itemName,
+      categoryId: catId,
+      unit: it.unit || (refItem ? refItem.unit : "") || "pcs",
+      quantity: incomingQty,
+      minStock: refItem && typeof refItem.minStock === "number" ? refItem.minStock : 5,
+      locationId: targetLocId,
+      conditionCounts: cc,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      history: []
+    };
+    itemHistoryPush(item, {
+      type: "STOCK_IN",
+      qty: incomingQty,
+      person: d.demandToDistrictName || "Supply",
+      ref: d.demandNo || "DEM",
+      date,
+      time,
+      remarks: histRemark
+    });
+    items.push(item);
+  }
+
+  all[targetDistId] = items;
+  saveAllItems(all);
+  return true;
+}
+
+function __syncApprovedDemandsStock() {
+  try {
+    const storeId = activeDistrictId;
+    if (!storeId) return;
+    const demands = loadData(`demands_${storeId}`) || [];
+    let changed = false;
+    demands.forEach(d => {
+      if (!__isRequester(d)) return;
+      const items = __demandItems(d);
+      items.forEach(it => {
+        if (it.reviewStatus === "approved" && !it.stockCredited) {
+          const qty = Number(it.approvedQuantity) || 0;
+          if (qty > 0) {
+            const added = __receiveDemandStock(d, it, qty, it.reviewRemark || "");
+            if (added) {
+              it.stockCredited = true;
+              changed = true;
+            }
+          }
+        }
+      });
+      if (changed) d.demandItems = items;
+    });
+    if (changed) saveData(`demands_${storeId}`, demands);
+  } catch (err) {
+    console.error("__syncApprovedDemandsStock error:", err);
+  }
+}
+
 function __commitDemandReview(action) {
   const storeId = __reviewDemandStoreId || activeDistrictId;
   const demands = loadData(`demands_${storeId}`) || [];
@@ -8787,11 +8952,21 @@ function __commitDemandReview(action) {
   __demandBusy = true;
   try {
     if (action === "approve") {
+      const incomingQty = Number(it.lastFulfillQty) > 0 ? Number(it.lastFulfillQty) : (Number(it.approvedQuantity) || 0);
       it.reviewStatus = "approved";
       it.reviewedBy = reviewer;
       it.reviewedAt = at;
       it.reviewRemark = remark;
       it.lastFulfillQty = 0;
+      let stockAdded = false;
+      if (incomingQty > 0 && !it.stockCredited) {
+        try {
+          stockAdded = __receiveDemandStock(d, it, incomingQty, remark);
+          if (stockAdded) it.stockCredited = true;
+        } catch (err) {
+          console.error("receiveDemandStock failed:", err);
+        }
+      }
       addNotification(d.demandToDistrict, {
         type: "demand_review_approved",
         title: "Demand Review Approved",
@@ -8801,8 +8976,8 @@ function __commitDemandReview(action) {
         targetUserId: d.assigneeId || null,
         targetLocId: d.demandToLocation || null,
       });
-      __audit("Demand Review Approved", `${it.approvedQuantity} x ${it.itemName} for ${d.requestedBy || ""}`, { entity: "Demand" });
-      toast("Supply approved.", "success");
+      __audit("Demand Review Approved", `${it.approvedQuantity} x ${it.itemName} for ${d.requestedBy || ""}${stockAdded ? " (stock added to inventory)" : ""}`, { entity: "Demand" });
+      toast(stockAdded ? `Supply approved & ${incomingQty} unit(s) added to your stock.` : "Supply approved.", "success");
     } else {
       const restore = Number(it.lastFulfillQty) || 0;
       it.approvedQuantity = Math.max(0, (Number(it.approvedQuantity) || 0) - restore);
