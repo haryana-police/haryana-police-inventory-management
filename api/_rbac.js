@@ -131,13 +131,27 @@ function distributionExemptKeys(prevState, nextState) {
   for (const id of Object.keys(next)) {
     const o = prev[id];
     const n = next[id];
-    if (!o || !n) continue;
-    if (o.status !== 'pending' || n.status !== 'completed') continue;
+    if (!n) continue;
+    // Allow if transitioning from pending to completed, or already completed in nextState
+    if (n.status !== 'completed' && !(o && o.status === 'pending' && n.status === 'completed')) continue;
     for (const it of (Array.isArray(n.items) ? n.items : [])) {
-      const name = String(it.itemName || '').toLowerCase();
+      const name = String(it.itemName || '').trim().toLowerCase();
       if (!name) continue;
-      exempt.add((n.fromDistrictId || '') + '|' + (it.fromLocationId != null ? it.fromLocationId : '') + '|' + name);
-      exempt.add((n.toDistrictId || '') + '|' + (n.toLocationId != null ? n.toLocationId : '') + '|' + name);
+      const fromDist = n.fromDistrictId || '';
+      const toDist = n.toDistrictId || '';
+      const fromLoc = it.fromLocationId || n.fromLocationId || '';
+      const toLoc = n.toLocationId || it.toLocationId || '';
+
+      if (fromDist) {
+        if (fromLoc) exempt.add(fromDist + '|' + fromLoc + '|' + name);
+        if (n.fromLocationId) exempt.add(fromDist + '|' + n.fromLocationId + '|' + name);
+        exempt.add(fromDist + '|*|' + name);
+      }
+      if (toDist) {
+        if (toLoc) exempt.add(toDist + '|' + toLoc + '|' + name);
+        if (n.toLocationId) exempt.add(toDist + '|' + n.toLocationId + '|' + name);
+        exempt.add(toDist + '|*|' + name);
+      }
     }
   }
   return exempt;
@@ -152,8 +166,10 @@ function firstViolation(writes, user, exempt) {
     // silently whitelisted.
     const prevForLoc = kind === 'delete' ? entry.item : (entry.prev || null);
     const archLoc = prevForLoc && prevForLoc.locationId !== undefined ? prevForLoc.locationId : it.locationId;
-    const distExemptKey = (entry.districtId || '') + '|' + (archLoc != null ? archLoc : '') + '|' + String(it.name || '').toLowerCase();
-    if (exempt && exempt.has(distExemptKey)) return null;
+    const nameLower = String(it.name || '').trim().toLowerCase();
+    const distExemptKey = (entry.districtId || '') + '|' + (archLoc != null ? archLoc : '') + '|' + nameLower;
+    const distWildKey = (entry.districtId || '') + '|*|' + nameLower;
+    if (exempt && (exempt.has(distExemptKey) || exempt.has(distWildKey))) return null;
     // OWNERSHIP COMES FROM THE DATABASE, not the payload:
     //  - add:    the new record must be created inside the caller's own unit
     //  - edit:   the PREVIOUSLY STORED record must already belong to the
