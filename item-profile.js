@@ -1268,15 +1268,26 @@
   document.addEventListener("DOMContentLoaded", function () {
     setTimeout(function () {
       var vm = document.getElementById("viewItemModal");
-      if (!vm || vm.querySelector("[data-ip-open-from-view]")) return;
-      var footer = vm.querySelector(".modal-actions") || vm;
+      if (!vm) return;
+      var existingBtn = vm.querySelector("#viOpenProfileBtn, [data-ip-open-from-view]");
+      if (existingBtn) {
+        existingBtn.onclick = function () {
+          var id = window.__ipViewModalItemId || null;
+          closeModals();
+          if (id && window.openItemProfile) window.openItemProfile(id);
+        };
+        return;
+      }
+      var footer = vm.querySelector(".modal-footer") || vm.querySelector(".modal-actions");
+      if (!footer) return;
       var btn = document.createElement("button");
       btn.type = "button"; btn.className = "btn btn-outline"; btn.textContent = "Open Full Profile";
+      btn.id = "viOpenProfileBtn";
       btn.setAttribute("data-ip-open-from-view", "1");
       btn.addEventListener("click", function () {
         var id = window.__ipViewModalItemId || null;
         closeModals();
-        if (id) window.openItemProfile(id);
+        if (id && window.openItemProfile) window.openItemProfile(id);
       });
       footer.insertBefore(btn, footer.firstChild);
     }, 800);

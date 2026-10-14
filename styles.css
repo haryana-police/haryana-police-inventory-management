@@ -4568,7 +4568,8 @@ body.modal-open #appRoot {
 #viewItemModal .table-wrap {
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
-  overflow: hidden;
+  overflow: auto;
+  max-height: 240px;
   margin-top: 6px;
 }
 #viewItemModal .modal-footer {
