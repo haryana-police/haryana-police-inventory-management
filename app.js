@@ -3313,30 +3313,41 @@ function __updateItemQtyHint(sum) {
 /* Read-only View modal ? available to every role for every visible record. */
 function openViewItem(item) {
   if (!item) return;
+  window.__ipViewModalItemId = item.id;
   const cat = getCategories().find(c => c.id === item.categoryId);
   const loc = getLocations().find(l => l.id === item.locationId);
   const cc = item.conditionCounts || { good: item.quantity || 0, poor: 0, damaged: 0 };
   const qty = item.quantity || 0;
-  $("#viName").textContent = item.name || "";
-  $("#viCategory").textContent = cat ? cat.name : "";
-  $("#viUnit").textContent = item.unit || "";
-  $("#viQuantity").textContent = qty;
-  $("#viMinStock").textContent = item.minStock || 0;
-  $("#viLocation").textContent = loc ? loc.name : (item.locationId || "");
-  $("#viCondGood").textContent = cc.good || 0;
-  $("#viCondPoor").textContent = cc.poor || 0;
-  $("#viCondDamaged").textContent = cc.damaged || 0;
+  const nameEl = $("#viName"); if (nameEl) nameEl.textContent = item.name || "";
+  const catEl = $("#viCategory"); if (catEl) catEl.textContent = cat ? cat.name : "-";
+  const unitEl = $("#viUnit"); if (unitEl) unitEl.textContent = item.unit || "-";
+  const qtyEl = $("#viQuantity"); if (qtyEl) qtyEl.textContent = qty;
+  const minStockEl = $("#viMinStock"); if (minStockEl) minStockEl.textContent = item.minStock || 0;
+  const locEl = $("#viLocation"); if (locEl) locEl.textContent = loc ? loc.name : (item.locationId || "-");
+  const goodEl = $("#viCondGood"); if (goodEl) goodEl.textContent = cc.good || 0;
+  const poorEl = $("#viCondPoor"); if (poorEl) poorEl.textContent = cc.poor || 0;
+  const dmgEl = $("#viCondDamaged"); if (dmgEl) dmgEl.textContent = cc.damaged || 0;
   const st = item.isDeleted ? ["Deleted", "status-out"] : (qty === 0 ? ["Out of Stock", "status-out"] : qty <= (item.minStock || 0) ? ["Low Stock", "status-low"] : ["In Stock", "status-ok"]);
   const stEl = $("#viStatus");
-  stEl.textContent = st[0];
-  stEl.className = "status-badge " + st[1];
-  $("#viDate").textContent = item.createdAt ? fmtDate(item.createdAt) : "?";
+  if (stEl) {
+    stEl.textContent = st[0];
+    stEl.className = "status-badge " + st[1];
+  }
+  const dateEl = $("#viDate");
+  if (dateEl) dateEl.textContent = item.createdAt ? fmtDate(item.createdAt) : "-";
   const hb = $("#viHistoryBody");
   if (hb) {
     const rows = __histWithBalances(item).slice().reverse();
     hb.innerHTML = rows.length
       ? rows.map(h => `<tr><td>` + esc(h.date || (h.at ? fmtDate(h.at) : "")) + `</td><td>` + esc(h.time || "") + `</td><td>` + esc(__hTypeLabel[h.type] || h.type) + `</td><td class="qty-strong" style="` + (h.qty < 0 ? "color:var(--red)" : "color:var(--green)") + `">` + (h.qty > 0 ? "+" + h.qty : h.qty) + `</td><td class="qty-strong">` + h.prev + `</td><td class="qty-strong">` + h.balance + `</td><td>` + esc(h.user || "") + photoChipsHtml(h) + `</td></tr>`).join("")
-      : `<tr class="empty-row"><td colspan="7">No stock changes recorded yet.</td></tr>`;
+      : `<tr class="empty-row"><td colspan="7" style="text-align:center;padding:14px;color:var(--muted)">No stock changes recorded yet.</td></tr>`;
+  }
+  const profBtn = document.getElementById("viOpenProfileBtn");
+  if (profBtn) {
+    profBtn.onclick = function() {
+      closeModals();
+      if (item.id && window.openItemProfile) window.openItemProfile(item.id);
+    };
   }
   openModal("#viewItemModal");
 }
@@ -4980,17 +4991,15 @@ function openInspectionView(id) {
   const box = $("#inspViewBody");
   if (!box) return;
   box.innerHTML =
-    '<div class="demand-detail-grid">' +
-    '<div><span class="stat-label">Date</span><b>' + esc(ins.date || "-") + '</b></div>' +
-    '<div><span class="stat-label">Item / Asset</span><b>' + esc(ins.itemName || "-") + '</b></div>' +
-    '<div><span class="stat-label">Inspected By</span><b>' + esc(ins.inspectedBy || "-") + '</b></div>' +
-    '<div><span class="stat-label">Type</span><b>' + esc(typeLabel) + '</b></div>' +
-    '<div><span class="stat-label">Location</span><b>' + esc(loc ? loc.name : (ins.locationId || "-")) + '</b></div>' +
-    '<div><span class="stat-label">Status</span><b>' + esc(statusLabel) + '</b></div>' +
-    '<div style="grid-column:1/-1"><span class="stat-label">Findings</span><div>' + esc(ins.findings || "No findings recorded.") + '</div></div>' +
-    '<div style="grid-column:1/-1"><span class="stat-label">Recommendations</span><div>' + esc(ins.recommendations || "No recommendations recorded.") + '</div></div>' +
-    (atts.length ? '<div style="grid-column:1/-1"><span class="stat-label">Attachments</span><div>' + atts.map(a => '<span class="cons-badge cons-b-gray" style="margin-right:6px">' + esc(a.fileName || a.name || "file") + '</span>').join("") + '</div></div>' : "") +
-    '</div>';
+    '<div class="demand-detail-item"><span class="dd-label">Date</span><span class="dd-value">' + esc(ins.date || "-") + '</span></div>' +
+    '<div class="demand-detail-item"><span class="dd-label">Item / Asset</span><span class="dd-value">' + esc(ins.itemName || "-") + '</span></div>' +
+    '<div class="demand-detail-item"><span class="dd-label">Inspected By</span><span class="dd-value">' + esc(ins.inspectedBy || "-") + '</span></div>' +
+    '<div class="demand-detail-item"><span class="dd-label">Type</span><span class="dd-value">' + esc(typeLabel) + '</span></div>' +
+    '<div class="demand-detail-item"><span class="dd-label">Location</span><span class="dd-value">' + esc(loc ? loc.name : (ins.locationId || "-")) + '</span></div>' +
+    '<div class="demand-detail-item"><span class="dd-label">Status</span><span class="dd-value">' + esc(statusLabel) + '</span></div>' +
+    '<div class="demand-detail-item dd-full"><span class="dd-label">Findings</span><div class="dd-value" style="font-weight:normal;margin-top:4px">' + esc(ins.findings || "No findings recorded.") + '</div></div>' +
+    '<div class="demand-detail-item dd-full"><span class="dd-label">Recommendations</span><div class="dd-value" style="font-weight:normal;margin-top:4px">' + esc(ins.recommendations || "No recommendations recorded.") + '</div></div>' +
+    (atts.length ? '<div class="demand-detail-item dd-full"><span class="dd-label">Attachments</span><div style="margin-top:4px">' + atts.map(a => '<span class="cons-badge cons-b-gray" style="margin-right:6px">' + esc(a.fileName || a.name || "file") + '</span>').join("") + '</div></div>' : "");
   openModal("#inspViewModal");
 }
 function __inspData() {
