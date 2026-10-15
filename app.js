@@ -8450,19 +8450,20 @@ function __fdLocOptions(distId) {
   const opts = [`<option value="">Select location / unit</option>`];
   locs.forEach(l => {
     const cand = unitUserCandidates(distId, l.id);
-    const u = cand.users.find(x => x.id === cand.autoId) || cand.users[0];
+    const directUser = cand.users.find(x => x.locationId === l.id);
+    const u = directUser || cand.users.find(x => x.id === cand.autoId) || cand.users[0];
     const isHqAdmin = (l.id === adminLocId || l.type === "district");
 
-    // Do not show the logged-in user or their own unit
+    // Do not show the logged-in user's own location or the admin's HQ location
     if (currentUser) {
-      if (u && u.id === currentUser.id) return;
       if (myLocId && l.id === myLocId) return;
       if (currentUser.locationId && l.id === currentUser.locationId) return;
       if (isAdmin() && isHqAdmin) return;
+      if (directUser && directUser.id === currentUser.id) return;
     }
 
     const badge = isHqAdmin ? "ADMIN" : (l.type || "unit").toUpperCase();
-    const userSuffix = u ? ` — ${u.name}` : (isHqAdmin ? " (District Admin)" : "");
+    const userSuffix = directUser ? ` — ${directUser.name}` : (isHqAdmin && u ? ` — ${u.name}` : "");
     const label = `[${badge}] ${l.name}${userSuffix}`;
     opts.push(`<option value="${l.id}">${esc(label)}</option>`);
   });
@@ -8587,8 +8588,9 @@ function __fdPopulateRowItems(row) {
 
   const toLocObj = getLocationsForDistrict(toDist).find(l => l.id === toLoc);
   const cand = unitUserCandidates(toDist, toLoc);
-  const toUser = cand.users.find(x => x.id === cand.autoId) || cand.users[0];
-  const targetUserName = toUser ? toUser.name : (toLocObj ? toLocObj.name : "selected user");
+  const directUser = cand.users.find(x => x.locationId === toLoc);
+  const toUser = directUser || cand.users.find(x => x.id === cand.autoId) || cand.users[0];
+  const targetUserName = directUser ? directUser.name : (toLocObj ? toLocObj.name : "selected unit");
   const isHq = !toLocObj || toLocObj.type === "district" || toLocObj.type === "otherHq" || /hq|admin|store|line/i.test(toLocObj.name);
 
   const isCons = __fdType() === "cons";
@@ -8734,8 +8736,9 @@ function __fdUpdateRowStockInfo(row) {
   const distObj = getDistricts().find(d => d.id === toDist);
   const locObj = getLocationsForDistrict(toDist).find(l => l.id === toLoc);
   const cand = toLoc ? unitUserCandidates(toDist, toLoc) : { users: [] };
-  const toUser = cand.users.find(x => x.id === cand.autoId) || cand.users[0];
-  const targetPlace = toUser ? toUser.name : (locObj && locObj.name) || (distObj && distObj.name) || "target";
+  const directUser = cand.users.find(x => x.locationId === toLoc);
+  const toUser = directUser || cand.users.find(x => x.id === cand.autoId) || cand.users[0];
+  const targetPlace = directUser ? directUser.name : (locObj && locObj.name) || (distObj && distObj.name) || "target";
 
   if (val === "__custom__") {
     nameInp.classList.remove("hidden");
@@ -14347,8 +14350,9 @@ function __fdAvailable() {
   const dist = getDistricts().find(d => d.id === toDist);
   const loc = getLocationsForDistrict(toDist).find(l => l.id === toLoc);
   const cand = toLoc ? unitUserCandidates(toDist, toLoc) : { users: [] };
-  const toUser = cand.users.find(x => x.id === cand.autoId) || cand.users[0];
-  const place = toUser ? toUser.name : (loc && loc.name) || (dist && dist.name) || "destination";
+  const directUser = cand.users.find(x => x.locationId === toLoc);
+  const toUser = directUser || cand.users.find(x => x.id === cand.autoId) || cand.users[0];
+  const place = directUser ? directUser.name : (loc && loc.name) || (dist && dist.name) || "destination";
 
   let hasWarn = false;
   let summary = [];
