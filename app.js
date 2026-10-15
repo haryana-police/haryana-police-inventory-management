@@ -8434,21 +8434,41 @@ function __fdLocOptions(distId) {
     if (adminUser && adminUser.locationId) adminLocId = adminUser.locationId;
   }
   if (!adminLocId) adminLocId = "admin_" + distId;
-  const adminLabel = `[ADMIN] District Admin - ${distName}`;
+
+  const adminCand = unitUserCandidates(distId, adminLocId);
+  const adminU = adminCand.users.find(x => x.id === adminCand.autoId) || adminCand.users[0];
+  const adminUserSuffix = adminU ? ` — ${adminU.name}` : "";
+  const adminLabel = `[ADMIN] District Admin - ${distName}${adminUserSuffix}`;
 
   // If another district is selected, ONLY show that district's District Admin:
   if (!own) {
     return `<option value="${adminLocId}" selected>${esc(adminLabel)}</option>`;
   }
 
-  // If own district: show all locations/units under own district
+  // If own district: show all locations/units under own district, EXCLUDING current user and current user's location
+  const myLocId = (currentUser ? currentUser.locationId : null) || (typeof getVisibleLocationId === "function" ? getVisibleLocationId() : null);
   const opts = [`<option value="">Select location / unit</option>`];
   locs.forEach(l => {
+    const cand = unitUserCandidates(distId, l.id);
+    const u = cand.users.find(x => x.id === cand.autoId) || cand.users[0];
     const isHqAdmin = (l.id === adminLocId || l.type === "district");
+
+    // Do not show the logged-in user or their own unit
+    if (currentUser) {
+      if (u && u.id === currentUser.id) return;
+      if (myLocId && l.id === myLocId) return;
+      if (currentUser.locationId && l.id === currentUser.locationId) return;
+      if (isAdmin() && isHqAdmin) return;
+    }
+
     const badge = isHqAdmin ? "ADMIN" : (l.type || "unit").toUpperCase();
-    const label = `[${badge}] ${l.name}${isHqAdmin ? " (District Admin)" : ""}`;
+    const userSuffix = u ? ` — ${u.name}` : (isHqAdmin ? " (District Admin)" : "");
+    const label = `[${badge}] ${l.name}${userSuffix}`;
     opts.push(`<option value="${l.id}">${esc(label)}</option>`);
   });
+  if (opts.length === 1) {
+    opts.push(`<option value="" disabled>No other units available in this district</option>`);
+  }
   return opts.join("");
 }
 
@@ -8501,6 +8521,8 @@ function __fdCategories() {
 let __fdRowSeq = 0;
 function __fdRowHtml(key) {
   const cats = __fdCategories();
+  const toLoc = ($("#fdDemandToLocation") || {}).value || "";
+  const placeholder = toLoc ? "Select a category first..." : "Select destination unit / user first...";
   return `<div class="fd-item-row" data-key="${key}">
     <select class="fd-row-cat">
       <option value="">Category *</option>
@@ -8508,7 +8530,7 @@ function __fdRowHtml(key) {
     </select>
     <div class="fd-name-wrap">
       <select class="fd-row-item" disabled>
-        <option value="">Select a category first...</option>
+        <option value="">${placeholder}</option>
       </select>
       <input type="text" class="fd-row-name hidden" placeholder="Type custom item name..." autocomplete="off">
       <div class="fd-row-stock-info"></div>
@@ -8541,9 +8563,20 @@ function __fdPopulateRowItems(row) {
   const stockInfo = row.querySelector(".fd-row-stock-info");
   if (!catSel || !itemSel) return;
 
+  const toDist = ($("#fdDemandTo") || {}).value || (currentUser && currentUser.districtId) || activeDistrictId;
+  const toLoc = ($("#fdDemandToLocation") || {}).value || "";
   const catId = catSel.value;
-  if (nameInp) { nameInp.classList.add("hidden"); nameInp.value = ""; }
+  const prevVal = itemSel.value;
+
+  if (nameInp && prevVal !== "__custom__") { nameInp.classList.add("hidden"); nameInp.value = ""; }
   if (stockInfo) stockInfo.innerHTML = "";
+
+  if (!toLoc) {
+    itemSel.disabled = true;
+    itemSel.innerHTML = `<option value="">Select destination unit / user first...</option>`;
+    __fdUpdateRowStockInfo(row);
+    return;
+  }
 
   if (!catId) {
     itemSel.disabled = true;
@@ -8552,8 +8585,12 @@ function __fdPopulateRowItems(row) {
     return;
   }
 
-  const toDist = ($("#fdDemandTo") || {}).value || (currentUser && currentUser.districtId) || activeDistrictId;
-  const toLoc = ($("#fdDemandToLocation") || {}).value || "";
+  const toLocObj = getLocationsForDistrict(toDist).find(l => l.id === toLoc);
+  const cand = unitUserCandidates(toDist, toLoc);
+  const toUser = cand.users.find(x => x.id === cand.autoId) || cand.users[0];
+  const targetUserName = toUser ? toUser.name : (toLocObj ? toLocObj.name : "selected user");
+  const isHq = !toLocObj || toLocObj.type === "district" || toLocObj.type === "otherHq" || /hq|admin|store|line/i.test(toLocObj.name);
+
   const isCons = __fdType() === "cons";
   const cats = __fdCategories();
   const selectedCat = cats.find(c => c.id === catId);
@@ -8563,26 +8600,40 @@ function __fdPopulateRowItems(row) {
     const consMap = loadData("consumable_items") || {};
     const allCons = (Array.isArray(consMap[toDist]) ? consMap[toDist] : []).filter(i => !i.isDeleted);
     const filtered = allCons.filter(i => i.categoryId === catId || (catName && (i.categoryName || "").toLowerCase() === catName));
-    const ledger = typeof __consLedgerForDistrict === "function" ? __consLedgerForDistrict(toDist) : {};
 
-    const itemOptions = filtered.map(item => {
-      const a = ledger[item.id] || { total: 0, pending: 0, distributed: 0, lost: 0 };
-      const avail = Math.max(0, a.total - a.distributed - a.lost - a.pending);
-      return {
-        name: item.name,
-        avail: avail,
-        label: `${item.name} (Available in target: ${avail} units)`
-      };
+    const itemOptions = [];
+    filtered.forEach(item => {
+      let avail = 0;
+      if (isHq) {
+        const ledger = typeof __consLedgerForDistrict === "function" ? __consLedgerForDistrict(toDist) : {};
+        const a = ledger[item.id] || { total: 0, pending: 0, distributed: 0, lost: 0 };
+        avail = Math.max(0, a.total - a.distributed - a.lost - a.pending);
+      } else {
+        const at = typeof __consQtyAt === "function" ? __consQtyAt(item.id, "unit:" + toLoc) : { available: 0 };
+        avail = Math.max(0, at.available || 0);
+      }
+      if (avail > 0) {
+        itemOptions.push({
+          name: item.name,
+          avail: avail,
+          label: `${item.name} (In stock: ${avail} units)`
+        });
+      }
     });
+
+    itemOptions.sort((a, b) => a.name.localeCompare(b.name));
 
     itemSel.disabled = false;
     if (!itemOptions.length) {
-      itemSel.innerHTML = `<option value="">No items in target inventory for this category</option>` +
-                          `<option value="__custom__">&#10133; Type custom item name...</option>`;
+      itemSel.innerHTML = `<option value="">No items in ${esc(targetUserName)}'s inventory for this category</option>` +
+                          `<option value="__custom__">&#10133; Other / Custom item...</option>`;
     } else {
-      itemSel.innerHTML = `<option value="">Select item (${itemOptions.length} in target inventory)...</option>` +
+      itemSel.innerHTML = `<option value="">Select item (${itemOptions.length} in ${esc(targetUserName)}'s inventory)...</option>` +
         itemOptions.map(o => `<option value="${esc(o.name)}" data-avail="${o.avail}">${esc(o.label)}</option>`).join("") +
         `<option value="__custom__">&#10133; Other / Custom item...</option>`;
+    }
+    if (prevVal && (prevVal === "__custom__" || itemOptions.some(o => o.name === prevVal))) {
+      itemSel.value = prevVal;
     }
     __fdUpdateRowStockInfo(row);
     return;
@@ -8590,7 +8641,15 @@ function __fdPopulateRowItems(row) {
 
   // Stock items:
   const allStockItems = getItemsForDistrict(toDist).filter(i => !i.isDeleted);
-  const filtered = allStockItems.filter(i => i.categoryId === catId || (catName && (i.categoryName || "").toLowerCase() === catName));
+  let unitItems;
+  if (toLoc.startsWith("admin_")) {
+    const hqLoc = getLocationsForDistrict(toDist).find(l => l.type === "district") || getLocationsForDistrict(toDist)[0];
+    const hqId = hqLoc ? hqLoc.id : "";
+    unitItems = allStockItems.filter(i => i.locationId === toLoc || i.locationId === hqId);
+  } else {
+    unitItems = allStockItems.filter(i => i.locationId === toLoc);
+  }
+  const filtered = unitItems.filter(i => i.categoryId === catId || (catName && (i.categoryName || "").toLowerCase() === catName));
 
   const itemMap = new Map();
   filtered.forEach(it => {
@@ -8606,7 +8665,6 @@ function __fdPopulateRowItems(row) {
     let totalQty = 0;
     let goodQty = 0;
     let poorQty = 0;
-    let locQty = 0;
 
     entry.items.forEach(it => {
       const cc = it.conditionCounts || { good: it.quantity || 0, poor: 0, damaged: 0 };
@@ -8616,40 +8674,38 @@ function __fdPopulateRowItems(row) {
       totalQty += q;
       goodQty += g;
       poorQty += p;
-      if (toLoc && it.locationId === toLoc) {
-        locQty += q;
+    });
+
+    if (totalQty > 0) {
+      let label = `${nm} (In stock: ${totalQty}`;
+      if (goodQty > 0 || poorQty > 0) {
+        label += ` · Good: ${goodQty}, Damaged: ${poorQty}`;
       }
-    });
+      label += `)`;
 
-    let label = `${nm} (Available in target: ${totalQty}`;
-    if (goodQty > 0 || poorQty > 0) {
-      label += ` · Good: ${goodQty}, Damaged: ${poorQty}`;
+      itemOptions.push({
+        name: nm,
+        totalQty,
+        goodQty,
+        poorQty,
+        label
+      });
     }
-    if (toLoc && locQty !== totalQty) {
-      label += ` | At unit: ${locQty}`;
-    }
-    label += `)`;
-
-    itemOptions.push({
-      name: nm,
-      totalQty,
-      goodQty,
-      poorQty,
-      locQty,
-      label
-    });
   }
 
   itemOptions.sort((a, b) => a.name.localeCompare(b.name));
 
   itemSel.disabled = false;
   if (!itemOptions.length) {
-    itemSel.innerHTML = `<option value="">No items in target inventory for this category</option>` +
-                        `<option value="__custom__">&#10133; Type custom item name...</option>`;
+    itemSel.innerHTML = `<option value="">No items in ${esc(targetUserName)}'s inventory for this category</option>` +
+                        `<option value="__custom__">&#10133; Other / Custom item...</option>`;
   } else {
-    itemSel.innerHTML = `<option value="">Select item (${itemOptions.length} in target inventory)...</option>` +
+    itemSel.innerHTML = `<option value="">Select item (${itemOptions.length} in ${esc(targetUserName)}'s inventory)...</option>` +
       itemOptions.map(o => `<option value="${esc(o.name)}" data-avail="${o.totalQty}" data-good="${o.goodQty}" data-poor="${o.poorQty}">${esc(o.label)}</option>`).join("") +
       `<option value="__custom__">&#10133; Other / Custom item...</option>`;
+  }
+  if (prevVal && (prevVal === "__custom__" || itemOptions.some(o => o.name === prevVal))) {
+    itemSel.value = prevVal;
   }
   __fdUpdateRowStockInfo(row);
 }
@@ -8669,28 +8725,6 @@ function __fdUpdateRowStockInfo(row) {
     return;
   }
 
-  if (val === "__custom__") {
-    nameInp.classList.remove("hidden");
-    const customName = nameInp.value.trim();
-    if (!customName) {
-      stockInfo.innerHTML = `<span class="fd-stock-pill stock-custom">Type the required item name</span>`;
-      return;
-    }
-    const toDist = ($("#fdDemandTo") || {}).value || "";
-    const toLoc = ($("#fdDemandToLocation") || {}).value || "";
-    const isCons = __fdType() === "cons";
-    const avail = isCons ? (typeof __demandTargetConsAvail === "function" ? __demandTargetConsAvail(customName, toDist) : 0) : __demandTargetAvail(customName, (condSel || {}).value || "any", toDist, toLoc);
-    if (avail > 0) {
-      stockInfo.innerHTML = `<span class="fd-stock-pill stock-ok">📦 Found in target inventory: <b>${avail}</b> available</span>`;
-    } else {
-      stockInfo.innerHTML = `<span class="fd-stock-pill stock-custom">ℹ️ New / not currently in target inventory (0 stock)</span>`;
-    }
-    return;
-  }
-
-  nameInp.classList.add("hidden");
-  nameInp.value = val;
-
   const toDist = ($("#fdDemandTo") || {}).value || "";
   const toLoc = ($("#fdDemandToLocation") || {}).value || "";
   const isCons = __fdType() === "cons";
@@ -8699,36 +8733,52 @@ function __fdUpdateRowStockInfo(row) {
 
   const distObj = getDistricts().find(d => d.id === toDist);
   const locObj = getLocationsForDistrict(toDist).find(l => l.id === toLoc);
-  const targetPlace = (locObj && locObj.name) || (distObj && distObj.name) || "target";
+  const cand = toLoc ? unitUserCandidates(toDist, toLoc) : { users: [] };
+  const toUser = cand.users.find(x => x.id === cand.autoId) || cand.users[0];
+  const targetPlace = toUser ? toUser.name : (locObj && locObj.name) || (distObj && distObj.name) || "target";
+
+  if (val === "__custom__") {
+    nameInp.classList.remove("hidden");
+    const customName = nameInp.value.trim();
+    if (!customName) {
+      stockInfo.innerHTML = `<span class="fd-stock-pill stock-custom">Type the required item name</span>`;
+      return;
+    }
+    const avail = isCons ? (typeof __demandTargetConsAvail === "function" ? __demandTargetConsAvail(customName, toDist, toLoc) : 0) : __demandTargetAvail(customName, (condSel || {}).value || "any", toDist, toLoc);
+    if (avail > 0) {
+      stockInfo.innerHTML = `<span class="fd-stock-pill stock-ok">📦 In stock with ${esc(targetPlace)}: <b>${avail}</b> available</span>`;
+    } else {
+      stockInfo.innerHTML = `<span class="fd-stock-pill stock-custom">ℹ️ New / not in ${esc(targetPlace)}'s inventory (0 stock)</span>`;
+    }
+    return;
+  }
+
+  nameInp.classList.add("hidden");
+  nameInp.value = val;
 
   if (isCons) {
-    const avail = typeof __demandTargetConsAvail === "function" ? __demandTargetConsAvail(val, toDist) : 0;
+    const avail = typeof __demandTargetConsAvail === "function" ? __demandTargetConsAvail(val, toDist, toLoc) : 0;
     if (avail === 0) {
-      stockInfo.innerHTML = `<span class="fd-stock-pill stock-empty">⚠️ Target Inventory: <b>0 units</b> in stock at ${esc(targetPlace)}</span>`;
+      stockInfo.innerHTML = `<span class="fd-stock-pill stock-empty">⚠️ <b>0 units</b> in stock with ${esc(targetPlace)}</span>`;
     } else if (reqQty > avail) {
-      stockInfo.innerHTML = `<span class="fd-stock-pill stock-warn">⚠️ Target Inventory: <b>${avail}</b> available &middot; Requested <b>${reqQty}</b> exceeds stock</span>`;
+      stockInfo.innerHTML = `<span class="fd-stock-pill stock-warn">⚠️ In stock with ${esc(targetPlace)}: <b>${avail}</b> available &middot; Requested <b>${reqQty}</b> exceeds stock</span>`;
     } else {
-      stockInfo.innerHTML = `<span class="fd-stock-pill stock-ok">📦 Target Inventory: <b>${avail}</b> units available</span>`;
+      stockInfo.innerHTML = `<span class="fd-stock-pill stock-ok">📦 In stock with ${esc(targetPlace)}: <b>${avail}</b> units available</span>`;
     }
     return;
   }
 
   // Stock item:
   const avail = __demandTargetAvail(val, cond, toDist, toLoc);
-  const totalDistAvail = __demandTargetAvail(val, "any", toDist, "");
   const goodAvail = __demandTargetAvail(val, "good", toDist, toLoc);
   const poorAvail = __demandTargetAvail(val, "poor", toDist, toLoc);
 
   if (avail === 0) {
-    if (totalDistAvail > 0 && toLoc) {
-      stockInfo.innerHTML = `<span class="fd-stock-pill stock-warn">⚠️ 0 at selected unit, but <b>${totalDistAvail}</b> available across ${esc(distObj ? distObj.name : "district")}</span>`;
-    } else {
-      stockInfo.innerHTML = `<span class="fd-stock-pill stock-empty">⚠️ Target Inventory: <b>0 in stock</b> at ${esc(targetPlace)}</span>`;
-    }
+    stockInfo.innerHTML = `<span class="fd-stock-pill stock-empty">⚠️ <b>0 in stock</b> with ${esc(targetPlace)}</span>`;
   } else if (reqQty > avail) {
-    stockInfo.innerHTML = `<span class="fd-stock-pill stock-warn">⚠️ Target Inventory: <b>${avail}</b> available (Good: ${goodAvail}, Damaged: ${poorAvail}) &middot; Requested <b>${reqQty}</b> exceeds stock</span>`;
+    stockInfo.innerHTML = `<span class="fd-stock-pill stock-warn">⚠️ In stock with ${esc(targetPlace)}: <b>${avail}</b> available (Good: ${goodAvail}, Damaged: ${poorAvail}) &middot; Requested <b>${reqQty}</b> exceeds stock</span>`;
   } else {
-    stockInfo.innerHTML = `<span class="fd-stock-pill stock-ok">📦 Target Inventory: <b>${avail}</b> available (Good: ${goodAvail}, Damaged: ${poorAvail})</span>`;
+    stockInfo.innerHTML = `<span class="fd-stock-pill stock-ok">📦 In stock with ${esc(targetPlace)}: <b>${avail}</b> available (Good: ${goodAvail}, Damaged: ${poorAvail})</span>`;
   }
 }
 
@@ -8755,8 +8805,12 @@ function __fdSuggest(inputEl) {
   const catId = row ? row.querySelector(".fd-row-cat").value : "";
   const val = inputEl.value.trim().toLowerCase();
   const toDist = ($("#fdDemandTo") || {}).value || activeDistrictId;
+  const toLoc = ($("#fdDemandToLocation") || {}).value || "";
   const names = [];
-  (__fdType() === "cons" ? ((loadData("consumable_items") || {})[toDist] || []) : getItemsForDistrict(toDist)).forEach(i => { if (!catId || i.categoryId === catId) names.push(i.name); });
+  const pool = __fdType() === "cons"
+    ? ((loadData("consumable_items") || {})[toDist] || [])
+    : getItemsForDistrict(toDist).filter(i => !i.isDeleted && (!toLoc || i.locationId === toLoc));
+  pool.forEach(i => { if (!catId || i.categoryId === catId) names.push(i.name); });
   __allVisibleDemands().forEach(d => __demandItems(d).forEach(it => { if (!catId || it.categoryId === catId) names.push(it.itemName); }));
   const uniq = [...new Set(names)].filter(n => !val || n.toLowerCase().includes(val)).slice(0, 30);
   if (!uniq.length) { menu.classList.add("hidden"); return; }
@@ -8806,8 +8860,8 @@ async function saveDemand(e) {
     const cat = cats.find(c => c.id === catId);
     if (!name && !qty) return;
     if (!name || !catId || qty <= 0) { bad = true; return; }
-    const avail = consMode ? (typeof __demandTargetConsAvail === "function" ? __demandTargetConsAvail(name, demandToDistrict) : 999999) : __demandTargetAvail(name, cond, demandToDistrict, demandToLocation);
-    if (avail < qty) warn += `"${name}" → requested ${qty}, only ${avail} available at destination.\n`;
+    const avail = consMode ? (typeof __demandTargetConsAvail === "function" ? __demandTargetConsAvail(name, demandToDistrict, demandToLocation) : 999999) : __demandTargetAvail(name, cond, demandToDistrict, demandToLocation);
+    if (avail < qty) warn += `"${name}" → requested ${qty}, only ${avail} available with destination.\n`;
     demandItems.push({
       key: "i" + i,
       itemType: consMode ? "cons" : "stock",
@@ -12877,7 +12931,7 @@ $("#inspSearch")?.addEventListener("input", renderInspections);
   $("#fdDemandToLocation")?.addEventListener("change", function() {
     __fdAssigneeInfo();
     const rows = document.querySelectorAll("#fdItemsBody .fd-item-row");
-    rows.forEach(r => __fdUpdateRowStockInfo(r));
+    rows.forEach(r => __fdPopulateRowItems(r));
     if (typeof __fdAvailable === "function") __fdAvailable();
   });
   $("#demandForm").addEventListener("submit", saveDemand);
@@ -14219,9 +14273,13 @@ function __demandTargetAvail(itemName, condition, distId, locId) {
   if (!itemName || !distId) return 0;
   let allDistItems = getItemsForDistrict(distId).filter(i => !i.isDeleted && i.name.toLowerCase() === String(itemName).toLowerCase());
   let items = allDistItems;
-  if (locId && !locId.startsWith("admin_")) {
-    const atLoc = allDistItems.filter(i => i.locationId === locId);
-    if (atLoc.length > 0) items = atLoc;
+  if (locId) {
+    let targetLoc = locId;
+    if (locId.startsWith("admin_")) {
+      const hq = getLocationsForDistrict(distId).find(l => l.type === "district") || getLocationsForDistrict(distId)[0];
+      if (hq) targetLoc = hq.id;
+    }
+    items = allDistItems.filter(i => i.locationId === targetLoc);
   }
   let avail = 0;
   items.forEach(i => {
@@ -14249,15 +14307,29 @@ function __consLedgerForDistrict(distId) {
   return m;
 }
 
-function __demandTargetConsAvail(itemName, distId) {
+function __demandTargetConsAvail(itemName, distId, locId) {
   if (!itemName || !distId) return 0;
   const consMap = loadData("consumable_items") || {};
   const allCons = (Array.isArray(consMap[distId]) ? consMap[distId] : []).filter(i => !i.isDeleted);
   const ci = allCons.find(i => i.name.toLowerCase() === String(itemName).toLowerCase());
   if (!ci) return 0;
-  const ledger = __consLedgerForDistrict(distId);
-  const a = ledger[ci.id] || { total: 0, pending: 0, distributed: 0, lost: 0 };
-  return Math.max(0, a.total - a.distributed - a.lost - a.pending);
+  if (!locId) {
+    const ledger = __consLedgerForDistrict(distId);
+    const a = ledger[ci.id] || { total: 0, pending: 0, distributed: 0, lost: 0 };
+    return Math.max(0, a.total - a.distributed - a.lost - a.pending);
+  }
+  const locObj = getLocationsForDistrict(distId).find(l => l.id === locId);
+  const isHq = !locObj || locObj.type === "district" || locObj.type === "otherHq" || /hq|admin|store|line/i.test(locObj.name);
+  if (isHq) {
+    const ledger = __consLedgerForDistrict(distId);
+    const a = ledger[ci.id] || { total: 0, pending: 0, distributed: 0, lost: 0 };
+    return Math.max(0, a.total - a.distributed - a.lost - a.pending);
+  }
+  if (typeof __consQtyAt === "function") {
+    const at = __consQtyAt(ci.id, "unit:" + locId);
+    return Math.max(0, at.available || 0);
+  }
+  return 0;
 }
 
 function __fdAvailable() {
@@ -14274,7 +14346,9 @@ function __fdAvailable() {
 
   const dist = getDistricts().find(d => d.id === toDist);
   const loc = getLocationsForDistrict(toDist).find(l => l.id === toLoc);
-  const place = (loc && loc.name) || (dist && dist.name) || "destination";
+  const cand = toLoc ? unitUserCandidates(toDist, toLoc) : { users: [] };
+  const toUser = cand.users.find(x => x.id === cand.autoId) || cand.users[0];
+  const place = toUser ? toUser.name : (loc && loc.name) || (dist && dist.name) || "destination";
 
   let hasWarn = false;
   let summary = [];
@@ -14286,13 +14360,13 @@ function __fdAvailable() {
     const cond = (r.querySelector(".fd-row-cond") || {}).value || "any";
     const qty = parseInt((r.querySelector(".fd-row-qty") || {}).value, 10) || 1;
     const isCons = __fdType() === "cons";
-    const avail = isCons ? __demandTargetConsAvail(name, toDist) : __demandTargetAvail(name, cond, toDist, toLoc);
+    const avail = isCons ? __demandTargetConsAvail(name, toDist, toLoc) : __demandTargetAvail(name, cond, toDist, toLoc);
     if (avail === 0) {
       hasWarn = true;
-      summary.push(`<b>${esc(name)}</b>: 0 available at ${esc(place)}`);
+      summary.push(`<b>${esc(name)}</b>: 0 available with ${esc(place)}`);
     } else if (qty > avail) {
       hasWarn = true;
-      summary.push(`<b>${esc(name)}</b>: requested ${qty} exceeds ${avail} in stock`);
+      summary.push(`<b>${esc(name)}</b>: requested ${qty} exceeds ${avail} in stock with ${esc(place)}`);
     }
   });
 
