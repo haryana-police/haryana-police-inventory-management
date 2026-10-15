@@ -8485,20 +8485,40 @@ function openDemandModal() {
     addFdRow();
   }
   openModal("#demandModal");
-  setTimeout(() => { const n = body ? body.querySelector(".fd-row-name") : null; if (n) n.focus(); }, 60);
+  setTimeout(() => { const n = body ? body.querySelector(".fd-row-cat") : null; if (n) n.focus(); }, 60);
+}
+
+function __fdCategories() {
+  const toDist = ($("#fdDemandTo") || {}).value || (currentUser && currentUser.districtId) || activeDistrictId;
+  const isCons = __fdType() === "cons";
+  let cats = isCons ? getConsCategoriesForDistrict(toDist) : getCategoriesForDistrict(toDist);
+  if (!cats || !cats.length) {
+    cats = isCons ? getConsCats() : getCategories();
+  }
+  return cats || [];
 }
 
 let __fdRowSeq = 0;
 function __fdRowHtml(key) {
-  const cats = __fdType() === "cons" ? getConsCats() : getCategories();
+  const cats = __fdCategories();
   return `<div class="fd-item-row" data-key="${key}">
-    <select class="fd-row-cat"><option value="">Category *</option>${cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select>
+    <select class="fd-row-cat">
+      <option value="">Category *</option>
+      ${cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}
+    </select>
     <div class="fd-name-wrap">
-      <input type="text" class="fd-row-name" placeholder="Type item name..." autocomplete="off">
-      <div class="fd-suggest hidden"></div>
+      <select class="fd-row-item" disabled>
+        <option value="">Select a category first...</option>
+      </select>
+      <input type="text" class="fd-row-name hidden" placeholder="Type custom item name..." autocomplete="off">
+      <div class="fd-row-stock-info"></div>
     </div>
-    <input type="number" class="fd-row-qty" min="1" value="1">
-    <select class="fd-row-cond"><option value="any">Any</option><option value="good">Good</option><option value="poor">Damaged</option></select>
+    <input type="number" class="fd-row-qty" min="1" value="1" title="Requested Quantity">
+    <select class="fd-row-cond" title="Condition preference">
+      <option value="any">Any Condition</option>
+      <option value="good">Good</option>
+      <option value="poor">Damaged</option>
+    </select>
     <button type="button" class="fd-row-remove" data-action="fd-row-remove" title="Remove item">&times;</button>
   </div>`;
 }
@@ -8507,17 +8527,236 @@ function addFdRow() {
   const body = $("#fdItemsBody");
   if (!body) return;
   body.insertAdjacentHTML("beforeend", __fdRowHtml("k" + (++__fdRowSeq)));
+  const newRow = body.querySelector(`.fd-item-row[data-key="k${__fdRowSeq}"]`);
+  if (newRow) {
+    __fdPopulateRowItems(newRow);
+  }
+}
+
+function __fdPopulateRowItems(row) {
+  if (!row) return;
+  const catSel = row.querySelector(".fd-row-cat");
+  const itemSel = row.querySelector(".fd-row-item");
+  const nameInp = row.querySelector(".fd-row-name");
+  const stockInfo = row.querySelector(".fd-row-stock-info");
+  if (!catSel || !itemSel) return;
+
+  const catId = catSel.value;
+  if (nameInp) { nameInp.classList.add("hidden"); nameInp.value = ""; }
+  if (stockInfo) stockInfo.innerHTML = "";
+
+  if (!catId) {
+    itemSel.disabled = true;
+    itemSel.innerHTML = `<option value="">Select a category first...</option>`;
+    __fdUpdateRowStockInfo(row);
+    return;
+  }
+
+  const toDist = ($("#fdDemandTo") || {}).value || (currentUser && currentUser.districtId) || activeDistrictId;
+  const toLoc = ($("#fdDemandToLocation") || {}).value || "";
+  const isCons = __fdType() === "cons";
+  const cats = __fdCategories();
+  const selectedCat = cats.find(c => c.id === catId);
+  const catName = selectedCat ? selectedCat.name.toLowerCase() : "";
+
+  if (isCons) {
+    const consMap = loadData("consumable_items") || {};
+    const allCons = (Array.isArray(consMap[toDist]) ? consMap[toDist] : []).filter(i => !i.isDeleted);
+    const filtered = allCons.filter(i => i.categoryId === catId || (catName && (i.categoryName || "").toLowerCase() === catName));
+    const ledger = typeof __consLedgerForDistrict === "function" ? __consLedgerForDistrict(toDist) : {};
+
+    const itemOptions = filtered.map(item => {
+      const a = ledger[item.id] || { total: 0, pending: 0, distributed: 0, lost: 0 };
+      const avail = Math.max(0, a.total - a.distributed - a.lost - a.pending);
+      return {
+        name: item.name,
+        avail: avail,
+        label: `${item.name} (Available in target: ${avail} units)`
+      };
+    });
+
+    itemSel.disabled = false;
+    if (!itemOptions.length) {
+      itemSel.innerHTML = `<option value="">No items in target inventory for this category</option>` +
+                          `<option value="__custom__">&#10133; Type custom item name...</option>`;
+    } else {
+      itemSel.innerHTML = `<option value="">Select item (${itemOptions.length} in target inventory)...</option>` +
+        itemOptions.map(o => `<option value="${esc(o.name)}" data-avail="${o.avail}">${esc(o.label)}</option>`).join("") +
+        `<option value="__custom__">&#10133; Other / Custom item...</option>`;
+    }
+    __fdUpdateRowStockInfo(row);
+    return;
+  }
+
+  // Stock items:
+  const allStockItems = getItemsForDistrict(toDist).filter(i => !i.isDeleted);
+  const filtered = allStockItems.filter(i => i.categoryId === catId || (catName && (i.categoryName || "").toLowerCase() === catName));
+
+  const itemMap = new Map();
+  filtered.forEach(it => {
+    const nm = it.name.trim();
+    if (!itemMap.has(nm)) {
+      itemMap.set(nm, { name: nm, items: [] });
+    }
+    itemMap.get(nm).items.push(it);
+  });
+
+  const itemOptions = [];
+  for (const [nm, entry] of itemMap.entries()) {
+    let totalQty = 0;
+    let goodQty = 0;
+    let poorQty = 0;
+    let locQty = 0;
+
+    entry.items.forEach(it => {
+      const cc = it.conditionCounts || { good: it.quantity || 0, poor: 0, damaged: 0 };
+      const g = Number(cc.good) || 0;
+      const p = (Number(cc.poor) || 0) + (Number(cc.damaged) || 0);
+      const q = Number(it.quantity) || (g + p);
+      totalQty += q;
+      goodQty += g;
+      poorQty += p;
+      if (toLoc && it.locationId === toLoc) {
+        locQty += q;
+      }
+    });
+
+    let label = `${nm} (Available in target: ${totalQty}`;
+    if (goodQty > 0 || poorQty > 0) {
+      label += ` · Good: ${goodQty}, Damaged: ${poorQty}`;
+    }
+    if (toLoc && locQty !== totalQty) {
+      label += ` | At unit: ${locQty}`;
+    }
+    label += `)`;
+
+    itemOptions.push({
+      name: nm,
+      totalQty,
+      goodQty,
+      poorQty,
+      locQty,
+      label
+    });
+  }
+
+  itemOptions.sort((a, b) => a.name.localeCompare(b.name));
+
+  itemSel.disabled = false;
+  if (!itemOptions.length) {
+    itemSel.innerHTML = `<option value="">No items in target inventory for this category</option>` +
+                        `<option value="__custom__">&#10133; Type custom item name...</option>`;
+  } else {
+    itemSel.innerHTML = `<option value="">Select item (${itemOptions.length} in target inventory)...</option>` +
+      itemOptions.map(o => `<option value="${esc(o.name)}" data-avail="${o.totalQty}" data-good="${o.goodQty}" data-poor="${o.poorQty}">${esc(o.label)}</option>`).join("") +
+      `<option value="__custom__">&#10133; Other / Custom item...</option>`;
+  }
+  __fdUpdateRowStockInfo(row);
+}
+
+function __fdUpdateRowStockInfo(row) {
+  if (!row) return;
+  const itemSel = row.querySelector(".fd-row-item");
+  const nameInp = row.querySelector(".fd-row-name");
+  const stockInfo = row.querySelector(".fd-row-stock-info");
+  const qtyInp = row.querySelector(".fd-row-qty");
+  const condSel = row.querySelector(".fd-row-cond");
+  if (!stockInfo) return;
+
+  const val = itemSel ? itemSel.value : "";
+  if (!val) {
+    stockInfo.innerHTML = "";
+    return;
+  }
+
+  if (val === "__custom__") {
+    nameInp.classList.remove("hidden");
+    const customName = nameInp.value.trim();
+    if (!customName) {
+      stockInfo.innerHTML = `<span class="fd-stock-pill stock-custom">Type the required item name</span>`;
+      return;
+    }
+    const toDist = ($("#fdDemandTo") || {}).value || "";
+    const toLoc = ($("#fdDemandToLocation") || {}).value || "";
+    const isCons = __fdType() === "cons";
+    const avail = isCons ? (typeof __demandTargetConsAvail === "function" ? __demandTargetConsAvail(customName, toDist) : 0) : __demandTargetAvail(customName, (condSel || {}).value || "any", toDist, toLoc);
+    if (avail > 0) {
+      stockInfo.innerHTML = `<span class="fd-stock-pill stock-ok">📦 Found in target inventory: <b>${avail}</b> available</span>`;
+    } else {
+      stockInfo.innerHTML = `<span class="fd-stock-pill stock-custom">ℹ️ New / not currently in target inventory (0 stock)</span>`;
+    }
+    return;
+  }
+
+  nameInp.classList.add("hidden");
+  nameInp.value = val;
+
+  const toDist = ($("#fdDemandTo") || {}).value || "";
+  const toLoc = ($("#fdDemandToLocation") || {}).value || "";
+  const isCons = __fdType() === "cons";
+  const reqQty = parseInt((qtyInp || {}).value, 10) || 1;
+  const cond = (condSel || {}).value || "any";
+
+  const distObj = getDistricts().find(d => d.id === toDist);
+  const locObj = getLocationsForDistrict(toDist).find(l => l.id === toLoc);
+  const targetPlace = (locObj && locObj.name) || (distObj && distObj.name) || "target";
+
+  if (isCons) {
+    const avail = typeof __demandTargetConsAvail === "function" ? __demandTargetConsAvail(val, toDist) : 0;
+    if (avail === 0) {
+      stockInfo.innerHTML = `<span class="fd-stock-pill stock-empty">⚠️ Target Inventory: <b>0 units</b> in stock at ${esc(targetPlace)}</span>`;
+    } else if (reqQty > avail) {
+      stockInfo.innerHTML = `<span class="fd-stock-pill stock-warn">⚠️ Target Inventory: <b>${avail}</b> available &middot; Requested <b>${reqQty}</b> exceeds stock</span>`;
+    } else {
+      stockInfo.innerHTML = `<span class="fd-stock-pill stock-ok">📦 Target Inventory: <b>${avail}</b> units available</span>`;
+    }
+    return;
+  }
+
+  // Stock item:
+  const avail = __demandTargetAvail(val, cond, toDist, toLoc);
+  const totalDistAvail = __demandTargetAvail(val, "any", toDist, "");
+  const goodAvail = __demandTargetAvail(val, "good", toDist, toLoc);
+  const poorAvail = __demandTargetAvail(val, "poor", toDist, toLoc);
+
+  if (avail === 0) {
+    if (totalDistAvail > 0 && toLoc) {
+      stockInfo.innerHTML = `<span class="fd-stock-pill stock-warn">⚠️ 0 at selected unit, but <b>${totalDistAvail}</b> available across ${esc(distObj ? distObj.name : "district")}</span>`;
+    } else {
+      stockInfo.innerHTML = `<span class="fd-stock-pill stock-empty">⚠️ Target Inventory: <b>0 in stock</b> at ${esc(targetPlace)}</span>`;
+    }
+  } else if (reqQty > avail) {
+    stockInfo.innerHTML = `<span class="fd-stock-pill stock-warn">⚠️ Target Inventory: <b>${avail}</b> available (Good: ${goodAvail}, Damaged: ${poorAvail}) &middot; Requested <b>${reqQty}</b> exceeds stock</span>`;
+  } else {
+    stockInfo.innerHTML = `<span class="fd-stock-pill stock-ok">📦 Target Inventory: <b>${avail}</b> available (Good: ${goodAvail}, Damaged: ${poorAvail})</span>`;
+  }
+}
+
+function __fdRefreshAllRows() {
+  const body = $("#fdItemsBody");
+  if (!body) return;
+  const cats = __fdCategories();
+  body.querySelectorAll(".fd-item-row").forEach(row => {
+    const catSel = row.querySelector(".fd-row-cat");
+    if (!catSel) return;
+    const curVal = catSel.value;
+    catSel.innerHTML = `<option value="">Category *</option>` +
+      cats.map(c => `<option value="${c.id}" ${c.id === curVal ? "selected" : ""}>${esc(c.name)}</option>`).join("");
+    __fdPopulateRowItems(row);
+  });
 }
 
 function __fdSuggest(inputEl) {
   const wrap = inputEl.closest(".fd-name-wrap");
   if (!wrap) return;
   const menu = wrap.querySelector(".fd-suggest");
+  if (!menu) return;
   const row = wrap.closest(".fd-item-row");
   const catId = row ? row.querySelector(".fd-row-cat").value : "";
   const val = inputEl.value.trim().toLowerCase();
+  const toDist = ($("#fdDemandTo") || {}).value || activeDistrictId;
   const names = [];
-  (__fdType() === "cons" ? getConsItems() : getItems()).forEach(i => { if (!catId || i.categoryId === catId) names.push(i.name); });
+  (__fdType() === "cons" ? ((loadData("consumable_items") || {})[toDist] || []) : getItemsForDistrict(toDist)).forEach(i => { if (!catId || i.categoryId === catId) names.push(i.name); });
   __allVisibleDemands().forEach(d => __demandItems(d).forEach(it => { if (!catId || it.categoryId === catId) names.push(it.itemName); }));
   const uniq = [...new Set(names)].filter(n => !val || n.toLowerCase().includes(val)).slice(0, 30);
   if (!uniq.length) { menu.classList.add("hidden"); return; }
@@ -8554,14 +8793,21 @@ async function saveDemand(e) {
   let bad = false;
   rows.forEach((r, i) => {
     const catId = r.querySelector(".fd-row-cat").value;
-    const name = r.querySelector(".fd-row-name").value.trim();
+    const itemSel = r.querySelector(".fd-row-item");
+    const newNameInp = r.querySelector(".fd-row-name");
+    let name = "";
+    if (itemSel && itemSel.value && itemSel.value !== "__custom__") {
+      name = itemSel.value.trim();
+    } else if (newNameInp) {
+      name = newNameInp.value.trim();
+    }
     const qty = parseInt(r.querySelector(".fd-row-qty").value, 10) || 0;
     const cond = r.querySelector(".fd-row-cond").value;
     const cat = cats.find(c => c.id === catId);
     if (!name && !qty) return;
     if (!name || !catId || qty <= 0) { bad = true; return; }
-    const avail = consMode ? 999999 : __demandTargetAvail(name, cond, demandToDistrict, demandToLocation);
-    if (avail < qty) warn += `"${name}" ? requested ${qty}, only ${avail} available at destination.\n`;
+    const avail = consMode ? (typeof __demandTargetConsAvail === "function" ? __demandTargetConsAvail(name, demandToDistrict) : 999999) : __demandTargetAvail(name, cond, demandToDistrict, demandToLocation);
+    if (avail < qty) warn += `"${name}" → requested ${qty}, only ${avail} available at destination.\n`;
     demandItems.push({
       key: "i" + i,
       itemType: consMode ? "cons" : "stock",
@@ -12543,29 +12789,58 @@ $("#inspSearch")?.addEventListener("input", renderInspections);
 
   $("#alTypeStock")?.addEventListener("change", () => { if (!$("#alTypeStock").checked) { $("#alTypeStock").checked = true; return; } $("#alTypeCons").checked = false; __alItemRows = []; const __c = $("#alItems"); if (__c) __c.innerHTML = ""; addAllotItemRow(); });
   $("#alTypeCons")?.addEventListener("change", () => { if (!$("#alTypeCons").checked) { $("#alTypeStock").checked = true; return; } $("#alTypeStock").checked = false; __alItemRows = []; const __c = $("#alItems"); if (__c) __c.innerHTML = ""; addAllotItemRow(); });
-  $("#fdTypeStock")?.addEventListener("change", () => { if (!$("#fdTypeStock").checked) { $("#fdTypeStock").checked = true; return; } $("#fdTypeCons").checked = false; const __b = $("#fdItemsBody"); if (__b) { __b.innerHTML = ""; addFdRow(); } });
-  $("#fdTypeCons")?.addEventListener("change", () => { if (!$("#fdTypeCons").checked) { $("#fdTypeStock").checked = true; return; } $("#fdTypeStock").checked = false; const __b = $("#fdItemsBody"); if (__b) { __b.innerHTML = ""; addFdRow(); } });
+  $("#fdTypeStock")?.addEventListener("change", () => { if (!$("#fdTypeStock").checked) { $("#fdTypeStock").checked = true; return; } $("#fdTypeCons").checked = false; const __b = $("#fdItemsBody"); if (__b) { __b.innerHTML = ""; addFdRow(); } if (typeof __fdAvailable === "function") __fdAvailable(); });
+  $("#fdTypeCons")?.addEventListener("change", () => { if (!$("#fdTypeCons").checked) { $("#fdTypeStock").checked = true; return; } $("#fdTypeStock").checked = false; const __b = $("#fdItemsBody"); if (__b) { __b.innerHTML = ""; addFdRow(); } if (typeof __fdAvailable === "function") __fdAvailable(); });
   $("#raiseDemandBtn").addEventListener("click", openDemandModal);
   $("#fdAddItemBtn")?.addEventListener("click", addFdRow);
   $("#fdItemsBody")?.addEventListener("click", e => {
     const rm = e.target.closest(".fd-row-remove");
-    if (rm) { const row = rm.closest(".fd-item-row"); if (row) row.remove(); return; }
+    if (rm) {
+      const row = rm.closest(".fd-item-row");
+      if (row) row.remove();
+      if (typeof __fdAvailable === "function") __fdAvailable();
+      return;
+    }
     const sug = e.target.closest(".fd-suggest-item");
-    if (sug) { const wrap = sug.closest(".fd-name-wrap"); if (wrap) { wrap.querySelector(".fd-row-name").value = sug.dataset.name; wrap.querySelector(".fd-suggest").classList.add("hidden"); } return; }
+    if (sug) {
+      const wrap = sug.closest(".fd-name-wrap");
+      if (wrap) {
+        wrap.querySelector(".fd-row-name").value = sug.dataset.name;
+        wrap.querySelector(".fd-suggest").classList.add("hidden");
+        const row = wrap.closest(".fd-item-row");
+        if (row) __fdUpdateRowStockInfo(row);
+        if (typeof __fdAvailable === "function") __fdAvailable();
+      }
+      return;
+    }
   });
-  ["change", "input"].forEach(evt => {
-    $("#fdItemsBody")?.addEventListener(evt, e => {
-      const row = e.target.closest(".fd-item-row");
-      if (!row) return;
-      if (e.target.classList.contains("fd-row-name")) {
-        __fdSuggest(e.target);
-        return;
-      }
-      if (e.target.classList.contains("fd-row-cat")) {
-        const inp = row.querySelector(".fd-row-name");
-        if (inp) { inp.value = ""; __fdSuggest(inp); }
-      }
-    });
+  $("#fdItemsBody")?.addEventListener("change", e => {
+    const row = e.target.closest(".fd-item-row");
+    if (!row) return;
+    if (e.target.classList.contains("fd-row-cat")) {
+      __fdPopulateRowItems(row);
+      if (typeof __fdAvailable === "function") __fdAvailable();
+      return;
+    }
+    if (e.target.classList.contains("fd-row-item")) {
+      __fdUpdateRowStockInfo(row);
+      if (typeof __fdAvailable === "function") __fdAvailable();
+      return;
+    }
+    if (e.target.classList.contains("fd-row-cond") || e.target.classList.contains("fd-row-qty")) {
+      __fdUpdateRowStockInfo(row);
+      if (typeof __fdAvailable === "function") __fdAvailable();
+      return;
+    }
+  });
+  $("#fdItemsBody")?.addEventListener("input", e => {
+    const row = e.target.closest(".fd-item-row");
+    if (!row) return;
+    if (e.target.classList.contains("fd-row-name") || e.target.classList.contains("fd-row-qty")) {
+      __fdUpdateRowStockInfo(row);
+      if (typeof __fdAvailable === "function") __fdAvailable();
+      return;
+    }
   });
   $("#fdItemsBody")?.addEventListener("keydown", e => {
     if (e.key === "Escape") {
@@ -12578,7 +12853,7 @@ $("#inspSearch")?.addEventListener("input", renderInspections);
   });
   $("#fdItemsBody")?.addEventListener("focusout", e => {
     if (e.target.classList.contains("fd-row-name")) {
-      const menu = e.target.closest(".fd-name-wrap").querySelector(".fd-suggest");
+      const menu = e.target.closest(".fd-name-wrap") ? e.target.closest(".fd-name-wrap").querySelector(".fd-suggest") : null;
       setTimeout(() => { if (menu && !menu.contains(document.activeElement)) menu.classList.add("hidden"); }, 150);
     }
   });
@@ -12589,16 +12864,20 @@ $("#inspSearch")?.addEventListener("input", renderInspections);
       locSel.innerHTML = `<option value="">Select location / unit</option>`;
       locSel.disabled = true;
       __fdAssigneeInfo();
+      __fdRefreshAllRows();
       if (typeof __fdAvailable === "function") __fdAvailable();
       return;
     }
     locSel.innerHTML = __fdLocOptions(distId);
     locSel.disabled = false;
     __fdAssigneeInfo();
+    __fdRefreshAllRows();
     if (typeof __fdAvailable === "function") __fdAvailable();
   });
   $("#fdDemandToLocation")?.addEventListener("change", function() {
     __fdAssigneeInfo();
+    const rows = document.querySelectorAll("#fdItemsBody .fd-item-row");
+    rows.forEach(r => __fdUpdateRowStockInfo(r));
     if (typeof __fdAvailable === "function") __fdAvailable();
   });
   $("#demandForm").addEventListener("submit", saveDemand);
@@ -13938,39 +14217,91 @@ function renderCharts() {
 /* ==================== DEMAND AVAILABILITY CHECK ==================== */
 function __demandTargetAvail(itemName, condition, distId, locId) {
   if (!itemName || !distId) return 0;
-  let items = getItemsForDistrict(distId).filter(i => i.name.toLowerCase() === String(itemName).toLowerCase());
-  if (locId) items = items.filter(i => i.locationId === locId);
+  let allDistItems = getItemsForDistrict(distId).filter(i => !i.isDeleted && i.name.toLowerCase() === String(itemName).toLowerCase());
+  let items = allDistItems;
+  if (locId && !locId.startsWith("admin_")) {
+    const atLoc = allDistItems.filter(i => i.locationId === locId);
+    if (atLoc.length > 0) items = atLoc;
+  }
   let avail = 0;
   items.forEach(i => {
     const cc = i.conditionCounts || { good: i.quantity, poor: 0, damaged: 0 };
-    if (condition === "good" || condition === "poor" || condition === "damaged") avail += cc[condition] || 0;
+    if (condition === "good" || condition === "poor" || condition === "damaged") avail += Number(cc[condition]) || 0;
     else avail += Number(i.quantity) || 0;
   });
   return avail;
 }
 
+function __consLedgerForDistrict(distId) {
+  if (!distId) return {};
+  const txns = (loadData("consumable_txns") || {})[distId] || [];
+  const m = {};
+  for (const t of txns) {
+    if (!t || !t.itemId) continue;
+    const q = Math.max(0, Math.floor(Number(t.qty) || 0));
+    const a = (m[t.itemId] = m[t.itemId] || { total: 0, pending: 0, distributed: 0, lost: 0 });
+    if (t.type === "ADD") a.total += q;
+    else if (t.type === "DISTRIBUTION_REQUEST") a.pending += q;
+    else if (t.type === "DISTRIBUTION_APPROVED") { a.pending -= q; a.distributed += q; }
+    else if (t.type === "DISTRIBUTION_REJECTED") a.pending -= q;
+    else if (t.type === "LOSS") a.lost += q;
+  }
+  return m;
+}
+
+function __demandTargetConsAvail(itemName, distId) {
+  if (!itemName || !distId) return 0;
+  const consMap = loadData("consumable_items") || {};
+  const allCons = (Array.isArray(consMap[distId]) ? consMap[distId] : []).filter(i => !i.isDeleted);
+  const ci = allCons.find(i => i.name.toLowerCase() === String(itemName).toLowerCase());
+  if (!ci) return 0;
+  const ledger = __consLedgerForDistrict(distId);
+  const a = ledger[ci.id] || { total: 0, pending: 0, distributed: 0, lost: 0 };
+  return Math.max(0, a.total - a.distributed - a.lost - a.pending);
+}
+
 function __fdAvailable() {
   const el = $("#fdAvailability");
   if (!el) return;
-  const itemName = ($("#fdItemsBody") && $("#fdItemsBody").querySelector(".fd-row-name") ? $("#fdItemsBody").querySelector(".fd-row-name").value.trim() : "");
+  const body = $("#fdItemsBody");
+  if (!body) { el.innerHTML = ""; el.className = "fd-avail"; return; }
+  const rows = Array.from(body.querySelectorAll(".fd-item-row"));
+  if (!rows.length) { el.innerHTML = ""; el.className = "fd-avail"; return; }
+
   const toDist = $("#fdDemandTo") ? $("#fdDemandTo").value : "";
   const toLoc = $("#fdDemandToLocation") ? $("#fdDemandToLocation").value : "";
-  const condition = ($("#fdItemsBody") && $("#fdItemsBody").querySelector(".fd-row-cond") ? $("#fdItemsBody").querySelector(".fd-row-cond").value : "any");
-  if (!itemName || !toDist) { el.innerHTML = ""; el.className = "fd-avail"; return; }
-  const avail = __demandTargetAvail(itemName, condition, toDist, toLoc);
-  const qty = parseInt(($("#fdItemsBody") && $("#fdItemsBody").querySelector(".fd-row-qty") ? $("#fdItemsBody").querySelector(".fd-row-qty").value : "0"), 10) || 0;
+  if (!toDist) { el.innerHTML = ""; el.className = "fd-avail"; return; }
+
   const dist = getDistricts().find(d => d.id === toDist);
   const loc = getLocationsForDistrict(toDist).find(l => l.id === toLoc);
   const place = (loc && loc.name) || (dist && dist.name) || "destination";
-  if (avail === 0) {
+
+  let hasWarn = false;
+  let summary = [];
+  rows.forEach(r => {
+    const sel = r.querySelector(".fd-row-item");
+    const newName = r.querySelector(".fd-row-name");
+    const name = (sel && sel.value && sel.value !== "__custom__") ? sel.value.trim() : (newName ? newName.value.trim() : "");
+    if (!name) return;
+    const cond = (r.querySelector(".fd-row-cond") || {}).value || "any";
+    const qty = parseInt((r.querySelector(".fd-row-qty") || {}).value, 10) || 1;
+    const isCons = __fdType() === "cons";
+    const avail = isCons ? __demandTargetConsAvail(name, toDist) : __demandTargetAvail(name, cond, toDist, toLoc);
+    if (avail === 0) {
+      hasWarn = true;
+      summary.push(`<b>${esc(name)}</b>: 0 available at ${esc(place)}`);
+    } else if (qty > avail) {
+      hasWarn = true;
+      summary.push(`<b>${esc(name)}</b>: requested ${qty} exceeds ${avail} in stock`);
+    }
+  });
+
+  if (hasWarn) {
     el.className = "fd-avail fd-avail-warn";
-    el.innerHTML = `&#9888; No stock of this item currently at <b>${esc(place)}</b>. Consider requesting from another unit.`;
-  } else if (qty > avail) {
-    el.className = "fd-avail fd-avail-warn";
-    el.innerHTML = `&#9888; Available at <b>${esc(place)}</b>: <b>${avail}</b> unit(s) ? requested <b>${qty}</b> exceeds available stock.`;
+    el.innerHTML = `⚠️ <b>Target Stock Alert (${esc(place)}):</b> ${summary.join("; ")}`;
   } else {
-    el.className = "fd-avail fd-avail-ok";
-    el.innerHTML = `&#9989; Available at <b>${esc(place)}</b>: <b>${avail}</b> unit(s).`;
+    el.innerHTML = "";
+    el.className = "fd-avail";
   }
 }
 
