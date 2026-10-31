@@ -1642,6 +1642,17 @@ function openModal(id) {
   __enforceDateInputsMax(el);
 }
 
+function closeModal(id) {
+  if (!id) { closeModals(); return; }
+  const el = typeof id === "string" ? $(id) : id;
+  if (!el) { closeModals(); return; }
+  el.classList.add("hidden");
+  __resetElementScrollToTop(el);
+  __resetPageScrollToTop();
+  setTimeout(__resetPageScrollToTop, 10);
+}
+window.closeModal = closeModal;
+
 function closeModals() {
   $("#distToChecks")?.classList.add("hidden");
   $$(".modal-backdrop").forEach(m => {
