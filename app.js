@@ -642,6 +642,8 @@ function seedAll() {
     if (!loadData(demKey)) seedDemands(d.id);
     const distKey = `distributions_${d.id}`;
     if (!loadData(distKey)) seedDistributions(d.id);
+    const shramKey = `shramdaan_${d.id}`;
+    if (!loadData(shramKey)) seedShramDaan(d.id, true);
   });
 }
 
@@ -848,6 +850,58 @@ function getActiveDistrict() { return activeDistrictId; }
 function setActiveDistrict(id) { activeDistrictId = id; localStorage.setItem(STORAGE_PREFIX + "activeDistrict", id); }
 
 function getLocations() { return activeDistrictId ? getLocationsForDistrict(activeDistrictId) : []; }
+
+function findLocationById(id) {
+  if (!id) return null;
+  // 1. Current active district locations
+  if (typeof getLocations === "function") {
+    const l = getLocations().find(x => x && x.id === id);
+    if (l) return l;
+  }
+  // 2. HQ / IG Range locations (__hq__)
+  if (typeof getHqLocations === "function") {
+    const l = getHqLocations().find(x => x && x.id === id);
+    if (l) return l;
+  }
+  // 3. Check all districts in database
+  if (typeof getAllLocations === "function") {
+    const all = getAllLocations();
+    for (const key of Object.keys(all)) {
+      if (Array.isArray(all[key])) {
+        const l = all[key].find(x => x && x.id === id);
+        if (l) return l;
+      }
+    }
+  }
+  return null;
+}
+
+function getEffectiveUserLocation(user) {
+  const u = user || currentUser;
+  if (!u) return null;
+  const locId = (typeof getVisibleLocationId === "function" ? getVisibleLocationId() : null) || u.locationId;
+  let loc = findLocationById(locId);
+  if (!loc && locId) {
+    if (typeof getRangeById === "function") {
+      const r = getRangeById(locId);
+      if (r) loc = r;
+    }
+  }
+  if (!loc) {
+    if (u.role === "ig") {
+      loc = { id: locId || u.rangeId || "loc_range_1", name: u.name || "IG Office", type: "igRange" };
+    } else if (u.role === "devadmin") {
+      loc = { id: locId || "loc_phq_haryana", name: "PHQ Haryana", type: "phq" };
+    } else if (u.role === "admin") {
+      loc = { id: locId || "district_hq", name: u.name || "District Headquarters", type: "district" };
+    } else if (locId) {
+      loc = { id: locId, name: u.name || "Requesting Unit", type: "station" };
+    } else {
+      loc = { id: "unit_" + (u.id || "0"), name: u.name || "Unit", type: "station" };
+    }
+  }
+  return loc;
+}
 
 function getVisibleLocations() {
   const locs = getLocations();
@@ -5064,7 +5118,8 @@ let __shramDetailId = null;
 function getShramDaanList() {
   if (!activeDistrictId) return [];
   const list = loadData(`shramdaan_${activeDistrictId}`);
-  return Array.isArray(list) ? list : [];
+  if (Array.isArray(list)) return list;
+  return seedShramDaan(activeDistrictId, true);
 }
 
 function saveShramDaanList(list) {
@@ -5193,14 +5248,12 @@ function seedShramDaan(districtId, forceSave) {
     }
   ];
 
-  if (forceSave || !(window.CONFIG && window.CONFIG.useRemote)) {
-    saveData(`shramdaan_${districtId}`, sampleDrives);
-  }
+  saveData(`shramdaan_${districtId}`, sampleDrives);
   return sampleDrives;
 }
 
-function __shramFiltered() {
-  const all = getShramDaanList();
+function __shramFiltered(sourceList) {
+  const all = Array.isArray(sourceList) ? sourceList : getShramDaanList();
   const search = ($("#shramSearch")?.value || "").trim().toLowerCase();
   const typeFilter = ($("#shramTypeFilter")?.value || "").toLowerCase();
   const locFilter = $("#shramLocationFilter")?.value || "";
@@ -5238,10 +5291,7 @@ function renderShramDaan() {
   const container = $("#view-shramdaan");
   if (!container) return;
 
-  let all = getShramDaanList();
-  if (!all.length && activeDistrictId) {
-    all = seedShramDaan(activeDistrictId, false);
-  }
+  const all = getShramDaanList();
 
   // Populate Location filter if needed
   const locFilter = $("#shramLocationFilter");
@@ -5265,7 +5315,7 @@ function renderShramDaan() {
   const sPlanting = $("#statShramPlanting"); if (sPlanting) sPlanting.textContent = stats.planting;
   const sFatigue = $("#statShramFatigue"); if (sFatigue) sFatigue.textContent = stats.fatigue;
 
-  const filtered = __shramFiltered();
+  const filtered = __shramFiltered(all);
   const sHistCount = $("#shramHistoryCount"); if (sHistCount) sHistCount.textContent = filtered.length;
 
   let filteredPhotosCount = 0;
@@ -7241,7 +7291,10 @@ function __maintActionableBy(r) {
     return currentUser.role === "admin" && r.requestToDistrictAdminId === currentUser.id;
   }
   if (r.status === "under_process") {
-    return r.requestingUnitId === (getVisibleLocationId() || currentUser.locationId) && r.districtId === activeDistrictId;
+    const myLoc = getEffectiveUserLocation(currentUser);
+    const myLocId = myLoc ? myLoc.id : (getVisibleLocationId() || currentUser.locationId);
+    const isRequester = r.requestingUserId === currentUser.id || r.requestingUnitId === myLocId;
+    return isRequester && (r.districtId === activeDistrictId || (currentUser.districtIds && currentUser.districtIds.includes(r.districtId)));
   }
   return false;
 }
@@ -7333,9 +7386,9 @@ function openMaintenanceModal() {
   const userDistId = (currentUser && currentUser.districtId) || activeDistrictId;
   const admin = getUsers().find(u => u.districtId === userDistId && u.role === "admin");
   if (!admin && !__maintAllowedTypes()) return toast("No District Admin is configured for this district yet. Contact the Developer Admin.", "error");
-  const locId = getVisibleLocationId() || currentUser.locationId;
-  const loc = getLocations().find(l => l.id === locId);
+  const loc = getEffectiveUserLocation(currentUser);
   if (!loc) return toast("Your unit location could not be found. Contact the Developer Admin.", "error");
+  const locId = loc.id;
   const rt = $("#maintRequestTo"), rb = $("#maintRequestingBy");
   const type = $("#maintType");
   __maintApplyTypeOptions();
@@ -7568,9 +7621,9 @@ async function saveMaintenanceRequest(e) {
   const userDistId = (currentUser && currentUser.districtId) || activeDistrictId;
   const admin = getUsers().find(u => u.districtId === userDistId && u.role === "admin");
   const routed = __maintRouteTarget(typeVal);
-  const locId = getVisibleLocationId() || currentUser.locationId;
-  const loc = getLocations().find(l => l.id === locId);
+  const loc = getEffectiveUserLocation(currentUser);
   if (!loc) return toast("Your unit location could not be found.", "error");
+  const locId = loc.id;
   if (!typeVal) return toast("Please select a maintenance type.", "error");
 
   const isSpecialist = (typeVal === "computer_it" || typeVal === "vehicle");
@@ -7639,8 +7692,10 @@ async function saveMaintenanceRequest(e) {
       history: [{ action: "created", by: currentUser.name || currentUser.username, byId: currentUser.id, at: now, oldStatus: null, newStatus: "pending", remark: "" }],
     };
 
-    getMaintenance().push(r);
-    saveMaintenance(getMaintenance());
+    const targetStoreId = userDistId || activeDistrictId;
+    const currentList = (loadData(`maintenance_${targetStoreId}`) || []);
+    currentList.push(r);
+    saveData(`maintenance_${targetStoreId}`, currentList);
 
     __audit("Maintenance Request Created", `${r.mntNo} \u2014 ${__maintTypeLabel(r)} (${r.requestingUnitName}) to ${r.requestToUserName || r.requestToDistrictAdminName}`, { entity: "Maintenance" });
     const targetUserId = isSpecialist ? (routed ? routed.id : null) : (admin ? admin.id : null);

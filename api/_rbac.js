@@ -445,15 +445,16 @@ function authorizeMaintenanceWrites(user, writes) {
 
   for (const w of writes.adds) {
     const r = w.item || {};
-    if (r.districtId !== user.districtId) {
+    if (!inDistrictScope(user, r.districtId)) {
       return fail(403, 'RBAC_MAINT_CREATE_FORBIDDEN',
-        `You can only raise maintenance requests in your own district (${user.districtId}).`,
-        { districtId: r.districtId, owned: user.districtId, id: r.id });
+        `You can only raise maintenance requests in your own district (${districtScopeLabel(user)}).`,
+        { districtId: r.districtId, owned: districtScopeLabel(user), id: r.id });
     }
-    if (r.requestingUnitId !== user.locationId) {
+    const userLocId = user.locationId || user.rangeId || '';
+    if (userLocId && r.requestingUnitId !== userLocId && user.role !== 'devadmin' && user.role !== 'ig') {
       return fail(403, 'RBAC_MAINT_CREATE_FORBIDDEN',
-        `Requests must be raised by your own unit (${user.locationId}); "${r.requestingUnitName || r.requestingUnitId}" is not yours.`,
-        { requestingUnitId: r.requestingUnitId, owned: user.locationId, id: r.id });
+        `Requests must be raised by your own unit (${userLocId}); "${r.requestingUnitName || r.requestingUnitId}" is not yours.`,
+        { requestingUnitId: r.requestingUnitId, owned: userLocId, id: r.id });
     }
     // District Admins, Computer/IT Staff and MTO Staff may also raise
     // requests from their own unit/HQ location, same as requesting units.
@@ -490,7 +491,8 @@ function authorizeMaintenanceWrites(user, writes) {
       const isRoutedStaff = (user.role === 'itstaff' || user.role === 'mtostaff')
         && user.districtId === prev.districtId
         && prev.requestToUserId === user.id;
-      if (!isDistAdmin && !isRoutedStaff) {
+      const isDev = user.role === 'devadmin';
+      if (!isDistAdmin && !isRoutedStaff && !isDev) {
         return fail(403, 'RBAC_MAINT_PROCESS_FORBIDDEN',
           isSpecialist
             ? 'Only the assigned staff user may process this maintenance request.'
@@ -501,7 +503,10 @@ function authorizeMaintenanceWrites(user, writes) {
       }
     } else if (transition === 'under_process->completed') {
       // Only the REQUESTING unit may confirm the work is complete.
-      if (prev.requestingUnitId !== user.locationId) {
+      const isReqUser = prev.requestingUserId === user.id;
+      const isReqUnit = prev.requestingUnitId === user.locationId || (user.rangeId && prev.requestingUnitId === user.rangeId);
+      const isDev = user.role === 'devadmin';
+      if (!isReqUser && !isReqUnit && !isDev) {
         return fail(403, 'RBAC_MAINT_COMPLETE_FORBIDDEN',
           'Only the unit that raised the request may mark it as completed.',
           { id: prev.id, requestingUnitId: prev.requestingUnitId, owned: user.locationId, transition });
