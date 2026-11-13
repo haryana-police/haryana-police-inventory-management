@@ -11,8 +11,9 @@
 //  - Account-changing writes (users collection alters) require that token.
 //  - INVENTORY RBAC: every add/edit/delete of inventory records is authorised
 //    server-side (api/_rbac.js) against the session user and the record's
-//    stored ownership (locationId / district). Developer Admin is read-only
-//    for inventory; everyone else may only modify their OWN unit's records.
+//    stored ownership (locationId / district). Developer Admin holds full
+//    authority over every record; everyone else may only modify their OWN
+//    unit's records.
 //    Unauthorised writes are rejected with 401/403 - the UI can be bypassed,
 //    this gate cannot.
 const { Pool } = require('./_filepool');

@@ -240,13 +240,9 @@ function authorizeItemWrites(user, writes, opts) {
       detail: { counts: { adds: writes.adds.length, edits: writes.edits.length, deletes: writes.deletes.length } },
     };
   }
-  if (user.role === 'devadmin') {
-    return {
-      ok: false, status: 403, code: 'RBAC_ITEM_FORBIDDEN',
-      error: 'Developer Admin has read-only access to inventory: editing, adding and deleting inventory records is not permitted.',
-      detail: { role: user.role, counts: { adds: writes.adds.length, edits: writes.edits.length, deletes: writes.deletes.length } },
-    };
-  }
+  // Developer Admin holds full authority: it may add, edit, delete or clear
+  // any inventory record in any district (2026 authority grant).
+  if (user.role === 'devadmin') return { ok: true };
   const violation = firstViolation(writes, user, opts.prevState || opts.nextState ? distributionExemptKeys(opts.prevState, opts.nextState) : null);
   if (violation) {
     return {
@@ -1152,9 +1148,9 @@ function authorizeConsumableWrites(user, writes, opts) {
   if (!user) {
     return { ok: false, status: 401, code: 'RBAC_CONS_UNAUTHENTICATED', error: 'Authentication required to modify consumable records.', detail: null };
   }
-  if (user.role === 'devadmin') {
-    return { ok: false, status: 403, code: 'RBAC_CONS_FORBIDDEN', error: 'Developer Admin has read-only access to consumables: adding, distributing, approving and editing consumable records is not permitted.', detail: { role: user.role } };
-  }
+  // Developer Admin holds full authority over consumables too - including the
+  // transaction ledger - under the 2026 authority grant.
+  if (user.role === 'devadmin') return { ok: true };
   const deny = (code, error, detail) => ({ ok: false, status: 403, code, error, detail: detail || null });
   // District scope: every touched record must be inside your own district.
   const allWrites = writes.adds.concat(writes.edits).concat(writes.deletes);

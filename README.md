@@ -158,8 +158,8 @@ All requests go to `/api/...` on the same local port.
   token (sha256-hashed, 12h TTL).
 - **Inventory RBAC** is enforced server-side in `api/_rbac.js` against the
   session user and each record's stored ownership (location / district).
-  Developer Admin is read-only for inventory; everyone else may only modify
-  their OWN unit's records.
+  Developer Admin holds full authority over every record in every district;
+  everyone else may only modify their OWN unit's records.
 - Unauthorised writes are rejected with 401/403 — the UI can be bypassed, this
   gate cannot.
 

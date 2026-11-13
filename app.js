@@ -1581,7 +1581,7 @@ function canEdit() {
   return ["admin", "devadmin", "ig", "mhc", "user", "itstaff", "mtostaff"].includes(currentUser.role);
 }
 function canManageItems() {
-  if (!currentUser || isDevAdmin()) return false;
+  if (!currentUser) return false;
   if (isAdmin()) return true;
   return !!(currentUser.locationId && ["mhc", "user", "itstaff", "mtostaff"].includes(currentUser.role));
 }
@@ -1630,12 +1630,14 @@ function defaultRoleValue(sel) {
    strictly by OWNERSHIP of the record: record.locationId must equal the
    logged-in user's own unit. The location/unit FILTER only controls what is
    VIEWED ? it never grants permissions. Developer Admin is permanently
-   read-only for inventory (no add/edit/delete, any record, any district). */
+   inventory. Developer Admin holds full authority: it may add, edit, delete
+   or clear any record in any district (2026 authority grant). */
 function itemOwnedByCurrentUser(i) {
+  if (currentUser && isDevAdmin()) return true;
   return !!(currentUser && i && i.locationId === currentUser.locationId);
 }
 function canViewItem(i) { return !!(currentUser && i); }
-function canEditItem(i) { return !!currentUser && !isDevAdmin() && itemOwnedByCurrentUser(i); }
+function canEditItem(i) { return !!currentUser && itemOwnedByCurrentUser(i); }
 function canDeleteItem(i) { return canEditItem(i); }
 function __rbacLockMsg() { return "You can view this unit's inventory, but only the unit owner can modify it."; }
 function __devRbacLockMsg() { return "Developer Admin has read-only access to inventory: view only."; }
@@ -1705,7 +1707,9 @@ function applyRoleUI() {
   ["#backupDBBtn", "#backupExcelBtn", "#restoreDBBtn"].forEach(sel => { const el = $(sel); if (el) el.style.display = isDevAdmin() ? "" : "none"; });
   const _al = $("#auditLogBtn");
   if (_al) _al.style.display = (isAdmin() || isDevAdmin()) ? "" : "none";
-  ["#addItemBtn", "#itemImportBtn"].forEach(sel => { const el = $(sel); if (el) el.style.display = (canManageItems() && !isDevAdmin()) ? "" : "none"; });
+  const _cd = $("#devClearDataBtn");
+  if (_cd) _cd.style.display = isDevAdmin() ? "" : "none";
+  ["#addItemBtn", "#itemImportBtn"].forEach(sel => { const el = $(sel); if (el) el.style.display = canManageItems() ? "" : "none"; });
   const _allotImport = $("#allotImportBtn");
   if (_allotImport) _allotImport.style.display = canEdit() ? "" : "none";
 }
@@ -3540,7 +3544,6 @@ function __populateItemNameList() {
 }
 
 function openItemModal(item) {
-  if (isDevAdmin() && !item) return toast(__devRbacLockMsg(), "error"); // devadmin: may VIEW edit dialog, cannot Add; Save still blocked in saveItem
   if (item && !canManageItem(item)) return toast(__rbacLockMsg(), "error");
   $("#itemModalTitle").textContent = item ? "Edit Item" : "Add New Item";
   $("#itemSaveBtn").textContent = item ? "Update Item" : "Save Item";
@@ -3697,11 +3700,8 @@ async function saveItem(e) {
   // RBAC: ownership & role are re-checked here (UI convenience only — the
   // server independently enforces the same rules on every write).
   if (id) {
-    if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
     const existing = getItems().find(i => i.id === id);
     if (!canManageItem(existing)) return toast(__rbacLockMsg(), "error");
-  } else if (isDevAdmin()) {
-    return toast(__devRbacLockMsg(), "error");
   } else if (!canManageItems()) {
     return toast("You do not have permission to add items.", "error");
   }
@@ -3719,7 +3719,6 @@ async function saveItem(e) {
   const conditionCounts = { good, poor, damaged };
   if (!name || !categoryId || !locationId) return toast("Please fill all required fields.", "error");
   if (quantity === 0) return toast("Total quantity cannot be 0. Enter at least one condition count.", "error");
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (currentUser && !isAdmin() && locationId !== currentUser.locationId) {
     return toast("You can only assign items to your own unit.", "error");
   }
@@ -4334,7 +4333,6 @@ function __asBreakdown(p) {
 
 async function saveAddStock(e) {
   e.preventDefault();
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!canManageItems()) return toast("You do not have permission to add stock.", "error");
   const date = ($("#asDate").value || "").trim() || todayStr();
   const time = ($("#asTime").value || "").trim() || nowTimeStr();
@@ -4454,7 +4452,6 @@ function photoChipsHtml(h) {
   const items = getItems();
   const item = items.find(i => i.id === id);
   if (!item) return;
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!canManageItem(item)) return toast(__rbacLockMsg(), "error");
   const totalQty = (Number(item.quantity) || 0) + (Number(item.allotted) || 0);
   if (totalQty > 0) return toast("Cannot delete item with remaining stock. Total quantity must be 0.", "error");
@@ -4557,7 +4554,6 @@ function startEditCat(idx) {
 }
 
 function saveEditCat(idx) {
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const cats = getCategories();
   const c = cats[idx];
   if (!c) return;
@@ -4591,7 +4587,7 @@ function openCatItems(idx) {
   $("#citTitle").textContent = c.name;
   $("#citSubtitle").textContent = "Items in this category - edit the name or delete an item";
   const addRow = $("#citAddRow");
-  if (addRow) addRow.style.display = (canManageItems() && !isDevAdmin()) ? "" : "none";
+  if (addRow) addRow.style.display = canManageItems() ? "" : "none";
   __renderCatItems(c.id);
   $("#catModal")?.classList.add("hidden");
   openModal("#catItemsModal");
@@ -4603,7 +4599,7 @@ function __renderCatItems(cid) {
   const items = getAllDistrictItems().filter(i => i.categoryId === cid && !i.isDeleted);
   body.innerHTML = items.length
     ? items.map(i => {
-        const editable = itemOwnedByCurrentUser(i) && !isDevAdmin();
+        const editable = itemOwnedByCurrentUser(i);
         const acts = editable
           ? `<button class="btn btn-sm btn-outline" data-cit-edit="${i.id}">Edit</button> <button class="btn btn-sm btn-outline" data-cit-del="${i.id}">Delete</button>`
           : `<span class="muted" title="${esc(__rbacLockMsg())}">View only</span>`;
@@ -4613,7 +4609,7 @@ function __renderCatItems(cid) {
 }
 function __citStartEdit(id) {
   const item = getAllDistrictItems().find(i => i.id === id);
-  if (!item || !itemOwnedByCurrentUser(item) || isDevAdmin()) return toast(__rbacLockMsg(), "error");
+  if (!item || !itemOwnedByCurrentUser(item)) return toast(__rbacLockMsg(), "error");
   const row = document.querySelector('[data-cit-row="' + id + '"]');
   if (!row) return;
   row.querySelector(".item-name").innerHTML = `<input class="cat-edit-input" id="citEditName" value="${esc(item.name)}">`;
@@ -4624,7 +4620,7 @@ function __citStartEdit(id) {
 function __citSave(id) {
   const items = getItems();
   const item = items.find(i => i.id === id);
-  if (!item || !itemOwnedByCurrentUser(item) || isDevAdmin()) return toast(__rbacLockMsg(), "error");
+  if (!item || !itemOwnedByCurrentUser(item)) return toast(__rbacLockMsg(), "error");
   const name = (($("#citEditName") || {}).value || "").trim();
   if (!name) return toast("Enter a name.", "error");
   if (items.some(i => i.id !== id && i.locationId === currentUser.locationId && (i.name || "").toLowerCase() === name.toLowerCase())) return toast("An item with this name already exists in your unit.", "error");
@@ -4673,7 +4669,6 @@ function __citDelete(id) {
 function __citAdd() {
   const cid = __citOpenCatId;
   if (!cid) return;
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!canManageItems()) return toast("You do not have permission to add items.", "error");
   if (!currentUser.locationId) return toast("No location assigned to your account.", "error");
   const name = (($("#citNewName") || {}).value || "").trim();
@@ -4697,7 +4692,6 @@ function openCatModal() {
 }
 
 function addCategory() {
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const name = ($("#catInput").value || "").trim();
   if (!name) return toast("Enter a name.", "error");
   const cats = getCategories();
@@ -4718,7 +4712,6 @@ function addCategory() {
 }
 
 function deleteCategory(idx) {
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const cats = getCategories();
   const cat = cats[idx];
   if (!cat) return;
@@ -5261,7 +5254,6 @@ function openInspectionModal(insp) {
 
 async function saveInspection(e) {
   e.preventDefault();
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const id = $("#fiInspectionId").value;
   const itemName = $("#fiItem").value.trim();
   const inspectedBy = $("#fiInspectedBy").value.trim();
@@ -6911,7 +6903,6 @@ function __distApplyTransfer(d) {
 async function saveDistribution(e) {
   e.preventDefault();
   if (!currentUser) return toast("Please login first.", "error");
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const targets = __distSelectedTargets();
   if (targets.length !== __distToChecked.size) return toast("Recipient list changed. Reopen the form and select recipients again.", "error");
   if (!targets.length) return toast("Tick at least one unit / district admin in Distributed To.", "error");
@@ -7125,7 +7116,6 @@ function openDistApprove(id) {
 }
 
 function approveDistribution() {
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const d = __getActDistribution();
   if (!d) return toast("Distribution record could not be found.", "error");
   if (!__distActionableBy(d)) return toast("You are not authorised to approve this distribution.", "error");
@@ -7185,7 +7175,6 @@ function openDistReject(id) {
 
 function doDistReject(e) {
   e.preventDefault();
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const d = __getActDistribution();
   if (!d) return toast("Distribution record could not be found.", "error");
   if (!__distActionableBy(d)) return toast("You are not authorised to reject this distribution.", "error");
@@ -7884,7 +7873,6 @@ document.addEventListener("change", (e) => {
 
 async function saveMaintenanceRequest(e) {
   e.preventDefault();
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!currentUser) return toast("Please login first.", "error");
   if (!__maintCanCreate()) return toast("You are not authorised to create maintenance requests.", "error");
   const typeVal = ($("#maintType") || {}).value || "";
@@ -8110,7 +8098,6 @@ function openMaintProcess(id) {
 
 function submitMaintProcess(e) {
   e.preventDefault();
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const btn = $("#maintProcessSubmitBtn");
   if (btn && btn.disabled) return;
   const r = __getActMaintenance();
@@ -8166,7 +8153,6 @@ function openMaintApprove(id) {
 
 function submitMaintApprove(e) {
   e.preventDefault();
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const btn = $("#maintApproveSubmitBtn");
   if (btn && btn.disabled) return;
   const r = __getActMaintenance();
@@ -9154,7 +9140,6 @@ function __fdSuggest(inputEl) {
 
 async function saveDemand(e) {
   e.preventDefault();
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const demandToDistrict = $("#fdDemandTo").value;
   const demandToLocation = $("#fdDemandToLocation").value;
   const urgency = $("#fdUrgency").value;
@@ -10531,9 +10516,8 @@ function persistAlloc(items, allotments, persons) {
   // deliberately treats counter-only changes as no-ops, so these saves pass.
   // Real record-content writes are guarded at their own entry points
   // (openItemModal/saveItem/deleteItem/saveAdjust) and re-verified by the
-  // server. Developer Admin is read-only for inventory, so its counter
-  // changes are blocked here.
-  if (currentUser && isDevAdmin()) { toast(__devRbacLockMsg(), "error"); return; }
+  // server. Developer Admin holds full authority, so its counter changes are
+  // allowed like any other unit's.
   saveItems(items);
   saveAllotments(allotments);
   if (persons) savePersons(persons);
@@ -10748,7 +10732,7 @@ let __invLossItemId = null;
 function openInvLoss(itemId) {
   const item = getItems().find(i => i.id === itemId);
   if (!item) return toast("Item not found.", "error");
-  if (!canEditItem(item) || isDevAdmin()) return toast(__rbacLockMsg(), "error");
+  if (!canEditItem(item)) return toast(__rbacLockMsg(), "error");
   const avail = availableQty(item);
   if (avail <= 0) return toast("No available quantity to mark lost. Available quantity: 0", "error");
   __invLossItemId = itemId;
@@ -10763,7 +10747,6 @@ function openInvLoss(itemId) {
 
 function saveInvLoss(e) {
   e.preventDefault();
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const items = getItems();
   const item = items.find(i => i.id === __invLossItemId);
   if (!item) return toast("Item not found.", "error");
@@ -11271,7 +11254,6 @@ function __saveIssuePhotosToPerson(targetPerson, issueDate, issueTime, remarks, 
 
 async function saveAllotment(e) {
   e.preventDefault();
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!canEdit()) return toast("You do not have permission to issue items.", "error");
   const editId = $("#alEditId").value;
   if (editId) { saveEditedAllotment(e, editId); return; }
@@ -11502,7 +11484,6 @@ function openReturnModal(id) {
 
 function saveReturn(e) {
   e.preventDefault();
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!canEdit()) return toast("You do not have permission to process returns.", "error");
   const id = __returnAllotId;
   const qty = parseInt($("#rtQty").value, 10);
@@ -11603,7 +11584,6 @@ function submitLoss(e) {
   const btn = $("#lsSubmitBtn");
   if (btn) btn.disabled = true;
   try {
-    if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
     if (!canEdit()) return toast("You do not have permission to report item loss.", "error");
     const reason = ($("#lsReason").value || "").trim();
     if (!reason) {
@@ -11686,7 +11666,6 @@ function submitRecovery(e) {
   const btn = $("#rcSubmitBtn");
   if (btn) btn.disabled = true;
   try {
-    if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
     if (!canEdit()) return toast("You do not have permission to process item recovery.", "error");
     const err = $("#rcError");
     const categoryId = ($("#rcCategory").value || "").trim();
@@ -11767,7 +11746,6 @@ function saveAdjust(e) {
   const items = getItems();
   const item = items.find(i => i.id === itemId);
   if (!item) return toast("Item not found.", "error");
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!itemOwnedByCurrentUser(item)) return toast(__rbacLockMsg(), "error");
   const held = (item.allotted || 0) + (item.damagedReturned || 0) + (item.lostReturned || 0);
 
@@ -12527,7 +12505,6 @@ function __scanRenderReview(people) {
 
 async function scanCommit() {
   if (!canEdit()) return toast("You do not have permission to import issued items.", "error");
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!__scanPeople.length) return toast("Add at least one person.", "error");
 
   const items = getItems();
@@ -12795,7 +12772,6 @@ function handleDocFileChange() {
 
 function saveDocUpload(e) {
   e.preventDefault();
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!currentUser) return toast("Login required.", "error");
   const f = $("#docFileInput");
   const file = f && f.files && f.files[0];
@@ -12844,7 +12820,6 @@ function saveDocUpload(e) {
 }
 
 function deleteDocument(id) {
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const key = "documents_" + activeDistrictId;
   const up = loadData(key) || [];
   const rec = up.find(r => r.id === id);
@@ -12976,6 +12951,7 @@ async function init() {
   $("#requestAccessForm")?.addEventListener("submit", submitAccessRequest);
 
   $("#logoutBtn")?.addEventListener("click", confirmLogout);
+  $("#devClearDataBtn")?.addEventListener("click", devClearPageData);
   $("#logoutConfirmOkBtn")?.addEventListener("click", () => {
     closeModals();
     logout();
@@ -13102,7 +13078,6 @@ $("#inventoryBody").addEventListener("click", e => {
     if (!btn) return;
     if (btn.dataset.action === "delete") {
       const item = getItems().find(x => x.id === btn.dataset.id);
-      if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
       if (currentUser.role === "admin" && ($("#locationFilter") || {}).value !== currentUser.locationId) return toast(__rbacLockMsg(), "error");
       if (!canManageItem(item)) return toast(__rbacLockMsg(), "error");
     }
@@ -14838,9 +14813,8 @@ function handleItemImportFile(file) {
 }
 
 function commitItemImport() {
-  // RBAC: Developer Admin is read-only for inventory; imported records must
-  // all belong to the caller's own unit (server enforces the same rules).
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
+  // RBAC: Developer Admin may import into any unit; every other caller may
+  // only import into its own unit (server enforces the same rules).
   if (!canManageItems()) return toast("You do not have permission to import items.", "error");
   if (!window.__pendingImport) return toast("Nothing to save ? import a file first.", "error");
   if (Array.isArray(window.__pendingImport) && window.__pendingImport.some(i => !itemOwnedByCurrentUser(i))) {
@@ -14966,7 +14940,6 @@ function handleAllotImportFile(file) {
 }
 
 function commitAllotImport() {
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!canEdit()) return toast("You do not have permission to import issued items.", "error");
   if (!window.__pendingAllotImport) return toast("Nothing to save ? import a file first.", "error");
   const groups = window.__pendingAllotImport.groups;
@@ -16153,7 +16126,6 @@ function openConsCatModal() {
   openModal("#consCatModal");
 }
 function addConsCategory() {
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!__consCanManage()) return toast("You are not allowed to modify consumables.", "error");
   const name = (($("#consCatInput") || {}).value || "").trim();
   if (!name) return toast("Enter a name.", "error");
@@ -16344,7 +16316,6 @@ function startEditConsCat(idx) {
   }
 }
 function saveEditConsCat(idx) {
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!__consCanManage()) return toast("You are not allowed to modify consumables.", "error");
   const cats = getConsCats();
   const c = cats[idx];
@@ -16363,7 +16334,6 @@ function saveEditConsCat(idx) {
   if (typeof __repopulateConsMultiCat === "function") __repopulateConsMultiCat($("#consStockCat"));
 }
 function deleteConsCategory(idx) {
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!__consCanManage()) return toast("You are not allowed to modify consumables.", "error");
   const cats = getConsCats();
   const cat = cats[idx];
@@ -16381,7 +16351,9 @@ function deleteConsCategory(idx) {
 }
 
 function __consCanManage() {
-  return currentUser && !isDevAdmin();
+  // Developer Admin holds full authority (2026 grant); every other signed-in
+  // user keeps exactly the access it always had.
+  return !!currentUser;
 }
 function __consIsAdminView() {
   return !!currentUser && (currentUser.role === "admin" || currentUser.role === "devadmin");
@@ -17117,7 +17089,6 @@ function __syncConsTime() {
 
 function saveConsAdd(e) {
   e.preventDefault();
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!__consCanManage()) return toast("You are not allowed to modify consumables.", "error");
   const rows = $$("#consRows .cons-item-row");
   const cleanRows = [];
@@ -17228,7 +17199,6 @@ function openConsDist(itemId) {
 }
 function saveConsDist(e) {
   e.preventDefault();
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   if (!__consCanManage()) return toast("You are not allowed to modify consumables.", "error");
   const item = __consItem(__consDistItemId);
   if (!item) return toast("Item not found.", "error");
@@ -17382,7 +17352,6 @@ function openConsLoss(itemId) {
 }
 function saveConsLoss(e) {
   e.preventDefault();
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const item = __consItem(__consLossItemId);
   if (!item) return toast("Item not found.", "error");
   const q = __consIsAdminView() ? __consQty(item.id) : __consQtyOwn(item.id);
@@ -17462,7 +17431,6 @@ function openConsEdit(itemId) {
 }
 function saveConsEdit(e) {
   e.preventDefault();
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const item = __consItem(__consEditItemId);
   if (!item) return toast("Item not found.", "error");
   const name = $("#ceName").value.trim();
@@ -17531,7 +17499,6 @@ function openConsReject(reqId) {
 }
 function saveConsReject(e) {
   e.preventDefault();
-  if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const reason = $("#consRejectReason").value.trim();
   if (!reason) return toast("Rejection reason is required.", "error");
   __consApplyDecision(__consRejectReqId, false, reason);
@@ -19119,6 +19086,69 @@ function __devConfirm(title, bodyHtml, okLabel, fn) {
   $("#devConfirmOk").textContent = okLabel || "Confirm";
   __devConfirmFn = fn;
   openModal("#devConfirmModal");
+}
+/* ==================== DEVELOPER ADMIN: CLEAR PAGE DATA ====================
+   The Clear Data button lives in the topbar, so it shows on EVERY page - but
+   only for the Developer Admin (applyRoleUI toggles it). It clears the ACTIVE
+   district's records of whatever page is open, after an explicit confirmation.
+   User/structure pages are never cleared wholesale: accounts and the district
+   hierarchy can only be managed record by record. */
+function devClearPageData() {
+  if (!isDevAdmin()) return toast("Only the Developer Admin can clear page data.", "error");
+  const tab = window.currentTab || "dashboard";
+  const dist = getDistricts().find(d => d.id === activeDistrictId);
+  const distName = dist ? dist.name : (activeDistrictId || "this district");
+
+  const runMap = {
+    inventory: {
+      what: "all inventory items",
+      run() { saveItems([]); }
+    },
+    allotments: {
+      what: "all allotments and persons",
+      run() {
+        saveAllotments(getAllotments().filter(a => a && a.districtId && a.districtId !== activeDistrictId));
+        savePersons(getPersons().filter(p => p && p.districtId && p.districtId !== activeDistrictId));
+      }
+    },
+    inspections: { what: "all inspection records", run() { saveInspections([]); } },
+    demands: { what: "all demand records", run() { saveDemands([]); } },
+    distribution: { what: "all distribution records", run() { saveDistributions([]); } },
+    maintenance: { what: "all maintenance requests", run() { saveMaintenance([]); } },
+    shramdaan: { what: "all Shramdaan records", run() { saveShramDaanList([]); } },
+    consumables: {
+      what: "all consumable items and their transaction history",
+      run() {
+        const cm = loadData("consumable_items") || {}; cm[activeDistrictId] = []; saveData("consumable_items", cm);
+        const tm = loadData("consumable_txns") || {}; tm[activeDistrictId] = []; saveData("consumable_txns", tm);
+      }
+    }
+  };
+
+  if (tab === "grievances") return toast("Grievances live in their own store - manage them from the Grievances page itself.", "error");
+  if (["dashboard", "reports", "itemprofile"].indexOf(tab) >= 0) return toast("This page has no clearable records.", "error");
+  if (["account-management", "manage-districts", "manage-users", "manage-igs", "dausers", "admin-locs", "admin-users"].indexOf(tab) >= 0) return toast("Accounts and structure cannot be cleared wholesale - manage them record by record.", "error");
+
+  const entry = runMap[tab];
+  if (!entry) return toast("This page has no clearable records.", "error");
+
+  __devConfirm(
+    "Clear Page Data",
+    "<p>This will permanently delete <b>" + esc(entry.what) + "</b> of <b>" + esc(distName) + "</b>.</p>" +
+    "<p>The server takes an automatic backup before every save, so the state just before this clear is recoverable from local-data/backups.</p>",
+    "Clear Data",
+    function () {
+      try {
+        entry.run();
+        __audit("Data Cleared", entry.what + " (" + distName + ")", { entity: "Page Data" });
+        render();
+        toast("Cleared: " + entry.what + " (" + distName + ").", "success");
+      } catch (e) {
+        console.error("clear page data failed:", e);
+        toast("Could not clear data: " + ((e && e.message) || e), "error");
+      }
+    }
+  );
 }
 
 /* ==================== BINDING ==================== */
