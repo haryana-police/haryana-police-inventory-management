@@ -1,6 +1,6 @@
 {
  "_comment": "Panipat inventory catalog — categories + items only. No users, no passwords. Import target must already have the district and the referenced locations.",
- "exportedAt": "2026-11-13T09:40:26.711Z",
+ "exportedAt": "2026-11-13T10:05:46.760Z",
  "district": {
   "id": "dist_mugr9nwgs812q",
   "name": "Panipat District",
