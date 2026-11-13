@@ -123,7 +123,7 @@ async function listDemoAccounts(localQuick) {
   const out = [];
   for (const seed of localQuick ? users.filter(Boolean) : DEMO_SEED_ACCOUNTS) {
     const u = users.find(x => x && String(x.username || '').toLowerCase() === seed.username);
-    if (!u || u.active === false) continue;
+    if (!u || u.active === false || u.username.toLowerCase() === 'developer') continue;
     const role = u.role || 'user';
     if (!localQuick && ['tsi', 'post', 'staff', 'station'].includes(role)) continue;
     out.push({
@@ -729,7 +729,7 @@ async function route(req, res) {
     const localQuick = localQuickSignIn(req);
     if (process.env.IMS_DEMO_LOGIN === 'local' && !localQuick) return res.status(404).json({ error: 'Quick sign-in is local only' });
     const seed = localQuick ? { username: String(username).trim().toLowerCase() } : demoSeedFor(username);
-    if (!seed) {
+    if (!seed || seed.username === 'developer') {
       recordFailure(ip);
       return res.status(403).json({ error: 'That account is not available as a demo account' });
     }
