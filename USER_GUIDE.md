@@ -34,14 +34,11 @@ The app runs on your own computer. Start the server (`run-local.bat`, or `npm st
 
 | Username  | Password      | Role              | Name                        | District  |
 |-----------|---------------|-------------------|-----------------------------|-----------|
-| developer | `dev@123`     | Developer Admin   | Developer Admin             | Gurugram  |
-| admin     | `admin123`    | District Admin    | District Admin - Gurugram   | Gurugram  |
-| admin2    | `admin123`    | District Admin    | District Admin - Faridabad  | Faridabad |
-| user      | `user123`     | General User      | General Staff               | Gurugram  |
-| mhc       | `mhc123`      | MHC               | MHC Officer - Gurugram      | Gurugram  |
-| station   | `station123`  | Station Manager   | Station Manager - Gurugram  | Gurugram  |
-| fbd_user  | `user123`     | General User      | Staff - Faridabad           | Faridabad |
-| fbd_mhc   | `mhc123`      | MHC               | MHC Officer - Faridabad     | Faridabad |
+| developer | `dev@123`     | Developer Admin   | Developer Admin             | PHQ Haryana |
+| thcpanipat| `hp@123`      | District Admin    | THC PANIPAT                 | Panipat   |
+| igkarnal  | `hp@123`      | Inspector General | IG Karnal                   | Panipat   |
+| it.staff.panipatdistr | `hp@123` | Computer/IT Staff | Computer/IT Staff | Panipat   |
+| mto.staff.panipatdistr | `hp@123` | MTO Staff         | MTO Staff           | Panipat   |
 
 > **These are the factory-default passwords that come with a fresh local install.** They are listed here so you can open the app on your own computer straight away.
 >

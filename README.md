@@ -127,9 +127,9 @@ On first run the app seeds itself. Default accounts:
 | Role | Username | Password |
 |------|----------|----------|
 | Developer Admin | `developer` | `dev@123` |
-| Gurugram Admin | `admin` | `admin123` |
-| Faridabad Admin | `admin2` | `admin123` |
-| Staff | `user` | `user123` |
+| Panipat Admin | `thcpanipat` | `hp@123` |
+| IT Staff | `it.staff.panipatdistr` | `hp@123` |
+| MTO Staff | `mto.staff.panipatdistr` | `hp@123` |
 
 **Change these before putting real data in.**
 

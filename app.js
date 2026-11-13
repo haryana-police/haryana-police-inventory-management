@@ -163,37 +163,25 @@ const DEFAULT_CATEGORIES = [
 ];
 
 const DEFAULT_DISTRICTS = [
-  { id: "dist_1", name: "Gurugram District", code: "GGN", headquarters: "Gurugram", createdAt: Date.now() },
-  { id: "dist_2", name: "Faridabad District", code: "FBD", headquarters: "Faridabad", createdAt: Date.now() },
+  { id: "dist_1", name: "Panipat District", code: "PPT", headquarters: "Panipat", createdAt: Date.now() },
 ];
 
 const DEFAULT_LOCATIONS = {
   dist_1: [
-    { id: "ggn_hq", name: "District HQ - Gurugram", type: "district", districtId: "dist_1" },
-    { id: "ggn_station_1", name: "PS DLF Phase 3", type: "station", districtId: "dist_1" },
-    { id: "ggn_station_2", name: "PS Sadar Bazaar", type: "station", districtId: "dist_1" },
-    { id: "ggn_post_1", name: "PP Sector 5", type: "post", districtId: "dist_1" },
-    { id: "ggn_mhc", name: "MHC Gurugram Central", type: "mhc", districtId: "dist_1" },
+    { id: "ppt_hq", name: "District HQ - Panipat", type: "district", districtId: "dist_1" },
+    { id: "ppt_mhc", name: "MHC Panipat Central", type: "mhc", districtId: "dist_1" },
   ],
-  dist_2: [
-    { id: "fbd_hq", name: "District HQ - Faridabad", type: "district", districtId: "dist_2" },
-    { id: "fbd_station_1", name: "PS NIT", type: "station", districtId: "dist_2" },
-    { id: "fbd_station_2", name: "PS Ballabgarh", type: "station", districtId: "dist_2" },
-    { id: "fbd_post_1", name: "PP Nehar Par", type: "post", districtId: "dist_2" },
-    { id: "fbd_mhc", name: "MHC Faridabad Central", type: "mhc", districtId: "dist_2" },
+  __hq__: [
+    { id: "loc_phq_haryana", name: "PHQ Haryana", type: "phq", districtId: null, state: "Haryana" },
   ],
 };
 
 const DEFAULT_ITEMS = {}; // demo items removed (2026.09.210) — categories only
 
 const DEFAULT_USERS = [
-  { id: "u0", username: "developer", password: "dev@123", role: "devadmin", name: "Developer Admin", mobile: "9999999999", districtId: "dist_1", locationId: "ggn_hq", createdAt: Date.now() },
-  { id: "u1", username: "admin", password: "admin123", role: "admin", name: "District Admin - Gurugram", mobile: "9876543210", districtId: "dist_1", locationId: "ggn_hq", createdAt: Date.now() },
-  { id: "u2", username: "admin2", password: "admin123", role: "admin", name: "District Admin - Faridabad", mobile: "9876543215", districtId: "dist_2", locationId: "fbd_hq", createdAt: Date.now() },
-  { id: "u3", username: "user", password: "user123", role: "user", name: "General Staff", mobile: "9876543211", districtId: "dist_1", locationId: "ggn_station_1", createdAt: Date.now() },
-  { id: "u4", username: "mhc", password: "mhc123", role: "mhc", name: "MHC Officer - Gurugram", mobile: "9876543212", districtId: "dist_1", locationId: "ggn_mhc", createdAt: Date.now() },
-  { id: "u6", username: "fbd_user", password: "user123", role: "user", name: "Staff - Faridabad", mobile: "9876543216", districtId: "dist_2", locationId: "fbd_station_1", createdAt: Date.now() },
-  { id: "u7", username: "fbd_mhc", password: "mhc123", role: "mhc", name: "MHC Officer - Faridabad", mobile: "9876543217", districtId: "dist_2", locationId: "fbd_mhc", createdAt: Date.now() },
+  { id: "u0", username: "developer", password: "dev@123", role: "devadmin", name: "Developer Admin", mobile: "9999999999", districtId: "", locationId: "loc_phq_haryana", createdAt: Date.now() },
+  { id: "u1", username: "admin", password: "admin123", role: "admin", name: "District Admin - Panipat", mobile: "9876543210", districtId: "dist_1", locationId: "ppt_hq", createdAt: Date.now() },
+  { id: "u4", username: "mhc", password: "mhc123", role: "mhc", name: "MHC Officer - Panipat", mobile: "9876543212", districtId: "dist_1", locationId: "ppt_mhc", createdAt: Date.now() },
 ];
 
 const ROLE_LABELS = { devadmin: "Developer Admin", ig: "Inspector General", admin: "District Admin", mhc: "MHC", user: "Office", itstaff: "Computer/IT Staff", mtostaff: "MTO Staff" };
@@ -717,6 +705,13 @@ function seedAll() {
 
 /* ==================== DATA ACCESS ==================== */
 function getDistricts() { return loadData("districts") || []; }
+// Default district for accounts without one (e.g. the Developer Admin):
+// the user's own district, else the first district that actually exists.
+function defaultDistrictId(u) {
+  if (u && u.districtId) return u.districtId;
+  const first = getDistricts()[0];
+  return (first && first.id) || "dist_1";
+}
 function saveDistricts(d) { saveData("districts", d); }
 function getUsers() { return loadData("users") || []; }
 function saveUsers(u) { saveData("users", u); }
@@ -1494,7 +1489,7 @@ async function __demoLogin(username, card) {
     if (res && res.ok && res.user) {
       // Identical to the typed-login success path in the submit handler below.
       currentUser = res.user;
-      activeDistrictId = currentUser.districtId || "dist_1";
+      activeDistrictId = defaultDistrictId(currentUser);
       setActiveDistrict(activeDistrictId);
       const rememberMe = !!$("#rememberMe") && $("#rememberMe").checked;
       setAuth({ user: currentUser, token: res.token || null }, rememberMe);
@@ -12863,7 +12858,7 @@ async function init() {
     const valid = await validateSession(auth.token);
     if (valid) {
       currentUser = auth.user;
-      activeDistrictId = currentUser.districtId || "dist_1";
+      activeDistrictId = defaultDistrictId(currentUser);
       setActiveDistrict(activeDistrictId);
       try { showApp(); } catch (e) { console.error("restore failed:", e); }
     } else {
@@ -12895,7 +12890,7 @@ async function init() {
       const res = await login($("#loginUser").value.trim(), $("#loginPass").value);
       if (res && res.user) {
         currentUser = res.user;
-        activeDistrictId = currentUser.districtId || "dist_1";
+        activeDistrictId = defaultDistrictId(currentUser);
         setActiveDistrict(activeDistrictId);
         setAuth({ user: currentUser, token: res.token || null }, rememberMe);
         addQuickUser({ username: currentUser.username, name: currentUser.name }, rememberMe);
@@ -14270,6 +14265,10 @@ function __ensureDistrictStaffUsers() {
         { role: "itstaff", name: "Computer/IT Staff", username: ("it.staff." + code), locId: ("staff_it_" + d.id) },
         { role: "mtostaff", name: "MTO Staff", username: ("mto.staff." + code), locId: ("staff_mto_" + d.id) }
       ]) {
+        // A deletion by the Developer Admin is deliberate: the district's
+        // staffDeleted flag says that account is gone for good, so it is not
+        // re-created here (the server-side provision pass honours it too).
+        if (d.staffDeleted && d.staffDeleted[def.role]) continue;
         if (!locs.some(l => l.id === def.locId)) { locs.push({ id: def.locId, name: def.name, type: "staff", districtId: d.id }); added = true; }
         if (users.some(u => u.districtId === d.id && u.role === def.role)) continue;
         users.push({ id: uid(), username: def.username, name: def.name, role: def.role, districtId: d.id, locationId: def.locId, mobile: "", password: "Staff@123", active: true, createdAt: Date.now() });
@@ -14696,8 +14695,8 @@ function downloadItemTemplate() {
   if (typeof XLSX === "undefined") return toast("Excel library not loaded. Please reload the page.", "error");
   const data = [
     ["Item Name", "Category", "Unit", "Min Stock", "Location", "Good", "Damaged", "Scrap"],
-    ["Wireless Set", "Communication Equipment", "Pcs", 0, "District HQ - Gurugram", 10, 2, 1],
-    ["Traffic Signal Light", "Office & Admin Supplies", "Pcs", 2, "PS DLF Phase 3", 5, 1, 0],
+    ["Wireless Set", "Communication Equipment", "Pcs", 0, "District HQ - Panipat", 10, 2, 1],
+    ["Traffic Signal Light", "Office & Admin Supplies", "Pcs", 2, "THC PANIPAT", 5, 1, 0],
   ];
   const ws = XLSX.utils.aoa_to_sheet(data);
   ws["!cols"] = [{ wch: 24 }, { wch: 26 }, { wch: 8 }, { wch: 10 }, { wch: 26 }, { wch: 8 }, { wch: 8 }, { wch: 10 }];

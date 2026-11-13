@@ -63,11 +63,8 @@ const DEMO_PASSWORD = 'hp@123';
 // installation still answers to DEMO_PASSWORD alone.
 const DEMO_DATA_PASSWORD = 'demo@123';
 const DEMO_SEED_ACCOUNTS = [
-  'admin', 'admin2', 'user', 'fbd_user', 'mhc', 'fbd_mhc',
-  'it.staff.gurugramdist', 'mto.staff.gurugramdist',
-  'it.staff.faridabaddis', 'mto.staff.faridabaddis',
+  'developer', 'igkarnal', 'thcpanipat',
   'it.staff.panipatdistr', 'mto.staff.panipatdistr',
-  'ig', 'ig.fbd',
 ].map(username => ({ username, password: DEMO_PASSWORD }));
 
 // A deployment that was started before an account existed never picks it up:
@@ -232,6 +229,10 @@ function provisionDistrictStaff(state) {
       { role: 'mtostaff', name: 'MTO Staff', uname: 'mto.staff.' + slug, locId: 'staff_mto_' + distId },
     ];
     for (const def of defs) {
+      // A deletion by the Developer Admin is deliberate: the district's
+      // staffDeleted flag says that account is gone for good, so it is not
+      // re-created here (the client-side ensure pass honours it too).
+      if (d && d.staffDeleted && d.staffDeleted[def.role]) continue;
       // Default staff location in the district's location list.
       if (!locs.some(l => l && l.id === def.locId)) {
         locs.push({ id: def.locId, name: def.name, type: 'staff', districtId: distId });
