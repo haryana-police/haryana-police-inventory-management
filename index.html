@@ -1268,13 +1268,13 @@
     <section id="view-shramdaan" class="view hidden">
       <div class="page-header">
         <div>
-          <h2>Shramdaan / श्रमदान</h2>
-          <p class="section-desc" style="color:var(--text-muted);margin:4px 0 0;font-size:13px;">Record &amp; track community service, cleanliness drives, gardening, tree plantation &amp; fatigue work by Line &amp; Station Officers</p>
+          <h2>Shramdaan</h2>
+          <p class="section-desc" style="color:var(--text-muted);margin:4px 0 0;font-size:13px;">Record &amp; track community service, cleanliness drives, tree plantation &amp; other community work by Line &amp; Station Officers</p>
         </div>
         <div class="page-actions">
           <button class="btn btn-primary" id="newShramDaanBtn">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:-3px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-            + Record Shramdaan
+            Record Shramdaan
           </button>
         </div>
       </div>
@@ -1295,7 +1295,7 @@
           </div>
           <div class="stat-info">
             <span class="stat-value" id="statShramGardening">0</span>
-            <span class="stat-label">Gardening (बागवानी)</span>
+            <span class="stat-label">Gardening</span>
           </div>
         </div>
         <div class="stat-card clickable stat-low" data-shram-filter="cleaning" title="Click to view Cleaning records">
@@ -1304,7 +1304,7 @@
           </div>
           <div class="stat-info">
             <span class="stat-value" id="statShramCleaning">0</span>
-            <span class="stat-label">Cleaning (सफ़ाई)</span>
+            <span class="stat-label">Cleaning</span>
           </div>
         </div>
         <div class="stat-card clickable stat-categories" data-shram-filter="planting" title="Click to view Tree Plantation records">
@@ -1313,7 +1313,7 @@
           </div>
           <div class="stat-info">
             <span class="stat-value" id="statShramPlanting">0</span>
-            <span class="stat-label">Planting (पौधारोपण)</span>
+            <span class="stat-label">Planting</span>
           </div>
         </div>
         <div class="stat-card clickable stat-critical" data-shram-filter="fatigue" title="Click to view Fatigue records">
@@ -1322,7 +1322,7 @@
           </div>
           <div class="stat-info">
             <span class="stat-value" id="statShramFatigue">0</span>
-            <span class="stat-label">Fatigue (फटीक)</span>
+            <span class="stat-label">Fatigue</span>
           </div>
         </div>
       </div>
@@ -1341,11 +1341,11 @@
         <input type="text" id="shramSearch" placeholder="Search work description, officer, location...">
         <select id="shramTypeFilter">
           <option value="">All Work Types</option>
-          <option value="gardening">Gardening (बागवानी)</option>
-          <option value="cleaning">Cleaning (सफ़ाई अभियान)</option>
-          <option value="planting">Planting (पौधारोपण)</option>
-          <option value="fatigue">Fatigue (फटीक / शारीरिक श्रम)</option>
-          <option value="other">Other (अन्य कार्य)</option>
+          <option value="gardening">Gardening</option>
+          <option value="cleaning">Cleaning</option>
+          <option value="planting">Planting</option>
+          <option value="fatigue">Fatigue</option>
+          <option value="other">Other</option>
         </select>
         <select id="shramLocationFilter">
           <option value="">All Locations / Units</option>
@@ -3790,7 +3790,7 @@
     </div>
     <div class="modal-body" style="padding:0 24px 20px; text-align:center;">
       <h3 style="margin:0 0 8px; font-size:1.18rem; font-weight:750; color:var(--text);">Confirm Logout</h3>
-      <p style="margin:0; font-size:0.92rem; color:var(--muted); line-height:1.45;">Are you sure you want to logout? / क्या आप लॉग आउट करना चाहते हैं?</p>
+      <p style="margin:0; font-size:0.92rem; color:var(--muted); line-height:1.45;">Are you sure you want to logout?</p>
     </div>
     <div class="modal-footer" style="justify-content:center; gap:12px; padding:14px 24px 20px; border-top:1px solid var(--border); background:transparent;">
       <button type="button" class="btn btn-outline" data-close style="min-width:105px; padding:8px 18px; font-weight:600;">Cancel</button>
@@ -3803,25 +3803,21 @@
 <div class="modal-backdrop hidden" id="shramDaanModal">
   <div class="modal modal-lg">
     <div class="modal-header">
-      <h2>Record Shramdaan / श्रमदान दर्ज करें</h2>
+      <h2>Record Shramdaan</h2>
       <button type="button" class="modal-close" data-close>&times;</button>
     </div>
     <form id="shramDaanForm">
       <div class="modal-body" style="max-height:calc(85vh - 120px);overflow-y:auto;padding:16px 20px;">
-        <div style="background:var(--bg-alt,#f8f9fa);padding:12px 14px;border-radius:8px;margin-bottom:16px;border-left:4px solid var(--primary-color,#1a56db);font-size:13px;color:var(--text-muted);">
-          Line Officer conducts Shramdaan at Police Line; Station Officer conducts at Police Station. Attach live camera photos or uploaded files with verified date and time stamp.
-        </div>
-
         <div class="form-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:14px;">
           <div class="form-group">
-            <label for="shramWorkType" style="font-weight:600;display:block;margin-bottom:6px;">Work Type (कार्य का प्रकार) <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
+            <label for="shramWorkType" style="font-weight:600;display:block;margin-bottom:6px;">Work Type <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
             <select id="shramWorkType" class="form-control" required style="width:100%;height:38px;">
               <option value="">-- Select Work Type --</option>
-              <option value="gardening">Gardening / बागवानी</option>
-              <option value="cleaning">Cleaning / सफ़ाई अभियान</option>
-              <option value="planting">Planting / पौधारोपण</option>
-              <option value="fatigue">Fatigue / फटीक (Manual Fatigue Duty)</option>
-              <option value="other">Other / अन्य कार्य</option>
+              <option value="gardening">Gardening</option>
+              <option value="cleaning">Cleaning</option>
+              <option value="planting">Planting</option>
+              <option value="fatigue">Fatigue</option>
+              <option value="other">Other</option>
             </select>
           </div>
 
@@ -3831,38 +3827,38 @@
           </div>
 
           <div class="form-group">
-            <label for="shramLocationDisplay" style="font-weight:600;display:block;margin-bottom:6px;">Location / Unit (स्थान)</label>
+            <label for="shramLocationDisplay" style="font-weight:600;display:block;margin-bottom:6px;">Location / Unit</label>
             <input type="text" id="shramLocationDisplay" class="form-control" readonly tabindex="-1" style="width:100%;height:38px;background:var(--bg-alt,#f1f5f9);cursor:default;font-weight:600;" title="Default location from logged-in user">
             <input type="hidden" id="shramLocation" value="">
           </div>
 
           <div class="form-group">
-            <label for="shramDate" style="font-weight:600;display:block;margin-bottom:6px;">Date (दिनांक) <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
+            <label for="shramDate" style="font-weight:600;display:block;margin-bottom:6px;">Date <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
             <input type="date" id="shramDate" class="form-control" required style="width:100%;height:38px;">
           </div>
 
           <div class="form-group">
-            <label for="shramTime" style="font-weight:600;display:block;margin-bottom:6px;">Time (समय) <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
+            <label for="shramTime" style="font-weight:600;display:block;margin-bottom:6px;">Time <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
             <input type="time" id="shramTime" class="form-control" required style="width:100%;height:38px;">
           </div>
 
           <div class="form-group">
-            <label for="shramParticipants" style="font-weight:600;display:block;margin-bottom:6px;">Personnel Involved (जवानों की संख्या)</label>
+            <label for="shramParticipants" style="font-weight:600;display:block;margin-bottom:6px;">Personnel Involved</label>
             <input type="number" id="shramParticipants" class="form-control" min="1" value="5" placeholder="e.g. 10" style="width:100%;height:38px;">
           </div>
         </div>
 
         <div class="form-group" style="margin-bottom:16px;">
-          <label for="shramDescription" style="font-weight:600;display:block;margin-bottom:6px;">Description of Work Done (किए गए कार्य का विवरण) <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
+          <label for="shramDescription" style="font-weight:600;display:block;margin-bottom:6px;">Description of Work Done <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
           <textarea id="shramDescription" class="form-control" rows="3" placeholder="Describe in detail what work was carried out (e.g. Cleaned front lawn and barracks, planted 25 neem and banyan saplings along perimeter, trimmed overgrown branches, disposed dry leaves)..." required style="width:100%;resize:vertical;"></textarea>
         </div>
 
         <div class="form-group" style="margin-bottom:10px;">
-          <label style="font-weight:600;display:block;margin-bottom:6px;">Photos / तस्वीरें (Capture via Camera or Upload) <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
+          <label style="font-weight:600;display:block;margin-bottom:6px;">Photos <span style="color:var(--red,#dc2626);font-weight:bold;">*</span></label>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
             <input type="file" id="shramFileInput" accept="image/*" multiple style="display:none;">
             <button type="button" class="btn btn-outline" id="shramPhotoUploadBtn">
-              📁 Choose Photo Files
+              📁 Choose Photos
             </button>
             <button type="button" class="btn btn-outline" id="shramPhotoCameraBtn">
               📷 Open Camera
@@ -3887,7 +3883,7 @@
 <div class="modal-backdrop hidden" id="shramDetailModal">
   <div class="modal modal-lg">
     <div class="modal-header">
-      <h2>Shramdaan Drive Details / श्रमदान विवरण</h2>
+      <h2>Shramdaan Drive Details</h2>
       <button type="button" class="modal-close" data-close>&times;</button>
     </div>
     <div class="modal-body" style="max-height:calc(85vh - 120px);overflow-y:auto;padding:20px;">

@@ -443,10 +443,12 @@ tbody tr { transition: background .12s; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: linear-gradient(90deg, rgba(30,58,95,.04), rgba(30,58,95,.01)); }
 .item-name { font-weight: 600; text-align: left; }
-/* Bilingual item name in a table cell: English on the first line, Hindi below it. */
+/* Bilingual item name in a table cell: show ONLY the active language */
 .nm-en { display: block; font-weight: 600; line-height: 1.35; text-align: left; }
 .nm-hi { display: block; font-size: .86em; line-height: 1.4; color: var(--muted); font-weight: 500; text-align: left; }
 td .nm-en:empty, td .nm-hi:empty { display: none; }
+body.lang-en .nm-hi, html[lang="en"] .nm-hi, body:not(.lang-hi) .nm-hi { display: none !important; }
+body.lang-hi .nm-en, html[lang="hi"] .nm-en { display: none !important; }
       /* Consumables item names. These cells are the anchor of the row, but the
          name inherited .linklike's pale link blue and sat at weight 600, which
          left it the weakest thing in the column - every other cell carries a
@@ -2190,8 +2192,11 @@ select option:checked { background: #eef2f7; }
 #adminLocList .btn-sm { padding: 5px 12px; font-size: 12px; }
 
 /* CONDITION UX + WIDE COLUMNS (v2026.09.138) */
-.as-row-fields { grid-template-columns: 1.15fr 1.6fr 125px 95px auto 32px !important; }
-.as-cq input { width: 88px !important; height: 40px; border-radius: 10px; border: 1.5px solid var(--border, #dbe2ea); font-weight: 600; font-size: .95rem; padding: 0 10px; }
+.as-row-fields { grid-template-columns: 1.15fr 1.6fr 125px 95px minmax(215px, auto) 32px !important; }
+.as-cq input { width: 104px !important; height: 40px; border-radius: 10px; border: 1.5px solid var(--border, #dbe2ea); font-weight: 600; font-size: .95rem; padding: 0 8px !important; text-align: center; }
+.as-cq input::-webkit-outer-spin-button,
+.as-cq input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.as-cq input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .as-cq input:focus { border-color: var(--primary, #1e3a5f); box-shadow: 0 0 0 3px rgba(30, 58, 92, .14); outline: none; }
 .as-cq label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--primary, #1e3a5f); }
 .al-cond-group { min-width: 118px; }
@@ -2342,7 +2347,7 @@ select option:checked { background: #eef2f7; }
 .as-row-fields input[type=number], .as-row-fields input[type=text] { height: 46px; border-radius: 12px; border: 1.5px solid var(--border, #dbe2ea); padding: 0 12px; font-weight: 600; }
 .as-row-fields input:focus { border-color: var(--primary, #1e3a5f); box-shadow: 0 0 0 3px rgba(30, 58, 92, .14); outline: none; }
 .as-row-fields select:disabled { opacity: .55; cursor: not-allowed; }
-.as-cols-head { display: grid; grid-template-columns: 1.15fr 1.6fr 125px 95px auto 32px; gap: 8px; padding: 0 10px 8px; border-bottom: 2px solid var(--border, #dbe2ea); margin-bottom: 4px; }
+.as-cols-head { display: grid; grid-template-columns: 1.15fr 1.6fr 125px 95px minmax(215px, auto) 32px; gap: 8px; padding: 0 10px 8px; border-bottom: 2px solid var(--border, #dbe2ea); margin-bottom: 4px; }
 .as-cols-head span { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--primary, #1e3a5f); }
 .as-row-unit, .cons-row-unit {
   height: 46px;
@@ -2377,11 +2382,11 @@ select option:checked { background: #eef2f7; }
 }
 #addStockModal .modal,
 #consAddModal .modal {
-  max-width: min(960px, calc(100vw - 32px));
+  max-width: min(980px, calc(100vw - 32px));
   width: 100%;
 }
-.as-cq input { width: 88px !important; }
-.as-cq input::placeholder { color: #94a3b8; font-weight: 600; }
+.as-cq input { width: 104px !important; }
+.as-cq input::placeholder { color: #94a3b8; font-weight: 600; font-size: .9rem; }
 .as-cond-qtys { display: flex; gap: 8px; align-items: center; }
 #view-consumables .page-actions .btn { min-height: 44px; padding: 0 20px; font-size: .95rem; border-radius: 12px; font-weight: 600; }
 #view-consumables .cons-toolbar .input { height: 44px; border-radius: 12px; border: 1.5px solid var(--border, #dbe2ea); font-weight: 500; padding: 0 12px; }

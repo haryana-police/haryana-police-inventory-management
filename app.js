@@ -30,11 +30,61 @@ const esc = (s) => {
   return d.innerHTML;
 };
 
-/* --- Bilingual item names ---------------------------------------------------
+/* --- Bilingual item names & language helpers -------------------------------
    Item names are stored as one bilingual string, e.g. "Cooler Iron कूलर लोहा".
-   In tables we show the English half on the first line and the Devanagari half
-   on the second line, instead of running both together on one line.            */
+   User chooses their language (English or Hindi): we only show the selected language. */
 const DEVA_RE = /[\u0900-\u097F]/;
+const LATIN_RE = /[a-zA-Z]/;
+
+function splitBilingual(str) {
+  if (!str) return null;
+  const s = String(str).trim();
+  if (!DEVA_RE.test(s) || !LATIN_RE.test(s)) return null;
+
+  // Pattern 1: English (Hindi) e.g. Location / Unit (स्थान), Work Type (कार्य का प्रकार) *
+  const parenMatch = s.match(/^([^\(\)]+?)\s*\(([\u0900-\u097F\s\/\.,\-\&]+)\)\s*(\*?)$/);
+  if (parenMatch && LATIN_RE.test(parenMatch[1])) {
+    const star = parenMatch[3] ? ' ' + parenMatch[3] : '';
+    return { en: parenMatch[1].trim() + star, hi: parenMatch[2].trim() + star };
+  }
+
+  // Pattern 2: English / Hindi e.g. Shramdaan / श्रमदान, Record Shramdaan / श्रमदान दर्ज करें
+  if (s.includes('/')) {
+    const parts = s.split('/').map(p => p.trim());
+    if (parts.length === 2) {
+      if (LATIN_RE.test(parts[0]) && DEVA_RE.test(parts[1])) {
+        return { en: parts[0], hi: parts[1] };
+      }
+      if (DEVA_RE.test(parts[0]) && LATIN_RE.test(parts[1])) {
+        return { en: parts[1], hi: parts[0] };
+      }
+    }
+  }
+
+  // Pattern 3: English Hindi (item names like Steel Almirah स्टील अलमारी)
+  const idx = s.search(DEVA_RE);
+  if (idx > 1) {
+    const en = s.slice(0, idx).trim();
+    const hi = s.slice(idx).trim();
+    if (en && hi && LATIN_RE.test(en)) {
+      return { en, hi };
+    }
+  }
+
+  return null;
+}
+window.splitBilingual = splitBilingual;
+
+function getLocalizedName(str) {
+  if (!str) return "";
+  const bi = splitBilingual(str);
+  if (bi) return (window.__LANG === "hi") ? bi.hi : bi.en;
+  const b = nameEnHi(str);
+  if (b) return (window.__LANG === "hi") ? b.hi : b.en;
+  return str;
+}
+window.getLocalizedName = getLocalizedName;
+
 function nameEnHi(name) {
   const s = String(name == null ? "" : name);
   const i = s.search(DEVA_RE);
@@ -43,7 +93,7 @@ function nameEnHi(name) {
   const hi = s.slice(i).trim();
   return en && hi ? { en: en, hi: hi } : null;
 }
-/* HTML for a table cell holding an item name: English on top, Hindi below. */
+/* HTML for a table cell holding an item name: both spans rendered, CSS displays only active language */
 function nameCell(name) {
   const b = nameEnHi(name);
   if (!b) return esc(name);
@@ -75,13 +125,12 @@ window.__ipLinkByName = function (name, hint) { return __ipLink({ name: name }, 
 const ITEM_COL_RE = /^\s*(item|item\s*\/\s*asset|item name|asset|item code)\s*$/i;
 function isItemCol(header) { return ITEM_COL_RE.test(String(header == null ? "" : header)); }
 function colCell(header, value) { return isItemCol(header) ? __ipLinkByName(value) : esc(value); }
-/* Same split, but styled inline. Print windows and the Word/PDF exports build their
-   own stylesheet, so the .nm-en / .nm-hi classes are not available there. */
+/* Same split, but styled inline: shows only the active language in exports/print */
 function nameCellInline(name) {
   const b = nameEnHi(name);
   if (!b) return esc(name);
-  return '<span style="display:block;font-weight:600">' + esc(b.en) + '</span>' +
-         '<span style="display:block;font-size:.88em;color:#64748b">' + esc(b.hi) + '</span>';
+  const text = (window.__LANG === "hi") ? b.hi : b.en;
+  return '<span style="display:block;font-weight:600">' + esc(text) + '</span>';
 }
 function colCellInline(header, value) { return isItemCol(header) ? nameCellInline(value) : esc(value); }
 window.nameCellInline = nameCellInline;
@@ -5287,7 +5336,7 @@ function seedShramDaan(districtId, forceSave) {
       id: "shram_1",
       workType: "cleaning",
       customType: "",
-      workTypeLabel: "Cleaning (सफ़ाई अभियान)",
+      workTypeLabel: "Cleaning",
       locationId: lineLoc.id,
       locationName: lineLoc.name,
       officerRole: "Line Officer",
@@ -5296,12 +5345,12 @@ function seedShramDaan(districtId, forceSave) {
       date: d1,
       time: "08:00",
       participants: 28,
-      description: "Comprehensive cleanliness drive (स्वच्छता अभियान) conducted across Police Line parade grounds, administrative block, MT section and police barracks. Waste segregation, sweeping and drain sanitation completed.",
+      description: "Comprehensive cleanliness drive conducted across Police Line parade grounds, administrative block, MT section and police barracks. Waste segregation, sweeping and drain sanitation completed.",
       photos: [
         {
           id: "ph_cl_1",
           name: "police-line-cleaning-1.jpg",
-          dataUrl: makeSamplePhotoSvg("Cleanliness Drive / सफ़ाई अभियान", d1 + " 08:00 AM", "Insp. Suresh Kumar (Line Officer)", lineLoc.name, "#1e3a8a", "#0d9488"),
+          dataUrl: makeSamplePhotoSvg("Cleanliness Drive", d1 + " 08:00 AM", "Insp. Suresh Kumar (Line Officer)", lineLoc.name, "#1e3a8a", "#0d9488"),
           capturedAt: d1 + " 08:00",
           stamped: true
         },
@@ -5320,7 +5369,7 @@ function seedShramDaan(districtId, forceSave) {
       id: "shram_2",
       workType: "planting",
       customType: "",
-      workTypeLabel: "Planting (पौधारोपण)",
+      workTypeLabel: "Planting",
       locationId: stationLoc.id,
       locationName: stationLoc.name,
       officerRole: "Station Officer",
@@ -5329,12 +5378,12 @@ function seedShramDaan(districtId, forceSave) {
       date: d2,
       time: "09:30",
       participants: 15,
-      description: "Mass tree plantation drive (पौधारोपण अभियान). Planted 30 medicinal and fruit-bearing saplings (Neem, Peepal, Jamun, Amla) along the perimeter boundary wall and entrance courtyard of the Police Station.",
+      description: "Mass tree plantation drive. Planted 30 medicinal and fruit-bearing saplings (Neem, Peepal, Jamun, Amla) along the perimeter boundary wall and entrance courtyard of the Police Station.",
       photos: [
         {
           id: "ph_pl_1",
           name: "police-station-planting.jpg",
-          dataUrl: makeSamplePhotoSvg("Tree Plantation / पौधारोपण", d2 + " 09:30 AM", "Sub-Insp. Manoj Sharma (Station Officer)", stationLoc.name, "#065f46", "#047857"),
+          dataUrl: makeSamplePhotoSvg("Tree Plantation", d2 + " 09:30 AM", "Sub-Insp. Manoj Sharma (Station Officer)", stationLoc.name, "#065f46", "#047857"),
           capturedAt: d2 + " 09:30",
           stamped: true
         }
@@ -5346,7 +5395,7 @@ function seedShramDaan(districtId, forceSave) {
       id: "shram_3",
       workType: "gardening",
       customType: "",
-      workTypeLabel: "Gardening (बागवानी)",
+      workTypeLabel: "Gardening",
       locationId: lineLoc.id,
       locationName: lineLoc.name,
       officerRole: "Line Officer",
@@ -5409,6 +5458,21 @@ function __shramFiltered(sourceList) {
   });
 }
 
+function getShramWorkTypeLabel(workType, customType, fallback) {
+  const isHi = window.__LANG === "hi";
+  if (customType) return customType + (isHi ? " (अन्य)" : " (Other)");
+  const wt = (workType || "").toLowerCase();
+  const enLabels = { gardening: "Gardening", cleaning: "Cleaning", planting: "Planting", fatigue: "Fatigue", other: "Other" };
+  const hiLabels = { gardening: "बागवानी", cleaning: "सफ़ाई अभियान", planting: "पौधारोपण", fatigue: "फटीक", other: "अन्य कार्य" };
+  if (isHi && hiLabels[wt]) return hiLabels[wt];
+  if (!isHi && enLabels[wt]) return enLabels[wt];
+  if (fallback) {
+    const bi = (window.splitBilingual ? window.splitBilingual(fallback) : null);
+    if (bi) return isHi ? bi.hi : bi.en;
+  }
+  return fallback || workType || "";
+}
+
 function renderShramDaan() {
   const container = $("#view-shramdaan");
   if (!container) return;
@@ -5454,7 +5518,7 @@ function renderShramDaan() {
         const badgeCls = `shram-badge shram-badge-${r.workType || 'other'}`;
         const icons = { gardening: "🌿", cleaning: "🧹", planting: "🌱", fatigue: "💪", other: "📌" };
         const icon = icons[r.workType] || "📌";
-        const typeTitle = r.customType ? `${r.customType} (Other)` : (r.workTypeLabel || r.workType);
+        const typeTitle = getShramWorkTypeLabel(r.workType, r.customType, r.workTypeLabel);
         const photos = Array.isArray(r.photos) ? r.photos : [];
 
         let photosHtml = '<span style="color:var(--text-muted);font-size:12px;">No photos</span>';
@@ -5724,11 +5788,11 @@ async function saveShramDaanEntry(e) {
   if (!description) return toast("Please enter a description of the work done.", "error");
 
   const labels = {
-    gardening: "Gardening (बागवानी)",
-    cleaning: "Cleaning (सफ़ाई अभियान)",
-    planting: "Planting (पौधारोपण)",
-    fatigue: "Fatigue (फटीक / शारीरिक श्रम)",
-    other: customType || "Other (अन्य कार्य)"
+    gardening: "Gardening",
+    cleaning: "Cleaning",
+    planting: "Planting",
+    fatigue: "Fatigue",
+    other: customType || "Other"
   };
 
   const newEntry = {
@@ -5774,7 +5838,7 @@ function openShramDaanDetailModal(id) {
   const badgeCls = `shram-badge shram-badge-${drive.workType || 'other'}`;
   const icons = { gardening: "🌿", cleaning: "🧹", planting: "🌱", fatigue: "💪", other: "📌" };
   const icon = icons[drive.workType] || "📌";
-  const typeTitle = drive.customType ? `${drive.customType} (Other)` : (drive.workTypeLabel || drive.workType);
+  const typeTitle = getShramWorkTypeLabel(drive.workType, drive.customType, drive.workTypeLabel);
   const photos = Array.isArray(drive.photos) ? drive.photos : [];
 
   let photosSection = '<p style="color:var(--text-muted);font-style:italic;">No photos uploaded for this drive.</p>';
@@ -5953,7 +6017,7 @@ const __SHRAM_STAT_BUILDERS = {
   all: () => {
     const list = getShramDaanList();
     return {
-      title: "All Shramdaan Drives",
+      title: window.__LANG === "hi" ? "सभी श्रमदान अभियान" : "All Shramdaan Drives",
       cols: __SHRAM_STAT_COLS,
       rows: __shramStatRows(list)
     };
@@ -5961,7 +6025,7 @@ const __SHRAM_STAT_BUILDERS = {
   gardening: () => {
     const list = getShramDaanList().filter(d => (d.workType || "").toLowerCase() === "gardening");
     return {
-      title: "Gardening (बागवानी) Drives",
+      title: window.__LANG === "hi" ? "बागवानी अभियान" : "Gardening Drives",
       cols: __SHRAM_STAT_COLS,
       rows: __shramStatRows(list)
     };
@@ -5969,7 +6033,7 @@ const __SHRAM_STAT_BUILDERS = {
   cleaning: () => {
     const list = getShramDaanList().filter(d => (d.workType || "").toLowerCase() === "cleaning");
     return {
-      title: "Cleaning (सफ़ाई अभियान) Drives",
+      title: window.__LANG === "hi" ? "सफ़ाई अभियान" : "Cleaning Drives",
       cols: __SHRAM_STAT_COLS,
       rows: __shramStatRows(list)
     };
@@ -5977,7 +6041,7 @@ const __SHRAM_STAT_BUILDERS = {
   planting: () => {
     const list = getShramDaanList().filter(d => (d.workType || "").toLowerCase() === "planting");
     return {
-      title: "Tree Planting (पौधारोपण) Drives",
+      title: window.__LANG === "hi" ? "पौधारोपण अभियान" : "Tree Planting Drives",
       cols: __SHRAM_STAT_COLS,
       rows: __shramStatRows(list)
     };
@@ -5985,7 +6049,7 @@ const __SHRAM_STAT_BUILDERS = {
   fatigue: () => {
     const list = getShramDaanList().filter(d => (d.workType || "").toLowerCase() === "fatigue");
     return {
-      title: "Fatigue (फटीक / शारीरिक श्रम) Drives",
+      title: window.__LANG === "hi" ? "फटीक अभियान" : "Fatigue Drives",
       cols: __SHRAM_STAT_COLS,
       rows: __shramStatRows(list)
     };
@@ -15718,6 +15782,58 @@ const __I18N_ITEMS = {
   "Submit and track maintenance requests for your unit.":"अपनी यूनिट के मेंटेनेंस अनुरोध जमा करें और ट्रैक करें।",
   "Total Qty (Received)":"कुल मात्रा (प्राप्त)",
   "Recipient Distribution History":"प्राप्तकर्ता वितरण इतिहास",
+  "Shramdaan":"श्रमदान",
+  "Record Shramdaan":"श्रमदान दर्ज करें",
+  "+ Record Shramdaan":"+ श्रमदान दर्ज करें",
+  "Save Shramdaan Entry":"श्रमदान विवरण सहेजें",
+  "Shramdaan Drive Details":"श्रमदान विवरण",
+  "Record & track community service, cleanliness drives, tree plantation & other community work by Line & Station Officers":"लाइन व थाना प्रभारियों द्वारा सामुदायिक सेवा, स्वच्छता अभियान, वृक्षारोपण और अन्य सामुदायिक कार्य का विवरण दर्ज व ट्रैक करें",
+  "Record & track community service, cleanliness drives, gardening, tree plantation & fatigue work by Line & Station Officers":"लाइन व थाना प्रभारियों द्वारा सामुदायिक सेवा, स्वच्छता अभियान, बागवानी, वृक्षारोपण और फटीक कार्य का विवरण दर्ज व ट्रैक करें",
+  "Total Drives":"कुल अभियान",
+  "Gardening":"बागवानी",
+  "Cleaning":"स्वच्छता अभियान",
+  "Planting":"पौधारोपण",
+  "Fatigue":"फटीक",
+  "Other":"अन्य",
+  "All Work Types":"सभी कार्य प्रकार",
+  "All Locations / Units":"सभी स्थान / यूनिट",
+  "Work Type":"कार्य का प्रकार",
+  "Work Type *":"कार्य का प्रकार *",
+  "Location / Unit":"स्थान / यूनिट",
+  "Personnel Involved":"जवानों की संख्या",
+  "Description of Work Done":"किए गए कार्य का विवरण",
+  "Description of Work Done *":"किए गए कार्य का विवरण *",
+  "Photos":"तस्वीरें",
+  "Photos *":"तस्वीरें *",
+  "Photos (Capture via Camera or Upload)":"तस्वीरें (कैमरा या अपलोड)",
+  "Photos (Capture via Camera or Upload) *":"तस्वीरें (कैमरा या अपलोड) *",
+  "Choose Photos":"तस्वीरें चुनें",
+  "📁 Choose Photos":"📁 तस्वीरें चुनें",
+  "Activity History Table":"गतिविधि इतिहास",
+  "Uploaded Photos Gallery":"अपलोड की गई फ़ोटो गैलरी",
+  "Confirm Logout":"लॉग आउट की पुष्टि",
+  "Are you sure you want to logout?":"क्या आप लॉग आउट करना चाहते हैं?",
+  "Line Officer conducts Shramdaan at Police Line; Station Officer conducts at Police Station. Attach live camera photos or uploaded files with verified date and time stamp.":"लाइन अधिकारी पुलिस लाइन में और थाना प्रभारी थाने में श्रमदान आयोजित करते हैं। प्रमाणित दिनांक व समय के साथ लाइव कैमरा फोटो या अपलोड की गई फाइलें संलग्न करें।",
+  "Choose Photo Files":"फ़ोटो फ़ाइलें चुनें",
+  "Open Camera":"कैमरा खोलें",
+  "Print Slip":"पर्ची प्रिंट करें",
+  "Date":"दिनांक",
+  "Time":"समय",
+  "Date *":"दिनांक *",
+  "Time *":"समय *",
+  "Search work description, officer, location...":"कार्य विवरण, अधिकारी, स्थान से खोजें...",
+  "-- Select Work Type --":"-- कार्य प्रकार चुनें --",
+  "Specify Other Work Type":"अन्य कार्य प्रकार दर्ज करें",
+  "Photos Attached":"संलग्न तस्वीरें",
+  "Uploaded Photos":"अपलोड की गई तस्वीरें",
+  "No photos uploaded for this drive.":"इस अभियान के लिए कोई तस्वीर अपलोड नहीं की गई।",
+  "Click any photo to view full resolution and download.":"पूर्ण रिज़ॉल्यूशन देखने और डाउनलोड करने के लिए किसी भी फ़ोटो पर क्लिक करें।",
+  "Drive record not found.":"अभियान रिकॉर्ड नहीं मिला।",
+  "Print Drive Slip":"अभियान पर्ची प्रिंट करें",
+  "View full drive details":"अभियान का पूरा विवरण देखें",
+  "Delete Record":"रिकॉर्ड हटाएं",
+  "Shramdaan Records":"श्रमदान रिकॉर्ड",
+  "No Shramdaan records found. Click \"+ Record Shramdaan\" to add one.":"कोई श्रमदान रिकॉर्ड नहीं मिला। जोड़ने के लिए \"+ श्रमदान दर्ज करें\" पर क्लिक करें।",
 };
 let __itemReCache = null;
 function __itemReList() {
@@ -15736,17 +15852,31 @@ const __origPlaceholder = new WeakMap();
 function __applyLanguage() {
   try {
     const hi = window.__LANG === "hi";
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.nodeValue && n.nodeValue.trim()) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT });
+    document.documentElement.lang = hi ? "hi" : "en";
+    if (document.body) {
+      document.body.classList.toggle("lang-hi", hi);
+      document.body.classList.toggle("lang-en", !hi);
+    }
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (n.nodeValue && n.nodeValue.trim()) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+    });
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
     for (const n of nodes) {
       if (n.parentElement && n.parentElement.closest("#langToggleBtn")) continue;
       const key = n.nodeValue.trim();
+      const bi = (window.splitBilingual ? window.splitBilingual(key) : null);
+
       if (hi) {
-        const hit = __I18N[key];
-        if (hit && hit !== key) {
+        if (bi) {
           if (!__origTextNode.has(n)) __origTextNode.set(n, n.nodeValue);
-          n.nodeValue = n.nodeValue.replace(key, hit);
+          n.nodeValue = n.nodeValue.replace(key, bi.hi);
+        } else {
+          const hit = __I18N[key];
+          if (hit && hit !== key) {
+            if (!__origTextNode.has(n)) __origTextNode.set(n, n.nodeValue);
+            n.nodeValue = n.nodeValue.replace(key, hit);
+          }
         }
         let v = n.nodeValue;
         for (const it of __itemReList()) {
@@ -15755,26 +15885,49 @@ function __applyLanguage() {
           v = v.replace(it.re, __I18N_ITEMS[it.en]);
         }
         if (v !== n.nodeValue) n.nodeValue = v;
-      } else if (__origTextNode.has(n)) {
-        n.nodeValue = __origTextNode.get(n);
-        __origTextNode.delete(n);
+      } else {
+        // English mode: user wants ONLY English text
+        if (bi) {
+          if (!__origTextNode.has(n)) __origTextNode.set(n, n.nodeValue);
+          n.nodeValue = n.nodeValue.replace(key, bi.en);
+        } else if (__origTextNode.has(n)) {
+          const orig = __origTextNode.get(n);
+          const origBi = (window.splitBilingual ? window.splitBilingual(orig.trim()) : null);
+          n.nodeValue = origBi ? orig.replace(orig.trim(), origBi.en) : orig;
+          __origTextNode.delete(n);
+        }
       }
     }
+
     document.querySelectorAll("input[placeholder], textarea[placeholder]").forEach(el => {
       const ph = (el.getAttribute("placeholder") || "").trim();
+      const bi = (window.splitBilingual ? window.splitBilingual(ph) : null);
       if (hi) {
-        const hit = __I18N[ph];
-        if (hit && hit !== ph) {
+        if (bi) {
           if (!__origPlaceholder.has(el)) __origPlaceholder.set(el, el.getAttribute("placeholder"));
-          el.setAttribute("placeholder", hit);
+          el.setAttribute("placeholder", bi.hi);
+        } else {
+          const hit = __I18N[ph];
+          if (hit && hit !== ph) {
+            if (!__origPlaceholder.has(el)) __origPlaceholder.set(el, el.getAttribute("placeholder"));
+            el.setAttribute("placeholder", hit);
+          }
         }
-      } else if (__origPlaceholder.has(el)) {
-        el.setAttribute("placeholder", __origPlaceholder.get(el));
-        __origPlaceholder.delete(el);
+      } else {
+        if (bi) {
+          if (!__origPlaceholder.has(el)) __origPlaceholder.set(el, el.getAttribute("placeholder"));
+          el.setAttribute("placeholder", bi.en);
+        } else if (__origPlaceholder.has(el)) {
+          const orig = __origPlaceholder.get(el);
+          const origBi = (window.splitBilingual ? window.splitBilingual(orig.trim()) : null);
+          el.setAttribute("placeholder", origBi ? origBi.en : orig);
+          __origPlaceholder.delete(el);
+        }
       }
     });
   } catch (e) {}
 }
+
 function __updateLangBtn(l) {
   const b = document.getElementById("langToggleBtn");
   if (!b) return;
@@ -15785,21 +15938,36 @@ function __updateLangBtn(l) {
   } else if (!b.querySelector("svg")) {
     b.textContent = isEn ? "हिंदी" : "English";
   }
-  b.title = isEn ? "Switch to Hindi / भाषा बदलें" : "Switch to English / अंग्रेज़ी में बदलें";
+  b.title = isEn ? "Switch to Hindi" : "Switch to English";
   b.setAttribute("aria-label", isEn ? "Switch to Hindi" : "Switch to English");
 }
+
 function __setLang(l) {
   window.__LANG = l;
   try { localStorage.setItem("hp_lang", l); } catch (e) {}
+  document.documentElement.lang = l;
+  if (document.body) {
+    document.body.classList.toggle("lang-hi", l === "hi");
+    document.body.classList.toggle("lang-en", l !== "hi");
+  }
   __updateLangBtn(l);
   __applyLanguage();
+  if (typeof renderShramDaan === "function" && $("#view-shramdaan") && !$("#view-shramdaan").classList.contains("hidden")) {
+    renderShramDaan();
+  }
 }
+
 const __langMO = new MutationObserver(() => {
-  if (window.__LANG !== "hi") return;
   clearTimeout(__langMO.__t);
   __langMO.__t = setTimeout(__applyLanguage, 250);
 });
+
 function __initLanguage() {
+  document.documentElement.lang = window.__LANG;
+  if (document.body) {
+    document.body.classList.toggle("lang-hi", window.__LANG === "hi");
+    document.body.classList.toggle("lang-en", window.__LANG !== "hi");
+  }
   const b = document.getElementById("langToggleBtn");
   if (b && !b.dataset.langBound) {
     b.dataset.langBound = "1";
@@ -15807,7 +15975,7 @@ function __initLanguage() {
   }
   __updateLangBtn(window.__LANG);
   if (!__langMO.__obs) { __langMO.__obs = true; __langMO.observe(document.body, { childList: true, subtree: true }); }
-  if (window.__LANG === "hi") __applyLanguage();
+  __applyLanguage();
 }
 __initLanguage();
 document.addEventListener("DOMContentLoaded", __initLanguage);

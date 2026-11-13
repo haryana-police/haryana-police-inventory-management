@@ -685,8 +685,9 @@
   }
   function fillHeader(item) {
     if (state.kind === "cons") return fillHeaderCons(item);
-    $("#ipCrumbName").textContent = item.name || "";
-    $("#ipTitle").textContent = item.name || "";
+    var locNm = (window.getLocalizedName ? window.getLocalizedName(item.name) : item.name) || "";
+    $("#ipCrumbName").textContent = locNm;
+    $("#ipTitle").textContent = locNm;
     var st = item.isDeleted ? { cls: "status-out", label: "Deleted" } : (window.allocStatusOfItem ? allocStatusOfItem(item) : { cls: "status-ok", label: "Available" });
     $("#ipStatusBadge").innerHTML = '<span class="status-badge ' + st.cls + '">' + esc(st.label) + "</span>";
     var dAdded = item.createdAt ? fmtD(item.createdAt) : "\u2014";
@@ -719,8 +720,9 @@
   }
   function fillHeaderCons(item) {
     var q = __consQty(item.id);
-    $("#ipCrumbName").textContent = item.name || "";
-    $("#ipTitle").textContent = item.name || "";
+    var locNm = (window.getLocalizedName ? window.getLocalizedName(item.name) : item.name) || "";
+    $("#ipCrumbName").textContent = locNm;
+    $("#ipTitle").textContent = locNm;
     $("#ipStatusBadge").innerHTML = item.isDeleted ? '<span class="status-badge status-out">Deleted</span>' : ('<span class="status-badge ' + consStatusCls(q.status) + '">' + esc(q.status || "") + "</span>");
     var dAddedCons = item.createdAt ? fmtD(item.createdAt) : "\u2014";
     var latestTsCons = Math.max(item.updatedAt || 0, (state.txs && state.txs[0] ? state.txs[0].ts : 0)) || item.createdAt;
