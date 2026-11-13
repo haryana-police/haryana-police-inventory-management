@@ -294,14 +294,16 @@ function authorizeUserCollectionWrite(user, currentUsers, incomingUsers) {
   // Change detection checks user account fields and ignores internal password/hash fields.
   const changed = (p, u) => stableStringify(cleanForDiff(p)) !== stableStringify(cleanForDiff(u));
   // Privilege escalation guard: a District Admin may not create, promote or
-  // edit anyone (including itself) into an admin role. Only devadmin can.
+  // edit anyone (including itself) into an admin role. An Inspector General
+  // supervises a whole range, so it may install a District Admin; minting an
+  // IG or a Developer Admin stays Developer-Admin-only.
   const roleEscalation = inc.some(u => {
     if (!u) return false;
     const p = curById.get(u.id);
     const wasRole = p ? p.role : undefined;
-    // 'ig' joins the privileged set: an Inspector General spans several districts,
-    // so it must be the Developer Admin alone who can hand the role out.
-    return (u.role === 'admin' || u.role === 'devadmin' || u.role === 'ig') && u.role !== wasRole;
+    const privileged = u.role === 'admin' || u.role === 'devadmin' || u.role === 'ig';
+    const igMayInstall = isIg && u.role === 'admin';
+    return privileged && u.role !== wasRole && !igMayInstall;
   });
   if (roleEscalation) {
     return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: 'Only the Developer Admin can assign admin roles.' };
@@ -322,7 +324,11 @@ function authorizeUserCollectionWrite(user, currentUsers, incomingUsers) {
     // District Admins can never manage administrator accounts (even a rename
     // of a fellow admin) — that stays Developer-Admin-only.
     if ((p.role === 'admin' || p.role === 'devadmin' || p.role === 'ig') && changed(p, u)) {
-      return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: 'Only the Developer Admin can manage administrator accounts.', detail: { userId: u.id } };
+      // An Inspector General may manage the District Admins of its range; IG
+      // and Developer Admin accounts stay Developer-Admin-only.
+      if (!(isIg && p.role === 'admin')) {
+        return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: 'Only the Developer Admin can manage administrator accounts.', detail: { userId: u.id } };
+      }
     }
     if (!changed(p, u)) continue; // untouched in this write
     if (!inDistrictScope(user, p.districtId) || !inDistrictScope(user, u.districtId)) {
@@ -349,7 +355,16 @@ function authorizeUserCollectionWrite(user, currentUsers, incomingUsers) {
           return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: `This IG Admin still handles ${scope.filter(Boolean).length} district(s) ("${p.username || p.id}"). Clear the districts first, then delete.`, detail: { userId: p.id, role: p.role, districts: scope.filter(Boolean) } };
         }
       }
-      return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: `Only the Developer Admin can remove an account with the ${p.role === 'ig' ? 'Inspector General' : 'administrator'} role ("${p.username || p.id}").`, detail: { userId: p.id, role: p.role } };
+      // An Inspector General may remove a District Admin of its range, but only
+      // once no users are still assigned to that admin's account.
+      if (p.role === 'admin' && isIg) {
+        const assigned = cur.filter(x => x && x.id !== p.id && x.districtId === p.districtId && x.role !== 'admin' && x.role !== 'devadmin' && x.role !== 'ig');
+        if (assigned.length) {
+          return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: `This District Admin cannot be deleted because users are still assigned to this account ("${p.username || p.id}").`, detail: { userId: p.id, role: p.role } };
+        }
+      } else {
+        return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: `Only the Developer Admin can remove an account with the ${p.role === 'ig' ? 'Inspector General' : 'administrator'} role ("${p.username || p.id}").`, detail: { userId: p.id, role: p.role } };
+      }
     }
     if (p && !incIds.has(p.id) && !inDistrictScope(user, p.districtId)) {
       return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: `You cannot remove users from outside ${scopeName} ("${p.username || p.id}").`, detail: { userId: p.id, districtId: p.districtId } };
@@ -1480,13 +1495,17 @@ function __stValidateUserPlacement(nextDistricts, nextLocMap, u, isAdd) {
   if (!fresh) {
     for (const w of writes.users) {
       if (!isDev) {
-        if (!isAdmin) return __structDeny(403, "RBAC_USER_FORBIDDEN", "You are not allowed to manage users.");
+        if (!isAdmin && user.role !== "ig") return __structDeny(403, "RBAC_USER_FORBIDDEN", "You are not allowed to manage users.");
         const scopeDistrict = w.op === "delete" ? (w.prev ? w.prev.districtId : w.user && w.user.districtId) : w.user.districtId;
-        if (scopeDistrict !== user.districtId) return __structDeny(403, "RBAC_USER_SCOPE", "You can only manage users in your own district.");
+        // An IG answers for every district of its range; a District Admin for
+        // its own district alone.
+        const igScope = user.role === "ig" && Array.isArray(user.districtIds) ? user.districtIds : [];
+        if (scopeDistrict !== user.districtId && igScope.indexOf(scopeDistrict) < 0) return __structDeny(403, "RBAC_USER_SCOPE", "You can only manage users in your own district.");
         const effRole = w.op === "delete" ? (w.prev ? w.prev.role : "") : w.user.role;
-        // An IG account spans districts and is therefore Developer-Admin-only,
-        // exactly like an administrator account.
-        if (effRole === "admin" || effRole === "devadmin" || effRole === "ig") return __structDeny(403, "RBAC_USER_ADMIN_TARGET", "You cannot manage administrator or Inspector General accounts.");
+        // IG and Developer Admin accounts stay Developer-Admin-only. A District
+        // Admin account may be managed by the Inspector General above it.
+        if (effRole === "devadmin" || effRole === "ig") return __structDeny(403, "RBAC_USER_ADMIN_TARGET", "You cannot manage administrator or Inspector General accounts.");
+        if (effRole === "admin" && user.role !== "ig") return __structDeny(403, "RBAC_USER_ADMIN_TARGET", "You cannot manage administrator or Inspector General accounts.");
         if (w.op === "edit" && w.prev && w.prev.districtId !== w.user.districtId) return __structDeny(403, "RBAC_USER_MOVE", "District cannot be changed.");
       }
       if (w.op === "add") {
@@ -1497,9 +1516,9 @@ function __stValidateUserPlacement(nextDistricts, nextLocMap, u, isAdd) {
           return __structDeny(400, "RBAC_USER_TAKEN", "Username already exists.");
         if (!String(u.name || "").trim()) return __structDeny(400, "RBAC_USER_DISPLAY", "Display name is required.");
         if (!/^\d{10}$/.test(String(u.mobile || "").trim())) return __structDeny(400, "RBAC_USER_MOBILE", "Mobile number must be exactly 10 digits.");
-        const knownRoles = ["devadmin", "ig", "admin", "user", "mhc", "tsi", "station", "staff", "post", "itstaff", "mtostaff", "unit", "role"];
+        const knownRoles = ["devadmin", "ig", "admin", "user", "mhc", "itstaff", "mtostaff", "unit", "role"];
         if (knownRoles.indexOf(String(u.role || "")) === -1) return __structDeny(400, "RBAC_USER_ROLE", "Invalid role.");
-        if ((u.role === "admin" || u.role === "devadmin") && !isDev) return __structDeny(403, "RBAC_USER_ROLE_FORBIDDEN", "You cannot assign admin roles.");
+        if ((u.role === "admin" || u.role === "devadmin") && !isDev && !(user.role === "ig" && u.role === "admin")) return __structDeny(403, "RBAC_USER_ROLE_FORBIDDEN", "You cannot assign admin roles.");
         const pw = String(u.password || "");
         if (!pw) return __structDeny(400, "RBAC_USER_PASSWORD", "Password is required.");
         if (pw.indexOf("$2") !== 0 && pw.length < 6) return __structDeny(400, "RBAC_USER_PASSWORD_WEAK", "Password must be at least 6 characters.");
@@ -1513,7 +1532,7 @@ function __stValidateUserPlacement(nextDistricts, nextLocMap, u, isAdd) {
         if (nextUsers.some(x => x && x.id !== u.id && String(x.username || "").trim().toLowerCase() === username.toLowerCase()))
           return __structDeny(400, "RBAC_USER_TAKEN", "Username already taken.");
         if (u.mobile !== undefined && !/^\d{10}$/.test(String(u.mobile || "").trim())) return __structDeny(400, "RBAC_USER_MOBILE", "Mobile number must be exactly 10 digits.");
-        if ((u.role === "admin" || u.role === "devadmin") && !isDev) return __structDeny(403, "RBAC_USER_ROLE_FORBIDDEN", "You cannot assign admin roles.");
+        if ((u.role === "admin" || u.role === "devadmin") && !isDev && !(user.role === "ig" && u.role === "admin")) return __structDeny(403, "RBAC_USER_ROLE_FORBIDDEN", "You cannot assign admin roles.");
         const place = __stValidateUserPlacement(nextDistricts, nextLocMap, u, false);
         if (place) return place;
         if (w.prev && w.prev.role === "devadmin" && u.role !== "devadmin") {

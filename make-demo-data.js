@@ -30,8 +30,7 @@ const demoPhone = (seed, i) => '98765' + String(10000 + ((seed * 37 + i * 91) % 
 
 const ROLE_LABEL = {
   devadmin: 'Developer Admin', ig: 'IG', admin: 'District Admin', mhc: 'MHC Officer',
-  station: 'Station Manager', itstaff: 'Computer/IT Staff', mtostaff: 'MTO Staff',
-  post: 'Police Post', user: 'Office', tsi: 'TSI', staff: 'Staff',
+  itstaff: 'Computer/IT Staff', mtostaff: 'MTO Staff', user: 'Office',
 };
 
 (async () => {
@@ -50,7 +49,7 @@ const ROLE_LABEL = {
     // that identifies a person, so the panel stays readable.
     if (copy.name) {
       const where = districts.find(d => d && d.id === copy.districtId);
-      const label = ROLE_LABEL[copy.role] || 'Staff';
+      const label = ROLE_LABEL[copy.role] || copy.role || 'User';
       copy.name = label + (where ? ' - ' + where.name : '') + ' (Demo)';
     }
     if (copy.mobile) copy.mobile = demoPhone(7, i);

@@ -84,15 +84,14 @@ try { pool.syncDemoAccounts(DEMO_PASSWORD); } catch (e) { console.warn('[demo-sy
 // the same vocabulary the app already uses - no role is invented.
 const ROLE_LABELS = {
   devadmin: 'Developer Admin', ig: 'Inspector General', admin: 'District Admin',
-  station: 'Station Manager', staff: 'Staff', mhc: 'MHC', tsi: 'TSI', post: 'Police Post',
-  user: 'Office', itstaff: 'Computer/IT Staff', mtostaff: 'MTO Staff',
+  mhc: 'MHC', user: 'Office', itstaff: 'Computer/IT Staff', mtostaff: 'MTO Staff',
 };
 
 // Display order on the login page, and the accent colour each role gets.
 const DEMO_ROLE_ORDER = ['devadmin', 'ig', 'admin', 'user', 'mhc', 'itstaff', 'mtostaff'];
 const DEMO_ROLE_ACCENT = {
-  devadmin: 'violet', ig: 'gold', admin: 'blue', station: 'teal', user: 'amber',
-  mhc: 'green', post: 'rose', itstaff: 'cyan', mtostaff: 'indigo',
+  devadmin: 'violet', ig: 'gold', admin: 'blue', user: 'amber',
+  mhc: 'green', itstaff: 'cyan', mtostaff: 'indigo',
 };
 
 function demoSeedFor(username) {

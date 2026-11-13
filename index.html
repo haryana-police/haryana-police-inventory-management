@@ -224,7 +224,7 @@
         </div>
       </div>
 <div class="topbar-right">
-        <button class="lang-toggle" id="langToggleBtn" title="Switch language / भाषा बदलें" aria-label="Switch language">
+        <button class="lang-toggle" id="langToggleBtn" title="Switch language / à¤­à¤¾à¤·à¤¾ à¤¬à¤¦à¤²à¥‡à¤‚" aria-label="Switch language">
           <svg class="icon-lang" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="m5 8 6 6"/>
             <path d="m4 14 6-6 2-3"/>
@@ -797,10 +797,6 @@
           <option value="">Search by Type: All</option>
           <option value="user">Office</option>
           <option value="mhc">MHC</option>
-          <option value="tsi" hidden style="display:none;">TSI</option>
-          <option value="station" hidden style="display:none;">Station Manager</option>
-          <option value="staff" hidden style="display:none;">Staff</option>
-          <option value="post" hidden style="display:none;">Police Post</option>
         </select>
       </div>
       <div class="dev-table-wrap"><table class="dev-table"><thead><tr>
@@ -827,7 +823,7 @@
           </div>
           <button type="button" class="btn btn-primary" id="adminAddUserBtn">+ Add New User</button>
         </div>
-        <div class="dev-toolbar"><input type="search" id="adminUserSearch" placeholder="Search by username, name, role, district, location..."><select id="adminUserType" class="dev-type-sel"><option value="">Search by Type: All</option><option value="admin">District Admin</option><option value="user">Office</option><option value="mhc">MHC</option><option value="tsi" hidden style="display:none;">TSI</option><option value="station" hidden style="display:none;">Station</option><option value="staff" hidden style="display:none;">Staff</option><option value="post" hidden style="display:none;">Post</option></select></div>
+        <div class="dev-toolbar"><input type="search" id="adminUserSearch" placeholder="Search by username, name, role, district, location..."><select id="adminUserType" class="dev-type-sel"><option value="">Search by Type: All</option><option value="admin">District Admin</option><option value="user">Office</option><option value="mhc">MHC</option></select></div>
         <div class="dev-table-wrap"><table class="dev-table"><thead><tr><th>Username</th><th>Display Name</th><th>Mobile</th><th>Role</th><th>District</th><th>Location</th><th>Actions</th></tr></thead><tbody id="adminUsersBody"></tbody></table></div>
         <div class="dev-toolbar" style="margin-top:10px"><span id="adminUsersCount" class="dev-empty"></span></div>
       </section>
@@ -1330,10 +1326,10 @@
       <!-- Section Tabs: Activity History & Uploaded Photos Gallery -->
       <div class="shram-view-tabs" style="display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid var(--border-color);padding-bottom:10px;">
         <button type="button" class="btn btn-sm btn-primary" id="shramTabHistoryBtn">
-          📋 Activity History Table (<span id="shramHistoryCount">0</span>)
+          ðŸ“‹ Activity History Table (<span id="shramHistoryCount">0</span>)
         </button>
         <button type="button" class="btn btn-sm btn-outline" id="shramTabGalleryBtn">
-          📷 Uploaded Photos Gallery (<span id="shramPhotoCount">0</span>)
+          ðŸ“· Uploaded Photos Gallery (<span id="shramPhotoCount">0</span>)
         </button>
       </div>
 
@@ -1352,7 +1348,7 @@
         </select>
         <input type="date" id="shramDateFrom" title="From Date">
         <input type="date" id="shramDateTo" title="To Date">
-        <button type="button" class="btn btn-sm btn-outline" id="shramClearFilterBtn" title="Reset Filters">✕ Clear</button>
+        <button type="button" class="btn btn-sm btn-outline" id="shramClearFilterBtn" title="Reset Filters">âœ• Clear</button>
         <div class="stat-export-dd">
           <button class="btn btn-sm btn-outline" id="shramExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
           <div class="stat-export-menu hidden" id="shramExportMenu">
@@ -1914,7 +1910,7 @@
 </table>
 </div>
 <div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center">
-<button type="button" class="btn btn-outline" id="ccitBackBtn">← Back to Categories</button>
+<button type="button" class="btn btn-outline" id="ccitBackBtn">â† Back to Categories</button>
 <button type="button" class="btn btn-outline" id="ccitCloseBtnBottom">Close</button>
 </div>
 </div>
@@ -1940,7 +1936,7 @@
 </table>
 </div>
 <div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center">
-<button type="button" class="btn btn-outline" id="citBackBtn">← Back to Categories</button>
+<button type="button" class="btn btn-outline" id="citBackBtn">â† Back to Categories</button>
 <button type="button" class="btn btn-outline" id="citCloseBtnBottom">Close</button>
 </div>
 </div>
@@ -2696,15 +2692,13 @@
           <div class="form-group">
             <label for="nuRole">Role</label>
             <select id="nuRole">
-              <option value="user">Office</option>
-              <option value="mhc">MHC</option>
-              <option value="admin">District Admin</option>
-              <option value="ig" data-dev-only>Inspector General</option>
               <option value="devadmin" data-dev-only>Developer Admin</option>
-              <option value="tsi" hidden disabled style="display:none;">TSI</option>
-              <option value="station" hidden disabled style="display:none;">Station Manager</option>
-              <option value="staff" hidden disabled style="display:none;">Staff</option>
-              <option value="post" hidden disabled style="display:none;">Police Post</option>
+              <option value="ig" data-dev-only>Inspector General</option>
+              <option value="admin">District Admin</option>
+              <option value="mhc">MHC</option>
+              <option value="user">Office</option>
+              <option value="itstaff">Computer/IT Staff</option>
+              <option value="mtostaff">MTO Staff</option>
             </select>
           </div>
           <div class="form-group">
@@ -2942,10 +2936,6 @@
         <select id="raUserType" required>
           <option value="user">Office</option>
           <option value="mhc">MHC</option>
-          <option value="tsi" hidden disabled style="display:none;">TSI</option>
-          <option value="station" hidden disabled style="display:none;">Station Manager</option>
-          <option value="staff" hidden disabled style="display:none;">Staff</option>
-          <option value="post" hidden disabled style="display:none;">Police Post</option>
         </select>
       </div>
       <div class="forgot-pass-result hidden" id="raResult">
@@ -3711,15 +3701,13 @@
         <div class="form-group">
           <label for="duRole">Role <span class="req">*</span></label>
           <select id="duRole">
-            <option value="user">Office</option>
-            <option value="mhc">MHC</option>
+            <option value="devadmin" data-dev-only>Developer Admin</option>
+            <option value="ig" data-dev-only>Inspector General</option>
             <option value="admin">District Admin</option>
-            <option value="ig">Inspector General</option>
-            <option value="devadmin">Developer Admin</option>
-            <option value="tsi" hidden disabled style="display:none;">TSI</option>
-            <option value="station" hidden disabled style="display:none;">Station Manager</option>
-            <option value="staff" hidden disabled style="display:none;">Staff</option>
-            <option value="post" hidden disabled style="display:none;">Police Post</option>
+            <option value="mhc">MHC</option>
+            <option value="user">Office</option>
+            <option value="itstaff">Computer/IT Staff</option>
+            <option value="mtostaff">MTO Staff</option>
           </select>
         </div>
         <div class="form-group">
@@ -3858,10 +3846,10 @@
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
             <input type="file" id="shramFileInput" accept="image/*" multiple style="display:none;">
             <button type="button" class="btn btn-outline" id="shramPhotoUploadBtn">
-              📁 Choose Photos
+              ðŸ“ Choose Photos
             </button>
             <button type="button" class="btn btn-outline" id="shramPhotoCameraBtn">
-              📷 Open Camera
+              ðŸ“· Open Camera
             </button>
             <span style="font-size:12px;color:var(--text-muted);">Multiple photos supported. Official timestamp is automatically attached.</span>
           </div>
@@ -3892,7 +3880,7 @@
       </div>
     </div>
     <div class="modal-footer" style="display:flex;justify-content:space-between;gap:10px;padding:14px 20px;border-top:1px solid var(--border-color);">
-      <button type="button" class="btn btn-outline" id="shramPrintSlipBtn">🖨️ Print Slip</button>
+      <button type="button" class="btn btn-outline" id="shramPrintSlipBtn">ðŸ–¨ï¸ Print Slip</button>
       <button type="button" class="btn btn-primary" data-close>Close</button>
     </div>
   </div>
@@ -3911,7 +3899,7 @@
     </div>
     <div class="modal-footer" style="display:flex;justify-content:space-between;padding-top:10px;">
       <span id="shramLightboxMeta" style="font-size:13px;color:var(--text-muted);align-self:center;"></span>
-      <a id="shramLightboxDownloadBtn" class="btn btn-sm btn-primary" download="shramdaan-photo.jpg">⬇ Download Photo</a>
+      <a id="shramLightboxDownloadBtn" class="btn btn-sm btn-primary" download="shramdaan-photo.jpg">â¬‡ Download Photo</a>
     </div>
   </div>
 </div>

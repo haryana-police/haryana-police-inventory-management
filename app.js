@@ -192,13 +192,15 @@ const DEFAULT_USERS = [
   { id: "u2", username: "admin2", password: "admin123", role: "admin", name: "District Admin - Faridabad", mobile: "9876543215", districtId: "dist_2", locationId: "fbd_hq", createdAt: Date.now() },
   { id: "u3", username: "user", password: "user123", role: "user", name: "General Staff", mobile: "9876543211", districtId: "dist_1", locationId: "ggn_station_1", createdAt: Date.now() },
   { id: "u4", username: "mhc", password: "mhc123", role: "mhc", name: "MHC Officer - Gurugram", mobile: "9876543212", districtId: "dist_1", locationId: "ggn_mhc", createdAt: Date.now() },
-  { id: "u5", username: "station", password: "station123", role: "station", name: "Station Manager - Gurugram", mobile: "9876543213", districtId: "dist_1", locationId: "ggn_station_1", createdAt: Date.now() },
   { id: "u6", username: "fbd_user", password: "user123", role: "user", name: "Staff - Faridabad", mobile: "9876543216", districtId: "dist_2", locationId: "fbd_station_1", createdAt: Date.now() },
   { id: "u7", username: "fbd_mhc", password: "mhc123", role: "mhc", name: "MHC Officer - Faridabad", mobile: "9876543217", districtId: "dist_2", locationId: "fbd_mhc", createdAt: Date.now() },
 ];
 
-const ROLE_LABELS = { devadmin: "Developer Admin", ig: "Inspector General", admin: "District Admin", station: "Station Manager", staff: "Staff", mhc: "MHC", tsi: "TSI", post: "Police Post", user: "Office", itstaff: "Computer/IT Staff", mtostaff: "MTO Staff" };
-const HIDDEN_ROLES = ["tsi", "post", "staff", "station"];
+const ROLE_LABELS = { devadmin: "Developer Admin", ig: "Inspector General", admin: "District Admin", mhc: "MHC", user: "Office", itstaff: "Computer/IT Staff", mtostaff: "MTO Staff" };
+// Station Manager, Staff, TSI and Police Post were removed as user roles.
+// The constant stays as an empty list so the legacy hidden-role guards
+// scattered through this file keep working unchanged.
+const HIDDEN_ROLES = [];
 
 /* ---- DISTRICT SCOPE (mirrors api/_rbac.js) ----
    Every role sits inside a set of districts. Most hold exactly one, through
@@ -1557,12 +1559,52 @@ function isAdmin() { return currentUser && (currentUser.role === "admin" || curr
 function isDevAdmin() { return currentUser && currentUser.role === "devadmin"; }
 function canEdit() {
   if (!currentUser) return false;
-  return ["admin", "devadmin", "ig", "mhc", "station", "staff", "post", "tsi", "user", "itstaff", "mtostaff"].includes(currentUser.role);
+  return ["admin", "devadmin", "ig", "mhc", "user", "itstaff", "mtostaff"].includes(currentUser.role);
 }
 function canManageItems() {
   if (!currentUser || isDevAdmin()) return false;
   if (isAdmin()) return true;
-  return !!(currentUser.locationId && ["mhc", "station", "staff", "post", "tsi", "user", "itstaff", "mtostaff"].includes(currentUser.role));
+  return !!(currentUser.locationId && ["mhc", "user", "itstaff", "mtostaff"].includes(currentUser.role));
+}
+/* ---- Who may hand out which role ----
+   A District Admin builds its own team: MHC, Office, Computer/IT and MTO
+   staff. An Inspector General supervises a whole range, so it may also
+   install a District Admin. Minting a Developer Admin or an Inspector
+   General stays Developer-Admin-only. */
+function assignableRoles() {
+  if (!currentUser) return [];
+  if (isDevAdmin()) return ["devadmin", "ig", "admin", "mhc", "user", "itstaff", "mtostaff"];
+  if (currentUser.role === "ig") return ["admin", "mhc", "user", "itstaff", "mtostaff"];
+  if (currentUser.role === "admin") return ["mhc", "user", "itstaff", "mtostaff"];
+  return [];
+}
+/* Shows only the roles the signed-in account may assign. Every user form
+   runs this when it opens, so a dropdown can never drift from the rule. */
+function applyRoleOptions(sel) {
+  if (!sel) return;
+  const allowed = assignableRoles();
+  Array.from(sel.options).forEach(opt => {
+    const ok = allowed.indexOf(opt.value) >= 0;
+    opt.hidden = !ok;
+    opt.disabled = !ok;
+    opt.style.display = ok ? "" : "none";
+  });
+}
+/* In edit mode the account's CURRENT role must stay selectable even when the
+   signed-in user could not assign it fresh - otherwise saving the form would
+   silently demote the account. */
+function keepCurrentRoleOption(sel, role) {
+  if (!sel || !role) return;
+  const curOpt = sel.querySelector('option[value="' + role + '"]');
+  if (curOpt && curOpt.hidden) { curOpt.hidden = false; curOpt.disabled = false; curOpt.style.display = ""; }
+}
+/* A fresh form starts on Office when that is assignable, otherwise on the
+   first role that is - never on a role the signed-in user cannot assign. */
+function defaultRoleValue(sel) {
+  if (!sel) return "";
+  const opts = Array.from(sel.options).filter(o => !o.hidden && !o.disabled);
+  const office = opts.find(o => o.value === "user");
+  return ((office || opts[0]) || {}).value || "";
 }
 /* ---- INVENTORY RBAC (record level) ----
    Visibility is driven by the district hierarchy; Edit/Delete is driven
@@ -1637,9 +1679,9 @@ function applyRoleUI() {
       sub.textContent = "Overview of inventory status \u2013 " + (_dActive ? _dActive.name : "Your district");
     }
   }
-// 'ig' and 'devadmin' are both Developer-Admin-only, so every marked option
-  // is hidden from anyone else, not just the first one.
-  document.querySelectorAll('#nuRole [data-dev-only]').forEach(opt => { opt.style.display = isDevAdmin() ? "" : "none"; });
+// The role dropdown mirrors assignableRoles(): a District Admin sees only its
+  // team roles, an IG adds District Admin, the Developer Admin sees everything.
+  applyRoleOptions($("#nuRole"));
   ["#backupDBBtn", "#backupExcelBtn", "#restoreDBBtn"].forEach(sel => { const el = $(sel); if (el) el.style.display = isDevAdmin() ? "" : "none"; });
   const _al = $("#auditLogBtn");
   if (_al) _al.style.display = (isAdmin() || isDevAdmin()) ? "" : "none";
@@ -4689,7 +4731,9 @@ function renderUsers() {
     const badgeColor = u.role === 'devadmin' ? '#7c3aed' : u.role === 'ig' ? 'var(--gold)' : u.role === 'admin' ? 'var(--primary)' : u.role === 'mhc' ? 'var(--gold)' : 'var(--green)';
     // Only the Developer Admin may create, edit or delete an IG account, so the
     // actions stay hidden on an IG row for everyone else.
-    const canManage = isDevAdmin() ? true : (isAdmin() && u.role !== 'admin' && u.role !== 'devadmin' && u.role !== 'ig');
+    // An Inspector General may manage the District Admin accounts of its range;
+    // Developer Admin and IG rows stay Developer-Admin-only for everyone else.
+    const canManage = isDevAdmin() ? true : (isAdmin() && u.role !== 'devadmin' && u.role !== 'ig' && (u.role !== 'admin' || (currentUser && currentUser.role === 'ig')));
     // The last Developer Admin can be edited but never deleted, and an IG that
     // still answers for a district cannot be removed either - clear its scope
     // first. Both rules are enforced again on the server.
@@ -4852,9 +4896,8 @@ function openUsersModal() {
   $("#cancelUserEdit").style.display = "none";
   $("#nuEditId").value = "";
   $("#addUserForm").reset();
-  document.querySelectorAll('#nuRole option').forEach(opt => {
-    if (HIDDEN_ROLES.includes(opt.value)) { opt.hidden = true; opt.disabled = true; opt.style.display = "none"; }
-  });
+  applyRoleOptions($("#nuRole"));
+  $("#nuRole").value = defaultRoleValue($("#nuRole"));
   buildIgDistrictPicker([]);
   syncIgRow();
   renderUsers();
@@ -4875,13 +4918,8 @@ function startEditUser(id) {
   $("#nuPassword").value = "";
   $("#nuName").value = user.name;
   $("#nuMobile").value = user.mobile;
-  document.querySelectorAll('#nuRole option').forEach(opt => {
-    if (HIDDEN_ROLES.includes(opt.value)) { opt.hidden = true; opt.disabled = true; opt.style.display = "none"; }
-  });
-  if (HIDDEN_ROLES.includes(user.role)) {
-    const curOpt = document.querySelector('#nuRole option[value="' + user.role + '"]');
-    if (curOpt) { curOpt.hidden = false; curOpt.disabled = false; curOpt.style.display = ""; }
-  }
+  applyRoleOptions($("#nuRole"));
+  keepCurrentRoleOption($("#nuRole"), user.role);
   $("#nuRole").value = user.role;
   $("#nuDistrict").value = user.districtId;
   buildIgDistrictPicker(Array.isArray(user.districtIds) ? user.districtIds : []);
@@ -4896,9 +4934,7 @@ function cancelUserEdit() {
   $("#cancelUserEdit").style.display = "none";
   $("#nuEditId").value = "";
   $("#addUserForm").reset();
-  document.querySelectorAll('#nuRole option').forEach(opt => {
-    if (HIDDEN_ROLES.includes(opt.value)) { opt.hidden = true; opt.disabled = true; opt.style.display = "none"; }
-  });
+  applyRoleOptions($("#nuRole"));
   buildIgDistrictPicker([]);
   syncIgRow();
 }
@@ -4919,7 +4955,7 @@ function addUser(e) {
   if (!username || !name || !mobile) return toast("Fill all required fields.", "error");
   if (role === "ig" && !igDistricts.length) return toast("An Inspector General must be given at least one district.", "error");
   if (!isDevAdmin() && districtId !== activeDistrictId) return toast("You can only create users in your district.", "error");
-  if (!isDevAdmin() && (role === "admin" || role === "devadmin" || role === "ig")) return toast("You cannot assign admin roles.", "error");
+  if (!isDevAdmin() && !(currentUser && currentUser.role === "ig" && role === "admin") && (role === "admin" || role === "devadmin" || role === "ig")) return toast("You cannot assign admin roles.", "error");
   const users = getUsers();
   if (editId) {
     const user = users.find(u => u.id === editId);
@@ -4953,7 +4989,7 @@ function deleteUser(id) {
   if (!confirm("Delete this user?")) return;
   const user = getUsers().find(u => u.id === id);
   if (!isDevAdmin() && user && user.districtId !== activeDistrictId) return toast("You can only delete users in your district.", "error");
-  if (!isDevAdmin() && user && (user.role === "admin" || user.role === "devadmin" || user.role === "ig")) return toast("You cannot delete admin or Inspector General users.", "error");
+  if (!isDevAdmin() && user && (user.role === "devadmin" || user.role === "ig" || (user.role === "admin" && !(currentUser && currentUser.role === "ig")))) return toast("You cannot delete admin or Inspector General users.", "error");
   saveUsers(getUsers().filter(u => u.id !== id));
   __audit("User Deleted", `${user ? user.name : id} (${user ? user.role : "?"})`, { entity: "User" });
   toast("User deleted.", "success");
@@ -8632,7 +8668,7 @@ function unitUserCandidates(districtId, locationId) {
   if (!users.length && locationId) {
     users = getUsers().filter(u => u.districtId === districtId && u.role === "admin");
   }
-  const unitRoles = ["station", "mhc", "post", "tsi", "staff"];
+  const unitRoles = ["mhc"];
   const isHQ = loc && loc.type === "district";
   let best = null;
   if (isHQ) best = users.find(u => u.role === "admin") || users.find(u => u.role === "devadmin");
@@ -15094,10 +15130,8 @@ const __I18N = {
   "Office":"\u0915\u093e\u0930\u094d\u092f\u093e\u0932\u092f",
   "District Admin":"\u091c\u093f\u0932\u093e \u092a\u094d\u0930\u0936\u093e\u0938\u0915",
   "Developer Admin":"\u0921\u0947\u0935\u0932\u092a\u0930 \u092a\u094d\u0930\u0936\u093e\u0938\u0915",
-  "Station Manager":"\u0925\u093e\u0928\u093e \u092a\u094d\u0930\u092d\u093e\u0930\u0940",
   "Police Post":"\u092a\u0941\u0932\u093f\u0938 \u091a\u094c\u0915\u0940",
   "MHC":"\u090f\u092e\u090f\u091a\u0938\u0940",
-  "TSI":"\u091f\u0940\u090f\u0938\u0906\u0908",
   "Staff":"\u0938\u094d\u091f\u093e\u092b",
   "Computer/IT Staff":"\u0915\u0902\u092a\u094d\u092f\u0942\u091f\u0930/\u0906\u0908\u091f\u0940 \u0938\u094d\u091f\u093e\u092b",
   "MTO Staff":"\u090f\u092e\u091f\u0940\u0913 \u0938\u094d\u091f\u093e\u092b",
@@ -15421,7 +15455,6 @@ const __I18N_ITEMS = {
   "Developer Admin":"डेवलपर प्रशासक",
   "General User":"सामान्य उपयोगकर्ता",
   "Office":"कार्यालय",
-  "Station Manager":"स्टेशन प्रबंधक",
   "User":"उपयोगकर्ता",
   "Users":"उपयोगकर्ता",
   "By":"द्वारा",
@@ -18746,22 +18779,15 @@ function openDevUserModal(editId, presetDistrictId) {
   $("#devUserForm").reset();
   const rSel = $("#duRole");
   if (rSel) {
-    Array.from(rSel.options).forEach(opt => {
-      const isHiddenRole = HIDDEN_ROLES.includes(opt.value);
-      opt.hidden = isHiddenRole;
-      opt.disabled = isHiddenRole;
-      opt.style.display = isHiddenRole ? "none" : "";
-    });
+    applyRoleOptions(rSel);
+    if (!editId) $("#duRole").value = defaultRoleValue($("#duRole"));
   }
   $("#duEditId").value = editId || "";
   if (editId) {
     const user = getUsers().find(u => u.id === editId);
     if (!user) return toast("User not found.", "error");
     if (!isDevAdmin() && (user.role === "ig" || user.role === "devadmin")) return toast("You cannot manage higher authority accounts.", "error");
-    if (HIDDEN_ROLES.includes(user.role) && rSel) {
-      const curOpt = rSel.querySelector('option[value="' + user.role + '"]');
-      if (curOpt) { curOpt.hidden = false; curOpt.disabled = false; curOpt.style.display = ""; }
-    }
+    keepCurrentRoleOption(rSel, user.role);
     $("#devUserTitle").textContent = "Edit User";
     $("#devUserSubmit").textContent = "Update User";
     $("#duUsername").value = user.username;
@@ -18861,10 +18887,11 @@ function renderAdminUsers() {
   const aq = (__devPg.adminUsers && __devPg.adminUsers.q || '').trim();
   const type = __devPg.adminUsers.type || '';
   let users = getUsers().filter(u => u.districtId === currentUser.districtId && u.role !== 'ig' && u.role !== 'devadmin');
-  users = users.filter(u => __devUserMatches(u, aq)).filter(u => !type || u.role === type);
+  const displayRole = u => ["itstaff", "mtostaff"].includes(u.role) ? "user" : u.role;
+  users = users.filter(u => (__devUserMatches(u, aq) || ROLE_LABELS[displayRole(u)]?.toLowerCase().includes(aq.toLowerCase())) && (!type || displayRole(u) === type));
   const cnt = $('#adminUsersCount'); if (cnt) cnt.textContent = users.length + ' user' + (users.length === 1 ? '' : 's');
   const dist = getDistricts().find(d => d.id === currentUser.districtId);
-  tbody.innerHTML = users.map(u => { const loc = (getLocationsForDistrict(currentUser.districtId) || []).find(l => l.id === u.locationId); return '<tr data-devu-id="' + u.id + '"><td>' + esc(u.username) + '</td><td>' + esc(u.name) + '</td><td>' + esc(u.mobile || '-') + '</td><td>' + esc(ROLE_LABELS[u.role] || u.role) + '</td><td>' + esc(dist ? dist.name : '-') + '</td><td>' + esc(loc ? loc.name : '-') + '</td><td class="cell-actions"><button type="button" class="btn btn-sm btn-dark" data-devu-edit="' + u.id + '">Edit</button>' + (u.id === currentUser.id ? '' : '<button type="button" class="btn btn-sm btn-red" data-devu-del="' + u.id + '">Delete</button>') + '</td></tr>'; }).join('');
+  tbody.innerHTML = users.map(u => { const loc = (getLocationsForDistrict(currentUser.districtId) || []).find(l => l.id === u.locationId); return '<tr data-devu-id="' + u.id + '"><td>' + esc(u.username) + '</td><td>' + esc(u.name) + '</td><td>' + esc(u.mobile || '-') + '</td><td>' + esc(ROLE_LABELS[displayRole(u)] || u.role) + '</td><td>' + esc(dist ? dist.name : '-') + '</td><td>' + esc(loc ? loc.name : '-') + '</td><td class="cell-actions"><button type="button" class="btn btn-sm btn-dark" data-devu-edit="' + u.id + '">Edit</button>' + (u.id === currentUser.id ? '' : '<button type="button" class="btn btn-sm btn-red" data-devu-del="' + u.id + '">Delete</button>') + '</td></tr>'; }).join('');
   if (!users.length) tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">No users found.</td></tr>';
 }
 function openAdminUserModal(editId) {
@@ -18879,22 +18906,12 @@ function openAdminUserModal(editId) {
     __fillDevUserLocations();
     const rSel = $('#duRole');
     if (rSel) {
-      Array.from(rSel.options).forEach(opt => {
-        const higher = (opt.value === 'admin' || opt.value === 'devadmin' || opt.value === 'ig');
-        const isHiddenRole = HIDDEN_ROLES.includes(opt.value);
-        opt.hidden = higher || isHiddenRole;
-        opt.disabled = higher || isHiddenRole;
-        opt.style.display = (higher || isHiddenRole) ? "none" : "";
-      });
+      applyRoleOptions(rSel);
       if (editId) {
         const target = getUsers().find(u => u.id === editId);
-        if (target && HIDDEN_ROLES.includes(target.role)) {
-          const curOpt = rSel.querySelector('option[value="' + target.role + '"]');
-          if (curOpt) { curOpt.hidden = false; curOpt.disabled = false; curOpt.style.display = ""; }
-        }
-      }
-      if (rSel.value === 'admin' || rSel.value === 'devadmin' || rSel.value === 'ig' || (HIDDEN_ROLES.includes(rSel.value) && !editId)) {
-        rSel.value = 'user';
+        keepCurrentRoleOption(rSel, target && target.role);
+      } else {
+        $("#duRole").value = defaultRoleValue($("#duRole"));
         duSyncRole();
       }
     }
@@ -18912,7 +18929,7 @@ function saveDevUser(e) {
   const mobile = $("#duMobile").value.trim();
   const role = $("#duRole").value;
   const errEl = $("#devUserErr");
-  if (!isDevAdmin() && (role === "admin" || role === "devadmin" || role === "ig")) { errEl.textContent = "You cannot assign admin roles."; return; }
+  if (!isDevAdmin() && !(currentUser && currentUser.role === "ig" && role === "admin") && (role === "admin" || role === "devadmin" || role === "ig")) { errEl.textContent = "You cannot assign admin roles."; return; }
   errEl.textContent = "";
   if (!username) { errEl.textContent = "Username is required."; return; }
   const users = getUsers();
