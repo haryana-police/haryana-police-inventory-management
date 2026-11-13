@@ -4894,6 +4894,7 @@ function openUsersModal() {
   $("#nuEditId").value = "";
   $("#addUserForm").reset();
   applyRoleOptions($("#nuRole"));
+  if ($("#nuRole")) $("#nuRole").disabled = false;
   $("#nuRole").value = defaultRoleValue($("#nuRole"));
   buildIgDistrictPicker([]);
   syncIgRow();

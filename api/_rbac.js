@@ -379,6 +379,12 @@ function authorizeUserCollectionWrite(user, currentUsers, incomingUsers) {
     if (p && !incIds.has(p.id) && !inDistrictScope(user, p.districtId)) {
       return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: `You cannot remove users from outside ${scopeName} ("${p.username || p.id}").`, detail: { userId: p.id, districtId: p.districtId } };
     }
+    // The fixed staff accounts (it.staff.<district> / mto.staff.<district>)
+    // can only be removed by the Developer Admin - a district admin deleting
+    // one would leave the district without its Computer/IT or MTO seat.
+    if (p && !incIds.has(p.id) && (p.role === 'itstaff' || p.role === 'mtostaff')) {
+      return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: 'Only the Developer Admin can delete the Computer/IT Staff or MTO Staff account.', detail: { userId: p.id, role: p.role } };
+    }
   }
   return null;
 }
