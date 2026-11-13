@@ -1382,7 +1382,7 @@ function __demoCard(a, accent, available) {
   btn.type = "button";
   btn.className = "demo-card accent-" + (accent || "blue");
   btn.dataset.demoUser = a.username;
-  btn.setAttribute("aria-label", "Sign in as " + a.name + " (" + a.roleLabel + ")");
+  btn.setAttribute("aria-label", (available ? "Select account " : "Sign in as ") + a.name + " (" + a.roleLabel + ")");
   // An IG account covers several districts, so the card names all of them rather
   // than a single one; every other role keeps its location and district.
   const where = Array.isArray(a.districts) && a.districts.length
@@ -1403,7 +1403,11 @@ function __demoCard(a, accent, available) {
     if (!available) return __demoLogin(a.username, btn);
     $("#loginUser").value = a.username;
     $("#loginPass").value = "";
-    $("#loginPass").focus();
+    $("#loginError")?.classList.add("hidden");
+    __demoClearError();
+    $(".demo-sub").textContent = a.name + " selected. Enter your password and click Sign In.";
+    $("#loginPass").scrollIntoView({ block: "center" });
+    $("#loginPass").focus({ preventScroll: true });
   });
   return btn;
 }
