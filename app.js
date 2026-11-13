@@ -3211,23 +3211,92 @@ function pdfReport(d) {
   doc.setFontSize(10);
   doc.setTextColor(90, 90, 90);
   doc.text(d.subtitle, 14, 22);
+  // Shape Hindi in the browser before embedding it; jsPDF's default font
+  // cannot encode Devanagari. Other cells remain searchable PDF text.
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const scale = 8;
+  const shaped = new WeakMap();
+  const images = new WeakMap();
+  function setFont(cell) {
+    ctx.font = (cell.styles.fontStyle === "bold" ? "bold " : "") +
+      (cell.styles.fontSize / doc.internal.scaleFactor * scale) + "px Arial, Mangal, sans-serif";
+  }
   doc.autoTable({
     head: [d.cols],
     body: d.rows,
     startY: 27,
     styles: { fontSize: 8.5, cellPadding: 2.5 },
     headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: "bold" },
-    alternateRowStyles: { fillColor: [245, 247, 250] }
+    alternateRowStyles: { fillColor: [245, 247, 250] },
+    didParseCell({ cell }) {
+      if (!cell.text.some(line => /[\u0900-\u097f]/.test(line))) return;
+      shaped.set(cell, true);
+      setFont(cell);
+      const measure = line => (ctx.measureText(line).width + 2) / scale;
+      cell.styles.minCellWidth = Math.min(60, Math.max(...cell.text.map(measure)) + cell.padding("horizontal"));
+      cell.styles.overflow = (lines, width) => {
+        setFont(cell);
+        const segmenter = typeof Intl.Segmenter === "function"
+          ? new Intl.Segmenter("hi", { granularity: "grapheme" }) : null;
+        return lines.flatMap(line => {
+          const result = [""];
+          for (const word of line.trim().split(/\s+/)) {
+            const i = result.length - 1;
+            const next = result[i] ? result[i] + " " + word : word;
+            if (measure(next) <= width) {
+              result[i] = next;
+              continue;
+            }
+            if (result[i]) result.push("");
+            const parts = measure(word) > width && segmenter
+              ? Array.from(segmenter.segment(word), part => part.segment) : [word];
+            for (const part of parts) {
+              const j = result.length - 1;
+              if (result[j] && measure(result[j] + part) > width) result.push(part);
+              else result[j] += part;
+            }
+          }
+          return result;
+        });
+      };
+    },
+    willDrawCell({ cell }) {
+      // AutoTable may clone cells when splitting a row across pages.
+      if (!shaped.has(cell) && typeof cell.styles.overflow !== "function") return;
+      images.set(cell, cell.text);
+      cell.text = [];
+    },
+    didDrawCell({ cell, section }) {
+      const lines = images.get(cell);
+      if (!lines) return;
+      cell.text = lines;
+      const step = cell.styles.fontSize / doc.internal.scaleFactor * doc.getLineHeightFactor();
+      lines.forEach((line, i) => {
+        if (!line) return;
+        setFont(cell);
+        canvas.width = Math.ceil(ctx.measureText(line).width) + 2;
+        canvas.height = Math.ceil(step * scale * 1.25);
+        setFont(cell);
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = section === "head" ? "#fff" : "#323232";
+        ctx.fillText(line, 0, canvas.height / 2);
+        doc.addImage(canvas.toDataURL(), "PNG",
+          cell.x + cell.padding("left"), cell.y + cell.padding("top") + i * step,
+          canvas.width / scale, canvas.height / scale);
+      });
+    }
   });
   doc.save(d.fileName + ".pdf");
+  toast("PDF exported.", "success");
 }
 
 function printInventoryReport() { printReport(__invExportData()); }
 function exportInvExcel() { excelReport(__invExportData()); toast("Excel exported.", "success"); }
 function exportInvWord() { wordReport(__invExportData()); toast("Word document exported.", "success"); }
-function exportInvPDF() { pdfReport(__invExportData()); toast("PDF exported.", "success"); }
+function exportInvPDF() { pdfReport(__invExportData()); }
 
-function rebuildDropdowns() {
+function rebuildDropdowns({ useOwnLocation = false } = {}) {
   const cats = getCategories();
   const locs = getLocations();
 
@@ -3256,7 +3325,9 @@ function rebuildDropdowns() {
   } else if (isAdmin()) {
     if ($("#locationFilter")) {
       $("#locationFilter").disabled = false;
-      const locPrev = ($("#locationFilter") || {}).value;
+      const locPrev = useOwnLocation && currentUser.role === "admin"
+        ? locs.find(location => location.id === currentUser.locationId)?.id || ""
+        : $("#locationFilter").value;
       populate($("#locationFilter"), `<option value="">All Locations in District</option>` + locs.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join(""), locPrev);
     }
   } else {
@@ -4927,7 +4998,7 @@ function __inspExportData() {
 function printInspReport() { printReport(__inspExportData()); }
 function exportInspExcel() { excelReport(__inspExportData()); toast("Excel exported.", "success"); }
 function exportInspWord() { wordReport(__inspExportData()); toast("Word document exported.", "success"); }
-function exportInspPDF() { pdfReport(__inspExportData()); toast("PDF exported.", "success"); }
+function exportInspPDF() { pdfReport(__inspExportData()); }
 
 const __INSP_COLS = ["Date", "Item / Asset", "Inspected By", "Type", "Location", "Findings", "Recommendations", "Status"];
 
@@ -5847,7 +5918,7 @@ function __shramExportData() {
 function printShramReport() { printReport(__shramExportData()); }
 function exportShramExcel() { excelReport(__shramExportData()); toast("Excel exported.", "success"); }
 function exportShramWord() { wordReport(__shramExportData()); toast("Word document exported.", "success"); }
-function exportShramPDF() { pdfReport(__shramExportData()); toast("PDF exported.", "success"); }
+function exportShramPDF() { pdfReport(__shramExportData()); }
 
 const __SHRAM_STAT_COLS = ["Date & Time", "Work Type", "Description / Work Done", "Location / Unit", "Participants", "Photos"];
 
@@ -7118,7 +7189,7 @@ function __distExportData() {
 function printDistributionReport() { printReport(__distExportData()); }
 function exportDistExcel() { excelReport(__distExportData()); toast("Excel exported.", "success"); }
 function exportDistWord() { wordReport(__distExportData()); toast("Word document exported.", "success"); }
-function exportDistPDF() { pdfReport(__distExportData()); toast("PDF exported.", "success"); }
+function exportDistPDF() { pdfReport(__distExportData()); }
 
 /* ---- Distribution stat cards (mirror the dashboard stat detail pattern) ---- */
 const __DIST_STAT_COLS = ["Dist No", "Item", "Category", "Qty", "Condition", "Distributed By", "Distributed To", "Status", "Date", "Remark"];
@@ -8105,7 +8176,7 @@ function __maintExportData() {
 function printMaintReport() { printReport(__maintExportData()); }
 function exportMaintExcel() { excelReport(__maintExportData()); toast("Excel exported.", "success"); }
 function exportMaintWord() { wordReport(__maintExportData()); toast("Word document exported.", "success"); }
-function exportMaintPDF() { pdfReport(__maintExportData()); toast("PDF exported.", "success"); }
+function exportMaintPDF() { pdfReport(__maintExportData()); }
 
 function getMaintDotCount() {
   if (!activeDistrictId || !currentUser) return 0;
@@ -8327,7 +8398,7 @@ function __demandExportData() {
 function printDemandReport() { printReport(__demandExportData()); }
 function exportDemandExcel() { excelReport(__demandExportData()); toast("Excel exported.", "success"); }
 function exportDemandWord() { wordReport(__demandExportData()); toast("Word document exported.", "success"); }
-function exportDemandPDF() { pdfReport(__demandExportData()); toast("PDF exported.", "success"); }
+function exportDemandPDF() { pdfReport(__demandExportData()); }
 
 const __DEMAND_COLS = ["Demand No", "Requested By", "Requested To", "Item", "Qty", "Status", "Date"];
 
@@ -10172,7 +10243,7 @@ function __rptExportData() {
   };
 }
 function printRptReport() { printReport(__rptExportData()); }
-function exportRptPDF() { pdfReport(__rptExportData()); toast("PDF exported.", "success"); }
+function exportRptPDF() { pdfReport(__rptExportData()); }
 function exportRptExcel() { excelReport(__rptExportData()); toast("Excel exported.", "success"); }
 function exportRptWord() { wordReport(__rptExportData()); toast("Word document exported.", "success"); }
 
@@ -11663,17 +11734,17 @@ function __allocReturnsExportData() {
 }
 
 function printAllocStock() { printReport(__allocStockExportData()); }
-function exportAllocStockPDF() { pdfReport(__allocStockExportData()); toast("PDF exported.", "success"); }
+function exportAllocStockPDF() { pdfReport(__allocStockExportData()); }
 function exportAllocStockExcel() { excelReport(__allocStockExportData()); toast("Excel exported.", "success"); }
 function exportAllocStockWord() { wordReport(__allocStockExportData()); toast("Word document exported.", "success"); }
 
 function printAllocList() { printReport(__allocListExportData()); }
-function exportAllocListPDF() { pdfReport(__allocListExportData()); toast("PDF exported.", "success"); }
+function exportAllocListPDF() { pdfReport(__allocListExportData()); }
 function exportAllocListExcel() { excelReport(__allocListExportData()); toast("Excel exported.", "success"); }
 function exportAllocListWord() { wordReport(__allocListExportData()); toast("Word document exported.", "success"); }
 
 function printAllocReturns() { printReport(__allocReturnsExportData()); }
-function exportAllocReturnsPDF() { pdfReport(__allocReturnsExportData()); toast("PDF exported.", "success"); }
+function exportAllocReturnsPDF() { pdfReport(__allocReturnsExportData()); }
 function exportAllocReturnsExcel() { excelReport(__allocReturnsExportData()); toast("Excel exported.", "success"); }
 function exportAllocReturnsWord() { wordReport(__allocReturnsExportData()); toast("Word document exported.", "success"); }
 
@@ -14077,7 +14148,7 @@ function showApp() {
   if (ver) ver.textContent = "v" + APP_VERSION;
   try { applyRoleUI(); } catch (e) { console.error("applyRoleUI failed:", e); }
   try { __ensureDistrictStaffUsers(); } catch (e) { console.error("staff ensure failed:", e); }
-  try { rebuildDropdowns(); } catch (e) { console.error("dropdowns failed:", e); }
+  try { rebuildDropdowns({ useOwnLocation: true }); syncComboboxes(); } catch (e) { console.error("dropdowns failed:", e); }
   try { switchTab(currentUser && (currentUser.role === "itstaff" || currentUser.role === "mtostaff") ? "maintenance" : "dashboard"); } catch (e) { console.error("initial render failed:", e); }
   try { __rtStart(); } catch (e) { console.error("realtime failed:", e); }
   try { history.replaceState(null, "" , location.pathname + location.search); } catch (e) { try { location.hash = ""; } catch (e2) { } }
@@ -17259,7 +17330,7 @@ function __consLedgerExportData() {
 }
 function exportConsLedgerExcel() { excelReport(__consLedgerExportData()); toast("Excel exported.", "success"); }
 function exportConsLedgerWord() { wordReport(__consLedgerExportData()); toast("Word document exported.", "success"); }
-function exportConsLedgerPDF() { pdfReport(__consLedgerExportData()); toast("PDF exported.", "success"); }
+function exportConsLedgerPDF() { pdfReport(__consLedgerExportData()); }
 function printConsLedger() { printReport(__consLedgerExportData()); }
 function __consDistExportData() {
   const rows = __consDistFilter(__consDistRows());
@@ -17275,7 +17346,7 @@ function __consDistExportData() {
 }
 function exportConsDistExcel() { excelReport(__consDistExportData()); toast("Excel exported.", "success"); }
 function exportConsDistWord() { wordReport(__consDistExportData()); toast("Word document exported.", "success"); }
-function exportConsDistPDF() { pdfReport(__consDistExportData()); toast("PDF exported.", "success"); }
+function exportConsDistPDF() { pdfReport(__consDistExportData()); }
 function printConsDist() { printReport(__consDistExportData()); }
 /* ---- Filter toolbar bindings ---- */
 function __consBindToolbar() {
