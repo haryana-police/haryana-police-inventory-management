@@ -303,9 +303,19 @@ function authorizeUserCollectionWrite(user, currentUsers, incomingUsers) {
     const wasRole = p ? p.role : undefined;
     const privileged = u.role === 'admin' || u.role === 'devadmin' || u.role === 'ig';
     const igMayInstall = isIg && u.role === 'admin';
+    // The fixed staff accounts (it.staff.<district> / mto.staff.<district>)
+    // keep the role they were created with: an IG or a District Admin may not
+    // re-role them.
+    if (p && (p.role === 'itstaff' || p.role === 'mtostaff') && u.role !== p.role) return true;
     return privileged && u.role !== wasRole && !igMayInstall;
   });
   if (roleEscalation) {
+    if (inc.some(u => {
+      const p = curById.get(u.id);
+      return p && (p.role === 'itstaff' || p.role === 'mtostaff') && u.role !== p.role;
+    })) {
+      return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: 'The Computer/IT Staff and MTO Staff accounts keep the role they were created with. Only the Developer Admin can change it.' };
+    }
     return { status: 403, code: 'RBAC_USERS_FORBIDDEN', error: 'Only the Developer Admin can assign admin roles.' };
   }
   // Diff-based district scope: users the admin did not touch may belong to
