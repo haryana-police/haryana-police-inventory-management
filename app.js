@@ -1426,11 +1426,8 @@ function __renderDemoCards(accounts, available) {
   }
   const groups = new Map();
   for (const a of accounts) {
-    const officeStaff = a.role === "itstaff" || a.role === "mtostaff";
-    const role = officeStaff ? "user" : a.role;
-    const account = officeStaff ? { ...a, roleLabel: "Office", accent: "amber" } : a;
-    if (!groups.has(role)) groups.set(role, { label: account.roleLabel, accent: account.accent, items: [] });
-    groups.get(role).items.push(account);
+    if (!groups.has(a.role)) groups.set(a.role, { label: a.roleLabel, accent: a.accent, items: [] });
+    groups.get(a.role).items.push(a);
   }
   const frag = document.createDocumentFragment();
   for (const g of groups.values()) {
@@ -4734,6 +4731,10 @@ function renderUsers() {
     // An Inspector General may manage the District Admin accounts of its range;
     // Developer Admin and IG rows stay Developer-Admin-only for everyone else.
     const canManage = isDevAdmin() ? true : (isAdmin() && u.role !== 'devadmin' && u.role !== 'ig' && (u.role !== 'admin' || (currentUser && currentUser.role === 'ig')));
+    // The fixed staff accounts (it.staff.<district> / mto.staff.<district>) can
+    // only be deleted by the Developer Admin - a district admin deleting one
+    // would leave the district without its Computer/IT or MTO staff seat.
+    const staffRow = u.role === 'itstaff' || u.role === 'mtostaff';
     // The last Developer Admin can be edited but never deleted, and an IG that
     // still answers for a district cannot be removed either - clear its scope
     // first. Both rules are enforced again on the server.
@@ -4742,6 +4743,7 @@ function renderUsers() {
     const igBusy = u.role === 'ig' && igDistrictsOf(u).length > 0;
     const items = [ { label: "Edit", attrs: `data-edit-user="${u.id}"` } ];
     if (lastDev) items.push({ label: "Last Developer Admin", cls: "act-dd-del act-dd-off", attrs: `title="The only Developer Admin cannot be deleted"` });
+    else if (staffRow && !isDevAdmin()) items.push({ label: "Developer Admin only", cls: "act-dd-del act-dd-off", attrs: `title="Only the Developer Admin can delete this account"` });
     else if (igBusy) items.push({ label: "Has " + igDistrictsOf(u).length + " district(s)", cls: "act-dd-del act-dd-off", attrs: `title="Clear this IG's districts before deleting it"` });
     else items.push({ label: "Delete", cls: "act-dd-del", attrs: `data-del-user="${u.id}"` });
     const actions = isSelf ? "" : (canManage ? actDD(items) : "");
@@ -4921,6 +4923,9 @@ function startEditUser(id) {
   applyRoleOptions($("#nuRole"));
   keepCurrentRoleOption($("#nuRole"), user.role);
   $("#nuRole").value = user.role;
+  // The fixed staff accounts keep the role they were created with: a district
+  // admin or an IG may not re-role them - only the Developer Admin can.
+  $("#nuRole").disabled = (user.role === "itstaff" || user.role === "mtostaff") && !isDevAdmin();
   $("#nuDistrict").value = user.districtId;
   buildIgDistrictPicker(Array.isArray(user.districtIds) ? user.districtIds : []);
   updateUserLocationDropdown();
@@ -4935,6 +4940,7 @@ function cancelUserEdit() {
   $("#nuEditId").value = "";
   $("#addUserForm").reset();
   applyRoleOptions($("#nuRole"));
+  if ($("#nuRole")) $("#nuRole").disabled = false;
   buildIgDistrictPicker([]);
   syncIgRow();
 }
@@ -4961,6 +4967,11 @@ function addUser(e) {
     const user = users.find(u => u.id === editId);
     if (!user) return toast("User not found.", "error");
     if (users.some(u => u.username === username && u.id !== editId)) return toast("Username already taken.", "error");
+    // The fixed staff accounts keep the role they were created with - only the
+    // Developer Admin may re-role them.
+    if ((user.role === "itstaff" || user.role === "mtostaff") && role !== user.role && !isDevAdmin()) {
+      return toast("Only the Developer Admin can change the role of a Computer/IT or MTO staff account.", "error");
+    }
     user.username = username;
     if (password) user.password = password;
     user.name = name;
@@ -4988,9 +4999,26 @@ saveUsers(users);
 function deleteUser(id) {
   if (!confirm("Delete this user?")) return;
   const user = getUsers().find(u => u.id === id);
+  if (!isDevAdmin() && user && (user.role === "itstaff" || user.role === "mtostaff")) return toast("Only the Developer Admin can delete the district's Computer/IT or MTO staff account.", "error");
   if (!isDevAdmin() && user && user.districtId !== activeDistrictId) return toast("You can only delete users in your district.", "error");
   if (!isDevAdmin() && user && (user.role === "devadmin" || user.role === "ig" || (user.role === "admin" && !(currentUser && currentUser.role === "ig")))) return toast("You cannot delete admin or Inspector General users.", "error");
   saveUsers(getUsers().filter(u => u.id !== id));
+  // The fixed staff accounts (it.staff.<district> / mto.staff.<district>) are
+  // re-created automatically for every district. A deletion by the Developer
+  // Admin is deliberate, so the district is flagged here: the flag is read by
+  // both the client-side ensure pass and the server-side provision pass, so
+  // the removed account is never brought back on its own.
+  if (isDevAdmin() && user && (user.role === "itstaff" || user.role === "mtostaff")) {
+    try {
+      const districts = getDistricts();
+      const d = districts.find(x => x.id === user.districtId);
+      if (d) {
+        d.staffDeleted = Object.assign({}, d.staffDeleted);
+        d.staffDeleted[user.role] = true;
+        saveDistricts(districts);
+      }
+    } catch (e) { console.error("staffDeleted flag failed:", e); }
+  }
   __audit("User Deleted", `${user ? user.name : id} (${user ? user.role : "?"})`, { entity: "User" });
   toast("User deleted.", "success");
   renderUsers();
