@@ -38,7 +38,8 @@ function __api(method, path, body) {
 
 function __authToken() {
   try {
-    const a = JSON.parse(localStorage.getItem(__prefix + "auth"));
+    const key = __prefix + "auth";
+    const a = JSON.parse(localStorage.getItem(key) || sessionStorage.getItem(key));
     return a && a.token ? a.token : null;
   } catch { return null; }
 }

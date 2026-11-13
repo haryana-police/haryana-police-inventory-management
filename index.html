@@ -68,7 +68,7 @@
 
           <div class="login-remember">
             <label class="checkbox-label">
-              <input type="checkbox" id="rememberMe" checked>
+              <input type="checkbox" id="rememberMe">
               <span>Remember me</span>
             </label>
           </div>
@@ -190,6 +190,10 @@
       <button class="sidebar-link" data-tab="account-management" id="accountMgmtNavBtn" data-admin-only title="Account Management">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>Account Management</span>
+      </button>
+      <button class="sidebar-link" data-tab="grievances">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16v12H9l-5 4z"/><path d="M8 8h8m-8 4h6"/></svg>
+        <span>Grievances</span>
       </button>
     </nav>
 
@@ -1096,6 +1100,35 @@
     </section>
 
     <!-- ========== DISTRIBUTION VIEW ========== -->
+    <section id="view-grievances" class="view hidden">
+      <h1>Grievances</h1>
+      <button type="button" class="btn btn-primary" id="grievanceRaise">Raise Grievance</button>
+      <button type="button" class="btn btn-outline" id="grievanceRefresh">Refresh</button>
+      <p id="grievanceStatus" role="status"></p>
+      <form id="grievanceForm" class="hidden">
+        <h2 id="grievanceFormTitle"></h2>
+        <div class="form-group" id="grievanceBriefGroup">
+          <label for="grievanceBrief">Brief</label>
+          <textarea id="grievanceBrief" rows="1" maxlength="160"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="grievanceDescription">Description</label>
+          <textarea id="grievanceDescription" rows="5" maxlength="5000" required></textarea>
+        </div>
+        <div class="form-group">
+          <label for="grievanceUpload">Upload photo or video (optional, up to 12 MB)</label>
+          <input id="grievanceUpload" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime">
+        </div>
+        <button class="btn btn-primary" type="submit">Submit</button>
+        <button class="btn btn-outline" type="button" id="grievanceCancel">Cancel</button>
+      </form>
+      <article id="grievanceDetail" class="hidden"></article>
+      <div class="table-wrap">
+        <table><thead><tr><th>Brief</th><th>Raised by</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="grievanceRows"></tbody>
+        </table>
+      </div>
+    </section>
     <section id="view-distribution" class="view hidden">
       <div class="page-header">
         <h2>Distribution</h2>
@@ -3308,6 +3341,7 @@
   <script src="enter-to-submit.js?v=2026.09.253"></script>
   <script src="cat-multiselect.js?v=2026.09.253"></script>
   <script src="app.js?v=2026.10.142"></script>
+  <script src="grievances.js" defer></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
 <script src="item-profile.js?v=2026.10.051"></script>
 <script src="person-profile.js?v=2026.09.213"></script>

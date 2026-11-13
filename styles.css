@@ -3086,7 +3086,8 @@ td .cat-badge { white-space: nowrap; }
 .login-left .quick-login-label { color: rgba(255,255,255,.50); }
 .login-left .quick-login-chip { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.16); color: #fff; }
 .login-left .quick-login-chip:hover { background: rgba(255,255,255,.13); border-color: var(--gold); color: #fff; }
-.login-left .quick-login-chip .ql-user { color: rgba(255,255,255,.58); }
+.login-left .quick-login-chip .ql-name,
+.login-left .quick-login-chip .ql-user { color: #fff; }
 
 .login-left .login-footer { margin-top: var(--sp-3; 24px); border-top-color: rgba(255,255,255,.12); }
 .login-left .login-hint { color: rgba(255,255,255,.44); }
@@ -5105,5 +5106,21 @@ body.modal-open #appRoot {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+#grievanceForm textarea {
+  box-sizing: border-box;
+  overflow-y: hidden;
+  resize: none;
+}
+
+#grievanceRows [data-grievance-status="Pending"] { color: var(--red); }
+#grievanceRows [data-grievance-status="Complete"] { color: var(--green); }
+
+#grievanceForm input[type="file"] {
+  box-sizing: border-box;
+  height: auto;
+  min-height: 46px;
+  padding: 8px 12px;
 }
 

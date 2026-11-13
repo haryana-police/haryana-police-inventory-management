@@ -79,6 +79,13 @@ function serveStatic(res, rel) {
   if (abs !== PROJECT_DIR && abs.indexOf(PROJECT_DIR + path.sep) !== 0) {
     res.statusCode = 403; res.end('Forbidden'); return;
   }
+  const asset = path.relative(PROJECT_DIR, abs).split(path.sep).join('/');
+  const publicRootFiles = /^(?:index\.html|(?:styles|mobile)\.css|(?:api-client|enter-to-submit|cat-multiselect|app|grievances|ims-agent|item-profile|person-profile|mobile|lang-hindi|manage-nav|ui-fix)\.js|logo\.(?:jpg|png)|USER_GUIDE(?:_APP)?\.(?:html|pdf|md))$/;
+  if (!publicRootFiles.test(asset) && !/^vendor\/(?:fonts|jspdf|tesseract|tessdata|pdfjs|mammoth|xlsx)\/[\w./-]+$/.test(asset)) {
+    res.statusCode = 404;
+    res.end('Not found');
+    return;
+  }
   fs.readFile(abs, (err, data) => {
     if (err) {
       res.statusCode = 404;
@@ -103,11 +110,16 @@ function wrap(res) {
   return res;
 }
 
-function readBody(req) {
+function readBody(req, limit = Infinity) {
   return new Promise(resolve => {
     const chunks = [];
-    req.on('data', c => chunks.push(c));
+    let size = 0;
+    req.on('data', c => {
+      size += c.length;
+      if (size <= limit) chunks.push(c);
+    });
     req.on('end', () => {
+      if (size > limit) return resolve(null);
       const raw = Buffer.concat(chunks).toString('utf8');
       if (!raw) return resolve({});
       try { resolve(JSON.parse(raw)); } catch (e) { resolve({ __raw: raw }); }
@@ -151,9 +163,15 @@ function handleApi(req, res, pathname) {
   }
   query.path = seg;
   req.query = query;
-  const p = (req.method !== 'GET' && req.method !== 'HEAD') ? readBody(req).then(b => { req.body = b; req._body = true; }) : Promise.resolve({}).then(b => { req.body = b; req._body = true; });
+  const p = (req.method !== 'GET' && req.method !== 'HEAD')
+    ? readBody(req, seg[0] === 'grievances' ? 17 * 1024 * 1024 : Infinity) : Promise.resolve({});
   const handler = getApiHandler();
-  return p.then(() => handler(req, res));
+  return p.then(body => {
+    if (body === null && seg[0] === 'grievances') return res.status(413).json({ error: 'Grievance upload is too large.' });
+    req.body = body;
+    req._body = true;
+    return handler(req, res);
+  });
 }
 
 // ---------- one-time vendor bootstrap (binary assets only) ----------

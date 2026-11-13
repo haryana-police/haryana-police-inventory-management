@@ -139,7 +139,7 @@ function distributionExemptKeys(prevState, nextState) {
     const n = next[id];
     if (!n) continue;
     // Allow if transitioning from pending to completed, or already completed in nextState
-    if (n.status !== 'completed' && !(o && o.status === 'pending' && n.status === 'completed')) continue;
+    if (!o || o.status !== 'pending' || n.status !== 'completed') continue;
     for (const it of (Array.isArray(n.items) ? n.items : [])) {
       const name = String(it.itemName || '').trim().toLowerCase();
       if (!name) continue;
@@ -150,13 +150,9 @@ function distributionExemptKeys(prevState, nextState) {
 
       if (fromDist) {
         if (fromLoc) exempt.add(fromDist + '|' + fromLoc + '|' + name);
-        if (n.fromLocationId) exempt.add(fromDist + '|' + n.fromLocationId + '|' + name);
-        exempt.add(fromDist + '|*|' + name);
       }
       if (toDist) {
         if (toLoc) exempt.add(toDist + '|' + toLoc + '|' + name);
-        if (n.toLocationId) exempt.add(toDist + '|' + n.toLocationId + '|' + name);
-        exempt.add(toDist + '|*|' + name);
       }
     }
   }

@@ -58,7 +58,7 @@ const DEMO_PASSWORD = 'hp@123';
 // installation still answers to DEMO_PASSWORD alone.
 const DEMO_DATA_PASSWORD = 'demo@123';
 const DEMO_SEED_ACCOUNTS = [
-  'developer', 'admin', 'admin2', 'user', 'fbd_user', 'mhc', 'fbd_mhc',
+  'admin', 'admin2', 'user', 'fbd_user', 'mhc', 'fbd_mhc',
   'it.staff.gurugramdist', 'mto.staff.gurugramdist',
   'it.staff.faridabaddis', 'mto.staff.faridabaddis',
   'it.staff.panipatdistr', 'mto.staff.panipatdistr',
@@ -118,7 +118,7 @@ async function listDemoAccounts() {
   const out = [];
   for (const seed of DEMO_SEED_ACCOUNTS) {
     const u = users.find(x => x && String(x.username || '').toLowerCase() === seed.username);
-    if (!u) continue;
+    if (!u || u.active === false) continue;
     const role = u.role || 'user';
     if (['tsi', 'post', 'staff', 'station'].includes(role)) continue;
     out.push({
@@ -291,7 +291,7 @@ async function authFromRequest(req) {
     return { user: null };
   }
   const users = Array.isArray(state['hp_inventory.users']) ? state['hp_inventory.users'] : [];
-  const user = users.find(u => u.id === sess.userId) || null;
+  const user = users.find(u => u.id === sess.userId && u.active !== false) || null;
   return { user };
 }
 
@@ -311,9 +311,11 @@ function sleep(ms) { return new Promise(r => setTimeout(r, Math.max(0, ms))); }
 // scope) may receive it. Anonymous requests see nothing.
 function rtVisible(user, scope) {
   if (!user) return false;
+  if (scope?.grievanceReviewerId) return user.id === scope.grievanceReviewerId && require('./_grievances').reviewer(user);
   if (user.role === 'devadmin') return true;
   scope = scope || {};
   if (scope.users && Array.isArray(scope.users) && scope.users.includes(user.id)) return true;
+  if (scope.users?.length && !scope.districts?.length && !scope.roles?.length && !scope.locations?.length) return false;
   const dists = Array.isArray(scope.districts) ? scope.districts : [];
   if (dists.length && !dists.includes(user.districtId)) return false;
   const roles = Array.isArray(scope.roles) ? scope.roles : [];
@@ -470,13 +472,11 @@ function rtDiffState(prev, next) {
       const o = oldById.get(d.id);
       const itemsTxt = (Array.isArray(d.items) ? d.items : []).map(it => `${it.qty || 0} x ${it.itemName || ''}`).join(', ');
       const toTxt = d.toName || distName(d.toDistrictId || fromDist);
-      const scopeDistricts = [fromDist, d.toDistrictId].filter(Boolean);
-      const scopeLocs = [d.toLocationId, d.fromLocationId].filter(Boolean);
       if (!o) {
         events.push({
           type: 'DISTRIBUTION_CREATED', title: 'New Distribution',
           message: `${d.fromUserName || 'A user'} distributed ${itemsTxt} to ${toTxt}.`,
-          scope: { districts: scopeDistricts, locations: scopeLocs },
+          scope: { districts: [d.toDistrictId], ...(d.toType === 'admin' ? { roles: ['admin'] } : { locations: [d.toLocationId].filter(Boolean) }) },
           payload: { distributionId: d.id, fromDistrictId: fromDist, toDistrictId: d.toDistrictId },
           dedupe: 'distribution:' + d.id,
         });
@@ -487,9 +487,9 @@ function rtDiffState(prev, next) {
             type: evType,
             title: evType === 'DISTRIBUTION_APPROVED' ? 'Distribution Approved' : 'Distribution Rejected',
             message: evType === 'DISTRIBUTION_APPROVED'
-              ? `Distribution of ${itemsTxt} to ${toTxt} was approved by ${d.approvedByName || 'the receiving unit'}.`
+              ? `Distribution of ${itemsTxt} to ${toTxt} was approved by ${d.approvedBy || d.approvedByName || 'the receiving unit'}.`
               : `Distribution of ${itemsTxt} to ${toTxt} was rejected. Reason: ${d.rejectRemark || d.actionRemarks || 'Not accepted'}`,
-            scope: { districts: scopeDistricts, locations: scopeLocs },
+            scope: d.fromUserId ? { users: [d.fromUserId] } : { districts: [fromDist], locations: [d.fromLocationId].filter(Boolean) },
             payload: { distributionId: d.id, fromDistrictId: fromDist, toDistrictId: d.toDistrictId },
             dedupe: 'distribution:' + d.id + ':' + d.status,
           });
@@ -587,6 +587,14 @@ async function route(req, res) {
   }
   const body = req.body || {};
   const p0 = seg[0];
+  if (p0 === 'grievances') {
+    const { user } = await authFromRequest(req);
+    if (!user) return res.status(401).json({ error: 'Sign in to access grievances.' });
+    const grievances = require('./_grievances');
+    const state = await getState();
+    const developer = (state['hp_inventory.users'] || []).find(u => grievances.reviewer(u) && u.active !== false);
+    return grievances.handle(req, res, seg, user, developer, rtPublish);
+  }
 
   // ensure tables exist
   await pool.query(`CREATE TABLE IF NOT EXISTS app_state (id INT PRIMARY KEY, data JSONB NOT NULL)`);
@@ -657,7 +665,7 @@ async function route(req, res) {
     const users = Array.isArray(state['hp_inventory.users']) ? state['hp_inventory.users'] : [];
     const user = users.find(u => u.username && u.username.toLowerCase() === String(username).toLowerCase());
 
-    if (!user || !user.password) {
+    if (!user || user.active === false || !user.password) {
       recordFailure(ip);
       return res.status(401).json({ error: 'Invalid username or password' });
     }
@@ -718,7 +726,7 @@ async function route(req, res) {
     const state = await getState();
     const users = Array.isArray(state['hp_inventory.users']) ? state['hp_inventory.users'] : [];
     const user = users.find(u => u && String(u.username || '').toLowerCase() === seed.username);
-    if (!user) {
+    if (!user || user.active === false) {
       recordFailure(ip);
       return res.status(404).json({ error: 'That demo account no longer exists' });
     }

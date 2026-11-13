@@ -988,6 +988,7 @@ function __userMatch(n) {
 }
 
 function __locMatch(n) {
+  if (n.distributionId && n.targetUserId && currentUser?.id === n.targetUserId) return true;
   const locId = getVisibleLocationId();
   if (!locId) return true;
   return !n.targetLocId || n.targetLocId === locId;
@@ -1153,6 +1154,7 @@ function renderAllNotifs() {
    (demands / inventory / users) and highlights the row. */
 function __notifTarget(n) {
   const t = (n._extType || n.type || "").toString();
+  if (t === "GRIEVANCE_RAISED") return { tab: "grievances", id: null };
   if (n.maintenanceId || t.indexOf("MAINTENANCE_") === 0) return { tab: "maintenance", id: n.maintenanceId };
   if (n.demandId || t.indexOf("DEMAND_") === 0) return { tab: "demands", id: n.demandId };
   if (n.itemId || t.indexOf("LOW_STOCK") === 0 || t.indexOf("ITEM_") === 0) return { tab: "inventory", id: n.itemId || null };
@@ -1242,6 +1244,14 @@ function clearAuth() { localStorage.removeItem(AUTH_KEY); sessionStorage.removeI
 function getToken() { const a = getAuth(); return (a && a.token) || null; }
 
 const QUICK_USERS_KEY = STORAGE_PREFIX + "quick_users";
+for (const storage of [localStorage, sessionStorage]) {
+  try {
+    const saved = JSON.parse(storage.getItem(QUICK_USERS_KEY) || "[]");
+    if (Array.isArray(saved) && saved.some(u => u && "password" in u)) {
+      storage.setItem(QUICK_USERS_KEY, JSON.stringify(saved.filter(Boolean).map(({ username, name }) => ({ username, name }))));
+    }
+  } catch { /* ignore unavailable storage */ }
+}
 function readQuickUsers() {
   const out = [];
   for (const s of [localStorage, sessionStorage]) {
@@ -1251,7 +1261,7 @@ function readQuickUsers() {
 }
 function addQuickUser(u, persist) {
   const list = readQuickUsers().filter(x => x.username !== u.username);
-  list.unshift({ username: u.username, name: u.name || u.username, password: u.password || "" });
+  list.unshift({ username: u.username, name: u.name || u.username });
   const keep = list.slice(0, 3);
   (persist === false ? sessionStorage : localStorage).setItem(QUICK_USERS_KEY, JSON.stringify(keep));
 }
@@ -1270,11 +1280,9 @@ function renderQuickLogin() {
       `<span class="ql-text"><span class="ql-name">${esc(u.name || u.username)}</span><span class="ql-user">@${esc(u.username)}</span></span>`;
     b.addEventListener("click", () => {
       $("#loginUser").value = u.username;
-      $("#loginPass").value = u.password || "";
+      $("#loginPass").value = "";
       $("#loginError").classList.add("hidden");
-      const form = $("#loginForm");
-      if (u.password && form && form.requestSubmit) form.requestSubmit();
-      else $("#loginPass").focus();
+      $("#loginPass").focus();
     });
     list.appendChild(b);
   });
@@ -1919,6 +1927,7 @@ function switchTab(name) {
   }
   __resetPageScrollToTop();
   if (name === "dashboard") __rtRenderFeed();
+  if (name === "grievances") window.loadGrievances?.(true);
   try { render(); } catch (e) { console.error("render failed:", e); }
   setTimeout(__resetPageScrollToTop, 10);
   setTimeout(__resetPageScrollToTop, 50);
@@ -6283,7 +6292,7 @@ function __distReceiverOptions() {
   if (isAdminUser) {
     // District admin: all units in own district (excluding own HQ location)
     getLocationsForDistrict(myDistId).forEach(l => {
-      if (myLocId && l.id === myLocId) return;
+      if (l.type === "district" || (myLocId && l.id === myLocId)) return;
       opts.push({ type: "unit", districtId: myDistId, locationId: l.id, label: "[UNIT] " + l.name });
     });
     // AND other district admins:
@@ -6416,9 +6425,12 @@ function __distPopulateRowItems(row) {
     __distUpdateRowInfo(row);
     return;
   }
-  const names = __byName([...new Set(getItemsForDistrict(activeDistrictId).filter(i => i.categoryId === cid && !i.isDeleted).map(i => i.name))].filter(Boolean), x => x);
+  const items = __byName(getItemsForDistrict(activeDistrictId).filter(i => i.categoryId === cid && !i.isDeleted && i.name), i => i.name);
   itemSel.disabled = false;
-  itemSel.innerHTML = `<option value="">Select item</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("") + `<option value="__new__">&#10133; New item...</option>`;
+  itemSel.innerHTML = `<option value="">Select item</option>` + items.map(i => {
+    const location = getLocations().find(l => l.id === i.locationId);
+    return `<option value="${esc(i.id)}">${esc(i.name + (location ? " — " + location.name : ""))}</option>`;
+  }).join("") + `<option value="__new__">&#10133; New item...</option>`;
   __distUpdateRowInfo(row);
 }
 
@@ -6436,7 +6448,7 @@ function __distUpdateRowInfo(row) {
     return;
   }
   if (v === "__new__") { info.innerHTML = `<small style="color:var(--muted)">New item — stock will be created at 0 here.</small>`; return; }
-  const it = getItemsForDistrict(activeDistrictId).find(i => i.name.toLowerCase() === v.toLowerCase());
+  const it = getItemsForDistrict(activeDistrictId).find(i => i.id === v);
   const cc = it ? (it.conditionCounts || { good: it.quantity || 0, poor: 0, damaged: 0 }) : { good: 0, poor: 0, damaged: 0 };
   const total = Math.max(0, cc.good || 0) + Math.max(0, cc.poor || 0) + Math.max(0, cc.damaged || 0);
   info.innerHTML = `<small>Total <b>${total}</b> &middot; Good <b>${cc.good || 0}</b> &middot; Damaged <b>${cc.poor || 0}</b> &middot; Scrap <b>${cc.damaged || 0}</b></small>`;
@@ -6450,29 +6462,31 @@ function addDistRow() {
   if (n) n.focus();
 }
 
-const __distToChecked = new Set(); // indices into __distReceiverOptions()
+const __distToChecked = new Set();
+const __distRecipientKey = ({ type, districtId, locationId }) => [type, districtId, locationId].join(":");
 function __distRenderChecks(query) {
   const box = $("#distToChecksList");
   if (!box) return;
   const opts = __distReceiverOptions();
   const val = (query || "").trim().toLowerCase();
-  const shown = opts.map((o, i) => ({ o, i })).filter(x => !val || x.o.label.toLowerCase().includes(val));
+  const shown = opts.filter(o => !val || o.label.toLowerCase().includes(val));
   box.innerHTML = `<label class="dist-check-item"><input type="checkbox" class="dist-check-all"> <b>All</b></label>` +
     `<label class="dist-check-item"><input type="checkbox" class="dist-check-none"> <b>All Deselect</b></label>` +
-    shown.map(x => `<label class="dist-check-item"><input type="checkbox" class="dist-check-one" value="${x.i}"${__distToChecked.has(x.i) ? " checked" : ""}> ${esc(x.o.label)}</label>`).join("");
+    shown.map(o => {
+      const key = __distRecipientKey(o);
+      return `<label class="dist-check-item"><input type="checkbox" class="dist-check-one" value="${esc(key)}"${__distToChecked.has(key) ? " checked" : ""}> ${esc(o.label)}</label>`;
+    }).join("");
 }
 
 function __distUpdateToLabel() {
   const btn = $("#distToDropBtn");
   if (!btn) return;
-  const opts = __distReceiverOptions();
-  const names = [...__distToChecked].sort((a, b) => a - b).map(i => ((opts[i] || {}).label || "").replace(/^\[(UNIT|ADMIN)\] /, "")).filter(Boolean);
+  const names = __distSelectedTargets().map(o => o.label.replace(/^\[(UNIT|ADMIN)\] /, ""));
   btn.textContent = !names.length ? "Select recipients..." : (names.length <= 2 ? names.join(", ") : names.length + " selected");
 }
 
 function __distSelectedTargets() {
-  const opts = __distReceiverOptions();
-  return [...__distToChecked].sort((a, b) => a - b).map(i => opts[i]).filter(Boolean);
+  return __distReceiverOptions().filter(o => __distToChecked.has(__distRecipientKey(o)));
 }
 
 function openDistributionModal() {
@@ -6495,13 +6509,10 @@ function openDistributionModal() {
 
 function __distFindFromItem(d, it) {
   const items = getItemsForDistrict(d.fromDistrictId);
-  let found = it.fromItemId ? items.find(i => i.id === it.fromItemId) : null;
-  if (found && found.name.toLowerCase() !== it.itemName.toLowerCase()) found = null;
-  if (!found) {
-    found = items.find(i => i.locationId === it.fromLocationId && i.name.toLowerCase() === it.itemName.toLowerCase())
-      || items.find(i => i.name.toLowerCase() === it.itemName.toLowerCase());
-  }
-  return found || null;
+  if (it.fromItemId) return items.find(i => i.id === it.fromItemId && !i.isDeleted) || null;
+  const matches = items.filter(i => !i.isDeleted && (!it.fromLocationId || i.locationId === it.fromLocationId) &&
+    (!it.categoryId || i.categoryId === it.categoryId) && i.name.toLowerCase() === it.itemName.toLowerCase());
+  return matches.length === 1 ? matches[0] : null;
 }
 
 function __distHasStock(item, condition, qty) {
@@ -6513,20 +6524,24 @@ function __distHasStock(item, condition, qty) {
 
 /* Dry-run availability check across every item in a distribution. */
 function __distSimulate(d) {
+  const requested = new Map();
   for (const it of (d.items || [])) {
     const q = Number(it.qty) || 0;
-    if (q <= 0) return `Quantity must be above 0 for "${it.itemName}".`;
+    if (!Number.isSafeInteger(q) || q <= 0 || !["good", "poor", "damaged"].includes(it.condition)) return `Invalid quantity or condition for "${it.itemName}".`;
     const src = __distFindFromItem(d, it);
     if (!src) return `Source item "${it.itemName}" could not be found in the sender district.`;
     const avail = __distHasStock(src, it.condition, q);
-    if (avail < q) return `Only ${avail} unit(s) of "${it.itemName}" available at the sender; cannot distribute ${q}.`;
+    const key = JSON.stringify([src.id, it.condition]);
+    const total = (requested.get(key) || 0) + q;
+    requested.set(key, total);
+    if (avail < total) return `Only ${avail} ${it.condition} unit(s) of "${it.itemName}" available at the sender; cannot distribute ${total}.`;
   }
   return null;
 }
 
 /* Execute the stock transfer: deduct from sender, add (find-or-create) to receiver. */
 function __distApplyTransfer(d) {
-  if (!d || !d.fromDistrictId || !d.toDistrictId) return false;
+  if (!d || !d.fromDistrictId || !d.toDistrictId || __distSimulate(d)) return false;
 
   // Resolve target location ID
   let targetLocId = d.toLocationId || "";
@@ -6551,7 +6566,7 @@ function __distApplyTransfer(d) {
     if (locObj) d.toLocationName = locObj.name;
   }
 
-  const all = getAllItems() || {};
+  const all = structuredClone(getAllItems() || {});
   const fromDistId = d.fromDistrictId;
   const toDistId = d.toDistrictId;
   if (!all[fromDistId]) all[fromDistId] = [];
@@ -6566,12 +6581,8 @@ function __distApplyTransfer(d) {
     if (q <= 0) continue;
 
     // Find source item in fromList
-    let src = it.fromItemId ? fromList.find(i => i.id === it.fromItemId) : null;
-    if (src && (src.name || "").trim().toLowerCase() !== String(it.itemName).trim().toLowerCase()) src = null;
-    if (!src) {
-      src = fromList.find(i => !i.isDeleted && i.locationId === it.fromLocationId && (i.name || "").trim().toLowerCase() === String(it.itemName).trim().toLowerCase())
-        || fromList.find(i => !i.isDeleted && (i.name || "").trim().toLowerCase() === String(it.itemName).trim().toLowerCase());
-    }
+    const source = __distFindFromItem(d, it);
+    const src = source && fromList.find(i => i.id === source.id);
     if (!src) return false;
     it.fromItemId = src.id;
     it.fromLocationId = src.locationId || it.fromLocationId || "";
@@ -6579,16 +6590,8 @@ function __distApplyTransfer(d) {
 
     // Deduct stock from sender
     let cc = src.conditionCounts || { good: src.quantity || 0, poor: 0, damaged: 0 };
-    let remaining = q;
-    const condKey = (it.condition === "good" || it.condition === "poor" || it.condition === "damaged") ? it.condition : "good";
-    const order = [condKey, "good", "poor", "damaged"].filter((v, i, a) => a.indexOf(v) === i);
-    for (const c of order) {
-      if (remaining <= 0) break;
-      const take = Math.min(remaining, cc[c] || 0);
-      cc[c] = (cc[c] || 0) - take;
-      remaining -= take;
-    }
-    if (remaining > 0) return false;
+    const condKey = it.condition;
+    cc[condKey] -= q;
     src.conditionCounts = cc;
     src.quantity = Math.max(0, (cc.good || 0)) + Math.max(0, (cc.poor || 0)) + Math.max(0, (cc.damaged || 0));
     src.updatedAt = Date.now();
@@ -6606,7 +6609,7 @@ function __distApplyTransfer(d) {
     }
 
     // Find or create destination item in toList with targetLocId
-    let dst = toList.find(i => !i.isDeleted && i.locationId === targetLocId && (i.name || "").trim().toLowerCase() === String(it.itemName).trim().toLowerCase());
+    let dst = toList.find(i => !i.isDeleted && i.locationId === targetLocId && i.categoryId === (it.categoryId || src.categoryId || "") && (i.name || "").trim().toLowerCase() === String(it.itemName).trim().toLowerCase());
     if (!dst) {
       dst = {
         id: uid(),
@@ -6653,6 +6656,7 @@ async function saveDistribution(e) {
   if (!currentUser) return toast("Please login first.", "error");
   if (isDevAdmin()) return toast(__devRbacLockMsg(), "error");
   const targets = __distSelectedTargets();
+  if (targets.length !== __distToChecked.size) return toast("Recipient list changed. Reopen the form and select recipients again.", "error");
   if (!targets.length) return toast("Tick at least one unit / district admin in Distributed To.", "error");
   const body = $("#distItemsBody");
   const rows = body ? Array.from(body.querySelectorAll(".fd-item-row")) : [];
@@ -6668,42 +6672,56 @@ async function saveDistribution(e) {
   if (!cleanRows.length) return toast("Add at least one item to distribute.", "error");
 
   const consMode = (__distType() === "cons");
+  if (consMode) return toast("Use the Consumables section to distribute consumable stock.", "error");
   const cats = consMode ? getConsCats() : getCategories();
   const planned = [];
-  let warn = "";
-  const need = {};
+  const warnings = [];
+  const need = new Map();
   cleanRows.forEach(r => {
     const catId = (r.querySelector(".fd-row-cat") || {}).value || "";
     const sel = r.querySelector(".fd-row-item");
     const newName = r.querySelector(".fd-row-newname");
     const selV = (sel || {}).value || "";
-    const name = (selV === "__new__" ? (newName ? newName.value : "") : selV).trim();
+    const fromItem = consMode || selV === "__new__" ? null : getItemsForDistrict(activeDistrictId).find(i => i.id === selV && i.categoryId === catId && !i.isDeleted);
+    const name = (selV === "__new__" ? (newName ? newName.value : "") : consMode ? selV : (fromItem?.name || "")).trim();
     const qg = parseInt((r.querySelector(".fd-row-qty-good") || {}).value, 10) || 0;
     const qp = parseInt((r.querySelector(".fd-row-qty-poor") || {}).value, 10) || 0;
     const qd = parseInt((r.querySelector(".fd-row-qty-damaged") || {}).value, 10) || 0;
     const cat = cats.find(c => c.id === catId);
-    if (!name || !catId || qg + qp + qd <= 0) { warn = "__bad__"; return; }
-    const fromItem = consMode ? null : getItemsForDistrict(activeDistrictId).find(i => i.name.toLowerCase() === name.toLowerCase());
-    const rowTotal = qg + qp + qd;
-    need[name] = (need[name] || 0) + rowTotal * targets.length;
-    const avail = consMode ? 999999 : (fromItem ? __distHasStock(fromItem, "any", rowTotal) : 0);
-    if (avail < need[name]) warn += `"${name}": available ${avail}, total requested ${need[name]} (${targets.length} recipient(s)).\n`;
+    if (!name || !catId || Math.min(qg, qp, qd) < 0 || qg + qp + qd <= 0) return;
+    if (!consMode) {
+      const key = fromItem ? fromItem.id : name.toLowerCase();
+      if (!need.has(key)) need.set(key, { name, fromItem, good: 0, poor: 0, damaged: 0 });
+      const totals = need.get(key);
+      totals.good += qg * targets.length;
+      totals.poor += qp * targets.length;
+      totals.damaged += qd * targets.length;
+    }
     planned.push({ row: r, catId, cat, name, qg, qp, qd, fromItem });
   });
-  if (warn === "__bad__") return toast("Har item ke liye category, item name aur kam se kam ek quantity above 0 chahiye.", "error");
-  if (warn && !confirm("Available stock check:\n" + warn + "\nSubmit anyway?")) return;
+  if (planned.length !== cleanRows.length) return toast("Har item ke liye category, item name aur kam se kam ek quantity above 0 chahiye.", "error");
+  for (const totals of need.values()) {
+    for (const condition of ["good", "poor", "damaged"]) {
+      const available = __distHasStock(totals.fromItem, condition);
+      if (available < totals[condition]) warnings.push(`"${totals.name}" (${condition}): available ${available}, total requested ${totals[condition]}.`);
+    }
+  }
+  if (warnings.length && !confirm("Available stock check:\n" + warnings.join("\n") + "\nSubmit anyway?")) return;
 
   const fromDist = getDistricts().find(dd => dd.id === activeDistrictId);
   const fromLocId = getVisibleLocationId() || (currentUser ? currentUser.locationId : "");
   const fromLoc = getLocations().find(l => l.id === fromLocId);
   const remarks = $("#distRemarks") ? $("#distRemarks").value.trim() : "";
 
+  let __distAtts = [];
+  if ((__attStore.dist || []).length) { try { __distAtts = await __attUploadAll("dist"); } catch (e) { return; } }
+
   // Newly typed item that has no record yet: create a catalog entry (zero
   // stock) in the sender district so it shows up in the item list next time.
   let catalogAdded = 0;
   planned.forEach(p => {
     if (p.fromItem) return;
-    const existing = getItemsForDistrict(activeDistrictId).find(i => i.name.toLowerCase() === p.name.toLowerCase());
+    const existing = getItemsForDistrict(activeDistrictId).find(i => !i.isDeleted && i.categoryId === p.catId && i.locationId === fromLocId && i.name.toLowerCase() === p.name.toLowerCase());
     if (existing) { p.fromItem = existing; return; }
     const created = {
       id: uid(), name: p.name, categoryId: p.catId, unit: "pcs",
@@ -6716,8 +6734,6 @@ async function saveDistribution(e) {
   });
   if (catalogAdded) saveAllItems(getAllItems());
 
-  let __distAtts = [];
-  if ((__attStore.dist || []).length) { try { __distAtts = await __attUploadAll("dist"); } catch (e) { return; } }
   const list = getDistributions();
   let created = 0;
   for (const target of targets) {
@@ -6865,8 +6881,10 @@ function approveDistribution() {
 
   const storeId = d.__storeId || d.fromDistrictId || activeDistrictId;
   const list = (loadData(`distributions_${storeId}`) || []);
-  const fresh = list.find(x => x.id === d.id);
-  if (!fresh || fresh.status !== "pending") { __actDistStoreId = null; __actDistId = null; return toast("This distribution is no longer pending.", "error"); }
+  const index = list.findIndex(x => x.id === d.id && x.status === "pending");
+  if (index < 0) { __actDistStoreId = null; __actDistId = null; return toast("This distribution is no longer pending.", "error"); }
+  const fresh = structuredClone(list[index]);
+  if (!__distApplyTransfer(fresh)) return toast("Stock transfer could not be completed.", "error");
   fresh.status = "completed";
   fresh.transferred = true;
   fresh.toLocationId = fresh.toLocationId || d.toLocationId;
@@ -6874,23 +6892,14 @@ function approveDistribution() {
   fresh.approvedBy = reviewer;
   fresh.approvedAt = Date.now();
   fresh.updatedAt = Date.now();
-  __saveDistributionsFor(storeId, list);
-
-  const ok = __distApplyTransfer(fresh);
-  if (!ok) {
-    fresh.status = "pending";
-    fresh.transferred = false;
-    __saveDistributionsFor(storeId, list);
-    return toast("Stock transfer could not be completed. No changes were saved.", "error");
-  }
-  __saveDistributionsFor(storeId, list);
+  __saveDistributionsFor(storeId, list.map((entry, i) => i === index ? fresh : entry));
 
   const itemSummary = (fresh.items || []).map(x => x.qty + " x " + x.itemName).join(", ");
   __audit("Distribution Approved", `${itemSummary} by ${__distReceiverName(fresh)}`, { entity: "Distribution" });
   addNotification(fresh.fromDistrictId, {
     type: "distribution_approved",
     title: "Distribution Approved",
-    message: `${fresh.toUserName || reviewer} approved ${itemSummary}${remark ? " - " + remark : ""}.`,
+    message: `${reviewer} approved ${itemSummary}${remark ? " - " + remark : ""}.`,
     fromDistrictId: activeDistrictId,
     distributionId: fresh.id,
     targetUserId: fresh.fromUserId || null,
@@ -6946,7 +6955,7 @@ function doDistReject(e) {
   addNotification(fresh.fromDistrictId, {
     type: "distribution_rejected",
     title: "Distribution Rejected",
-    message: `${fresh.toUserName || reviewer} rejected ${itemSummary}. Reason: ${remark}`,
+    message: `${reviewer} rejected ${itemSummary}. Reason: ${remark}`,
     fromDistrictId: activeDistrictId,
     distributionId: fresh.id,
     targetUserId: fresh.fromUserId || null,
@@ -7018,7 +7027,6 @@ function __syncCompletedDistributionsStock() {
 }
 
 function renderDistribution() {
-  __syncCompletedDistributionsStock();
   const filtered = __distFiltered();
   const tbody = $("#distBody");
   if (!tbody) return;
@@ -12657,7 +12665,7 @@ async function init() {
         activeDistrictId = currentUser.districtId || "dist_1";
         setActiveDistrict(activeDistrictId);
         setAuth({ user: currentUser, token: res.token || null }, rememberMe);
-        addQuickUser({ username: currentUser.username, name: currentUser.name, password: $("#loginPass").value }, rememberMe);
+        addQuickUser({ username: currentUser.username, name: currentUser.name }, rememberMe);
         if (window.__apiLoadAll) {
           try { await window.__apiLoadAll(); } catch (e) { console.error("load state on login failed:", e); }
         }
@@ -13055,12 +13063,12 @@ $("#inspSearch")?.addEventListener("input", renderInspections);
 if (e.target.classList.contains("dist-check-all")) {
       const opts = __distReceiverOptions();
       const val = (($("#distToSearch") || {}).value || "").trim().toLowerCase();
-      const vis = opts.map((o, i) => ({ o, i })).filter(x => !val || x.o.label.toLowerCase().includes(val)).map(x => x.i);
+      const vis = opts.filter(o => !val || o.label.toLowerCase().includes(val)).map(__distRecipientKey);
       if (e.target.checked) vis.forEach(i => __distToChecked.add(i)); else vis.forEach(i => __distToChecked.delete(i));
       __distRenderChecks(($("#distToSearch") || {}).value || "");
     } else if (e.target.classList.contains("dist-check-one")) {
-      const i = Number(e.target.value);
-      if (e.target.checked) __distToChecked.add(i); else __distToChecked.delete(i);
+      const key = e.target.value;
+      if (e.target.checked) __distToChecked.add(key); else __distToChecked.delete(key);
     }
     __distUpdateToLabel();
   });

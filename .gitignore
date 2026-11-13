@@ -8,6 +8,7 @@ local-data/db.before-import.json
 local-data/db.backup-*.json
 local-data/db-BEFORE-*.json
 local-data/backups/
+local-data/grievances.json*
 local-data/prod-*.json
 local-data/prod-backups/
 hp-inventory-image.tar
