@@ -195,12 +195,15 @@ function buildCondBar(cc) {
 }
 
 /* ==================== PAGINATION ==================== */
-const PAGE_SIZE = 30;
+const PAGE_SIZES = [100, 150, 200];
+const __pgSizes = new Map();
+
+function __pgSize(key) { return __pgSizes.get(key) ?? PAGE_SIZES[0]; }
 const __pg = {};
 const __pgLast = {};
 
 function __pgPage(key, totalRows) {
-  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalRows / __pgSize(key)));
   if ((__pgLast[key] || 0) !== totalRows) {
     __pg[key] = 0;
     __pgLast[key] = totalRows;
@@ -218,7 +221,8 @@ function __pgRows(key, rows) {
   // Sort the whole filtered list first (see TABLE SORTING below), then page it.
   const sorted = __sortRows(key, rows);
   const p = __pgPage(key, sorted.length);
-  return sorted.slice(p * PAGE_SIZE, p * PAGE_SIZE + PAGE_SIZE);
+  const size = __pgSize(key);
+  return sorted.slice(p * size, (p + 1) * size);
 }
 
 function __pgButtons(page, totalPages) {
@@ -227,9 +231,9 @@ function __pgButtons(page, totalPages) {
   for (let i = Math.max(0, page - 2); i <= Math.min(totalPages - 1, page + 2); i++) s.add(i);
   const arr = [...s].sort((a, b) => a - b);
   let html = "";
-  let prev = -2;
+  let prev = -1;
   arr.forEach(p => {
-    if (p - prev > 1) html += `<span class="pager-ellipsis">?</span>`;
+    if (p - prev > 1) html += `<span class="pager-ellipsis">&hellip;</span>`;
     const cls = p === page ? "pager-btn active" : "pager-btn";
     html += `<button type="button" class="${cls}" data-pg="${p}">${p + 1}</button>`;
     prev = p;
@@ -244,20 +248,32 @@ function renderPager(key, totalRows, renderFn) {
   __sortSyncHeaders(key);
   const el = document.getElementById("pager_" + key);
   if (!el) return;
-  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  const size = __pgSize(key);
+  const totalPages = Math.max(1, Math.ceil(totalRows / size));
   const page = __pgPage(key, totalRows);
-  const from = totalRows ? page * PAGE_SIZE + 1 : 0;
-  const to = Math.min(totalRows, (page + 1) * PAGE_SIZE);
+  const from = totalRows ? page * size + 1 : 0;
+  const to = Math.min(totalRows, (page + 1) * size);
   if (!totalRows) { el.innerHTML = ""; return; }
   el.innerHTML =
     `<div class="pager">` +
       `<span class="pager-info">Showing ${from}-${to} of ${totalRows} ${totalRows === 1 ? "row" : "rows"}</span>` +
+      `<label class="pager-size">Rows per page <select data-pg-size>` +
+        PAGE_SIZES.map(count => `<option value="${count}" ${count === size ? "selected" : ""}>${count}</option>`).join("") +
+      `</select></label>` +
       `<div class="pager-btns">` +
         `<button type="button" class="pager-btn" data-pg="prev" ${page === 0 ? "disabled" : ""}>&#9664; Prev</button>` +
         __pgButtons(page, totalPages) +
         `<button type="button" class="pager-btn" data-pg="next" ${page >= totalPages - 1 ? "disabled" : ""}>Next &#9654;</button>` +
       `</div>` +
     `</div>`;
+  el.querySelector("[data-pg-size]").addEventListener("change", event => {
+    const count = Number(event.target.value);
+    if (!PAGE_SIZES.includes(count)) return;
+    __pgSizes.set(key, count);
+    __pg[key] = 0;
+    if (typeof renderFn === "function") renderFn();
+    el.querySelector("[data-pg-size]")?.focus();
+  });
   el.querySelectorAll("[data-pg]").forEach(btn => {
     btn.addEventListener("click", () => {
       const v = btn.dataset.pg;
@@ -7122,7 +7138,7 @@ function renderDistribution() {
 
   if (filtered.length) {
     const page = __pgPage("dist", filtered.length);
-    const start = page * PAGE_SIZE;
+    const start = page * __pgSize("dist");
     const rows = __pgRows("dist", filtered);
     tbody.innerHTML = rows.map((r, idx) => {
       const d = r.d, it = r.it;
@@ -10550,7 +10566,7 @@ function renderAllocStock() {
     tdamaged += __cc.poor || 0;
     tscrap += __cc.damaged || 0;
   });
-  const baseNo = __pgPage("allocStock", rows.length) * PAGE_SIZE;
+  const baseNo = __pgPage("allocStock", rows.length) * __pgSize("allocStock");
   body.innerHTML = __pgRows("allocStock", rows).map((i, idx) => {
     const cat = cats.find(c => c.id === i.categoryId);
     const st = allocStatusOfItem(i);
@@ -10695,7 +10711,7 @@ function renderAllottedList() {
   const cats = getCategories();
   const rows = __allocListFiltered();
   if (!rows.length) { body.innerHTML = `<tr class="empty-row"><td colspan="10">No issued items found.</td></tr>`; renderPager("alloc", 0, renderAllottedList); return; }
-  const baseNo = __pgPage("alloc", rows.length) * PAGE_SIZE;
+  const baseNo = __pgPage("alloc", rows.length) * __pgSize("alloc");
   body.innerHTML = __pgRows("alloc", rows).map((a, idx) => {
     const st = allocStatusOf(a);
     const outstanding = allocOutstanding(a);
@@ -10740,7 +10756,7 @@ function renderReturnHistory() {
   const rows = __allocReturns();
   if (!rows.length) { body.innerHTML = `<tr class="empty-row"><td colspan="10">No return history found.</td></tr>`; renderPager("allocRet", 0, renderReturnHistory); return; }
   const condLabels = { good: "Good", poor: "Damaged", damaged: "Scrap", lost: "Lost", other: "Other" };
-  const baseNo = __pgPage("allocRet", rows.length) * PAGE_SIZE;
+  const baseNo = __pgPage("allocRet", rows.length) * __pgSize("allocRet");
   body.innerHTML = __pgRows("allocRet", rows).map(({ a, r }, idx) => {
     const cond = (r.condition === "damaged" || r.condition === "lost") ? `<span class="status-badge ${r.condition === "lost" ? "status-out" : "status-low"}">${condLabels[r.condition] || r.condition}</span>` : `<span class="status-badge status-neutral">${condLabels[r.condition] || r.condition}</span>`;
     return `<tr><td>${baseNo + idx + 1}</td><td class="item-name">${__ppLink(a)}</td><td>${esc(a.beltNo || "")}</td><td class="item-name">${__ipLink({ id: a.itemId, name: a.itemName })}</td><td class="qty-strong">${r.qty}</td><td>${cond}</td><td>${esc(r.date || "")}</td><td>${esc(r.time || "")}</td><td>${esc(r.receivedBy || "")}</td><td>${esc(r.remarks || "") || "&mdash;"}</td></tr>`;
@@ -16366,7 +16382,7 @@ function renderConsStock() {
   if (head) { const th = head.querySelectorAll("th")[2]; if (th) th.textContent = locF ? "Total Qty (Received)" : "Total Qty"; }
   let ttotal = 0, tavail = 0, tdist = 0, tlost = 0;
   rows.forEach(x => { ttotal += x.q.total; tavail += x.q.available; tdist += x.q.distributed; tlost += x.q.lost; });
-  const baseNo = __pgPage("consStock", rows.length) * PAGE_SIZE;
+  const baseNo = __pgPage("consStock", rows.length) * __pgSize("consStock");
   const rowsHtml = rows.length === 0
     ? `<tr class="empty-row"><td colspan="8">No consume items found.</td></tr>`
     : __pgRows("consStock", rows).map((x, idx) => {
