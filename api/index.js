@@ -595,15 +595,6 @@ async function route(req, res) {
   }
   const body = req.body || {};
   const p0 = seg[0];
-  if (p0 === 'panipat-developer' && req.method === 'GET' && !seg[1]) {
-    const { user } = await authFromRequest(req);
-    if (user?.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
-    const state = await getState();
-    const district = (state['hp_inventory.districts'] || []).find(d => d.id === user.districtId);
-    if (district?.name !== 'Panipat District') return res.status(403).json({ error: 'Forbidden' });
-    const developer = (state['hp_inventory.users'] || []).find(u => u.username === 'developer' && u.role === 'devadmin');
-    return res.json({ developer: developer ? { username: developer.username, name: developer.name } : null });
-  }
   if (p0 === 'grievances') {
     const { user } = await authFromRequest(req);
     if (!user) return res.status(401).json({ error: 'Sign in to access grievances.' });

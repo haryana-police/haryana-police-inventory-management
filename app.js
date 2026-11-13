@@ -18866,18 +18866,6 @@ function renderAdminUsers() {
   const dist = getDistricts().find(d => d.id === currentUser.districtId);
   tbody.innerHTML = users.map(u => { const loc = (getLocationsForDistrict(currentUser.districtId) || []).find(l => l.id === u.locationId); return '<tr data-devu-id="' + u.id + '"><td>' + esc(u.username) + '</td><td>' + esc(u.name) + '</td><td>' + esc(u.mobile || '-') + '</td><td>' + esc(ROLE_LABELS[u.role] || u.role) + '</td><td>' + esc(dist ? dist.name : '-') + '</td><td>' + esc(loc ? loc.name : '-') + '</td><td class="cell-actions"><button type="button" class="btn btn-sm btn-dark" data-devu-edit="' + u.id + '">Edit</button>' + (u.id === currentUser.id ? '' : '<button type="button" class="btn btn-sm btn-red" data-devu-del="' + u.id + '">Delete</button>') + '</td></tr>'; }).join('');
   if (!users.length) tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">No users found.</td></tr>';
-  if (currentUser.role === 'admin' && dist?.name === 'Panipat District' && (!type || type === 'devadmin')) {
-    const viewer = currentUser.id;
-    const tableContent = tbody.firstChild;
-    __api('GET', 'panipat-developer').then(({ developer }) => {
-      if (!developer || currentUser?.id !== viewer || tbody.firstChild !== tableContent ||
-          !__devUserMatches({ ...developer, role: 'devadmin' }, aq)) return;
-      if (!users.length) tbody.replaceChildren();
-      tbody.insertAdjacentHTML('beforeend', '<tr><td>' + esc(developer.username) + '</td><td>' +
-        esc(developer.name || 'Developer Admin') + '</td><td>—</td><td>Developer Admin</td><td>—</td><td>—</td><td>Read only</td></tr>');
-      if (cnt) cnt.textContent = (users.length + 1) + ' users';
-    }).catch(error => console.error('Developer listing failed:', error));
-  }
 }
 function openAdminUserModal(editId) {
   if (!isAdmin()) return toast('Only District or Developer Admin can manage users.', 'error');
