@@ -255,7 +255,7 @@ server.on('error', e => {
   if (e.code === 'EADDRINUSE' && currentPort - PORT < 20) {
     console.warn('[!] Port ' + currentPort + ' is busy (another app is using it) — trying port ' + (currentPort + 1) + '…');
     currentPort += 1;
-    server.listen(currentPort);
+    server.listen(currentPort, process.env.IMS_DEMO_LOGIN === 'local' ? '127.0.0.1' : undefined);
   } else {
     console.error('[x] Server error:', e && (e.stack || e.message || e));
     process.exit(1);
@@ -278,7 +278,7 @@ process.on('exit', code => {
 ensureVendorBinaries(); // fire-and-forget: never blocks server start
 
 let currentPort = PORT;
-server.listen(PORT, () => {
+server.listen(PORT, process.env.IMS_DEMO_LOGIN === 'local' ? '127.0.0.1' : undefined, () => {
   const url = 'http://localhost:' + currentPort;
   const line = '  ----------------------------------------------------------';
   console.log('');

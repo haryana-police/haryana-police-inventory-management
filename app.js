@@ -1454,6 +1454,11 @@ async function __loadDemoAccounts() {
   s.list.innerHTML = '<div class="demo-loading"><span class="btn-loader"></span> Loading accounts&hellip;</div>';
   try {
     const res = await __api("GET", "auth/demo-users");
+    if (res?.localQuick) {
+      s.toggle.querySelector("span").textContent = "One-click Sign-in";
+      $(".demo-title").textContent = "Available Accounts";
+      $(".demo-note").textContent = "One-click sign-in is available on this computer.";
+    }
     if (res && res.ok) __renderDemoCards(res.accounts || []);
     else __renderDemoCards([]);
   } catch (err) {

@@ -40,6 +40,11 @@ const BCRYPT_ROUNDS = 12;
 //
 // IMS_DEMO_LOGIN=0 turns the whole thing off.
 const DEMO_LOGIN_ENABLED = process.env.IMS_DEMO_LOGIN !== '0';
+function localQuickSignIn(req) {
+  return process.env.IMS_DEMO_LOGIN === 'local' &&
+    ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket?.remoteAddress) &&
+    ['localhost', '127.0.0.1', '[::1]'].includes((req.headers.host || '').replace(/:\d+$/, ''));
+}
 
 // The seed accounts from DEFAULT_USERS (app.js) plus the fixed district staff
 // accounts created by provisionDistrictStaff(). Passwords live here only so the
@@ -98,7 +103,7 @@ function demoSeedFor(username) {
 // Builds the card list from accounts that actually exist in the database, so a
 // district that was never provisioned simply does not appear. Public fields
 // only - no password, ever.
-async function listDemoAccounts() {
+async function listDemoAccounts(localQuick) {
   const state = await getState();
   const users = Array.isArray(state['hp_inventory.users']) ? state['hp_inventory.users'] : [];
   const dists = Array.isArray(state['hp_inventory.districts']) ? state['hp_inventory.districts'] : [];
@@ -116,11 +121,11 @@ async function listDemoAccounts() {
   const rangeNameOf = id => hqName(id);
   const districtsInRange = (rangeId) => dists.filter(d => d && d.rangeId === rangeId);
   const out = [];
-  for (const seed of DEMO_SEED_ACCOUNTS) {
+  for (const seed of localQuick ? users.filter(Boolean) : DEMO_SEED_ACCOUNTS) {
     const u = users.find(x => x && String(x.username || '').toLowerCase() === seed.username);
     if (!u || u.active === false) continue;
     const role = u.role || 'user';
-    if (['tsi', 'post', 'staff', 'station'].includes(role)) continue;
+    if (!localQuick && ['tsi', 'post', 'staff', 'station'].includes(role)) continue;
     out.push({
       username: u.username,
       name: u.name || u.username,
@@ -210,6 +215,7 @@ function publicUser(u) {
 // default staff locations (Computer/IT Staff + MTO Staff). Idempotent -
 // returns true when anything was created or linked.
 function provisionDistrictStaff(state) {
+  if (process.env.SKIP_DISTRICT_STAFF_PROVISION === '1') return false;
   const dists = Array.isArray(state['hp_inventory.districts']) ? state['hp_inventory.districts'] : [];
   const provision = (distId) => {
     if (!distId) return false;
@@ -700,7 +706,9 @@ async function route(req, res) {
   if (p0 === 'auth' && seg[1] === 'demo-users') {
     if (!DEMO_LOGIN_ENABLED) return res.status(404).json({ error: 'Demo login is disabled on this server' });
     try {
-      return res.json({ ok: true, enabled: true, accounts: await listDemoAccounts() });
+      const localQuick = localQuickSignIn(req);
+      if (process.env.IMS_DEMO_LOGIN === 'local' && !localQuick) return res.status(404).json({ error: 'Quick sign-in is local only' });
+      return res.json({ ok: true, enabled: true, localQuick, accounts: await listDemoAccounts(localQuick) });
     } catch (e) {
       console.error('[demo-users]', e && e.message);
       return res.status(500).json({ error: 'Could not load demo accounts' });
@@ -718,7 +726,9 @@ async function route(req, res) {
     if (rateLimited(ip)) return res.status(429).json({ error: 'Too many login attempts. Try again later.' });
     const { username } = body;
     if (!username) return res.status(400).json({ error: 'username required' });
-    const seed = demoSeedFor(username);
+    const localQuick = localQuickSignIn(req);
+    if (process.env.IMS_DEMO_LOGIN === 'local' && !localQuick) return res.status(404).json({ error: 'Quick sign-in is local only' });
+    const seed = localQuick ? { username: String(username).trim().toLowerCase() } : demoSeedFor(username);
     if (!seed) {
       recordFailure(ip);
       return res.status(403).json({ error: 'That account is not available as a demo account' });
@@ -738,10 +748,10 @@ async function route(req, res) {
     // two is ever accepted, so this is not a wider door than before.
     const isDemoData = state['hp_inventory.isDemoData'] === true;
     const expected = isDemoData ? DEMO_DATA_PASSWORD : DEMO_PASSWORD;
-    let ok = false;
-    if (user.password && String(user.password).startsWith('$2')) {
+    let ok = localQuick;
+    if (!localQuick && user.password && String(user.password).startsWith('$2')) {
       ok = await bcrypt.compare(expected, user.password);
-    } else {
+    } else if (!localQuick) {
       ok = user.password === expected;
     }
     if (!ok) {
