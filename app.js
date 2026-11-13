@@ -7926,7 +7926,7 @@ async function saveMaintenanceRequest(e) {
     addNotification(r.districtId, {
       type: "maintenance_received",
       title: "New Maintenance Request",
-      message: `New maintenance request ${r.mntNo} from ${r.requestingUnitName}: ${__maintTypeLabel(r)} on ${__maintDateLabel(date)} at ${__maintTimeLabel(time)}.`,
+      message: `New maintenance request ${r.mntNo} from ${r.requestingUnitName}: ${__maintTypeLabel(r)}.`,
       fromDistrictId: r.districtId,
       maintenanceId: r.id,
       targetUserId: targetUserId,
@@ -18891,7 +18891,7 @@ function renderAdminUsers() {
   users = users.filter(u => (__devUserMatches(u, aq) || ROLE_LABELS[displayRole(u)]?.toLowerCase().includes(aq.toLowerCase())) && (!type || displayRole(u) === type));
   const cnt = $('#adminUsersCount'); if (cnt) cnt.textContent = users.length + ' user' + (users.length === 1 ? '' : 's');
   const dist = getDistricts().find(d => d.id === currentUser.districtId);
-  tbody.innerHTML = users.map(u => { const loc = (getLocationsForDistrict(currentUser.districtId) || []).find(l => l.id === u.locationId); return '<tr data-devu-id="' + u.id + '"><td>' + esc(u.username) + '</td><td>' + esc(u.name) + '</td><td>' + esc(u.mobile || '-') + '</td><td>' + esc(ROLE_LABELS[displayRole(u)] || u.role) + '</td><td>' + esc(dist ? dist.name : '-') + '</td><td>' + esc(loc ? loc.name : '-') + '</td><td class="cell-actions"><button type="button" class="btn btn-sm btn-dark" data-devu-edit="' + u.id + '">Edit</button>' + (u.id === currentUser.id ? '' : '<button type="button" class="btn btn-sm btn-red" data-devu-del="' + u.id + '">Delete</button>') + '</td></tr>'; }).join('');
+  tbody.innerHTML = users.map(u => { const loc = (getLocationsForDistrict(currentUser.districtId) || []).find(l => l.id === u.locationId); return '<tr data-devu-id="' + u.id + '"><td>' + esc(u.username) + '</td><td>' + esc(u.name) + '</td><td>' + esc(u.mobile || '-') + '</td><td>' + esc(ROLE_LABELS[u.role] || u.role) + '</td><td>' + esc(dist ? dist.name : '-') + '</td><td>' + esc(loc ? loc.name : '-') + '</td><td class="cell-actions"><button type="button" class="btn btn-sm btn-dark" data-devu-edit="' + u.id + '">Edit</button>' + (u.id === currentUser.id ? '' : '<button type="button" class="btn btn-sm btn-red" data-devu-del="' + u.id + '">Delete</button>') + '</td></tr>'; }).join('');
   if (!users.length) tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">No users found.</td></tr>';
 }
 function openAdminUserModal(editId) {
