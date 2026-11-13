@@ -73,6 +73,15 @@ read the `App:` line. Stop the server with **Ctrl+C**.
 
 ## 3. The database
 
+### Panipat account setup
+
+Stop the server and restore your private Panipat backup as `local-data/db.json`
+on the destination computer. Run `npm run setup:panipat` and then `npm start`.
+Setup keeps Developer Admin and the 21 Panipat accounts, revokes sessions for
+removed users, and saves a local backup before pruning. It also disables
+automatic account seeding and enables one-click sign-in on localhost.
+Developer Admin signs in with a password. Transfer backups outside Git.
+
 Everything lives in one file: `local-data/db.json`.
 
 | Task | How |

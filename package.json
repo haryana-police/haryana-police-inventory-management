@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node local-dev.js --filedb",
     "dev": "node local-dev.js --filedb",
+    "setup:panipat": "node setup-panipat.js",
     "seed": "node make-demo-data.js && node merge-demo-users.js",
     "seed:demo": "node make-demo-data.js",
     "seed:users": "node merge-demo-users.js",
