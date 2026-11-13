@@ -595,6 +595,39 @@ async function route(req, res) {
   }
   const body = req.body || {};
   const p0 = seg[0];
+  if (p0 === 'panipat-developer') {
+    const { user } = await authFromRequest(req);
+    if (user?.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+    const state = await getState();
+    const district = (state['hp_inventory.districts'] || []).find(d => d.id === user.districtId);
+    if (district?.name !== 'Panipat District') return res.status(403).json({ error: 'Forbidden' });
+    const developer = (state['hp_inventory.users'] || []).find(u => u.username === 'developer' && u.role === 'devadmin');
+    if (req.method === 'POST' && seg[1] === 'reset') {
+      if (!developer) return res.status(404).json({ error: 'Developer Admin account not found.' });
+      const { code, password } = body;
+      if (typeof password !== 'string' || password.length < 12 || Buffer.byteLength(password) > 72) {
+        return res.status(400).json({ error: 'Use at least 12 characters and at most 72 bytes.' });
+      }
+      const fs = require('node:fs');
+      const file = require('node:path').join(__dirname, '..', 'local-data', 'developer-recovery.json');
+      let recovery;
+      try { recovery = JSON.parse(fs.readFileSync(file, 'utf8')); }
+      catch (error) { if (error.code !== 'ENOENT') throw error; }
+      const digest = typeof code === 'string' && crypto.createHash('sha256').update(code.trim()).digest('hex');
+      if (!recovery || recovery.expiresAt <= Date.now() || recovery.digest !== digest) {
+        return res.status(400).json({ error: 'Recovery code is invalid or expired.' });
+      }
+      developer.password = bcrypt.hashSync(password, BCRYPT_ROUNDS);
+      for (const [key, session] of Object.entries(state[TOKEN_KEY] || {})) {
+        if (session.userId === developer.id) delete state[TOKEN_KEY][key];
+      }
+      fs.unlinkSync(file);
+      await setState(state);
+      return res.json({ ok: true });
+    }
+    if (req.method !== 'GET' || seg[1]) return res.status(404).json({ error: 'Not found' });
+    return res.json({ developer: developer ? { username: developer.username, name: developer.name } : null });
+  }
   if (p0 === 'grievances') {
     const { user } = await authFromRequest(req);
     if (!user) return res.status(401).json({ error: 'Sign in to access grievances.' });

@@ -1424,8 +1424,11 @@ function __renderDemoCards(accounts, available) {
   }
   const groups = new Map();
   for (const a of accounts) {
-    if (!groups.has(a.role)) groups.set(a.role, { label: a.roleLabel, accent: a.accent, items: [] });
-    groups.get(a.role).items.push(a);
+    const officeStaff = a.role === "itstaff" || a.role === "mtostaff";
+    const role = officeStaff ? "user" : a.role;
+    const account = officeStaff ? { ...a, roleLabel: "Office", accent: "amber" } : a;
+    if (!groups.has(role)) groups.set(role, { label: account.roleLabel, accent: account.accent, items: [] });
+    groups.get(role).items.push(account);
   }
   const frag = document.createDocumentFragment();
   for (const g of groups.values()) {
@@ -18860,9 +18863,51 @@ function renderAdminUsers() {
   let users = getUsers().filter(u => u.districtId === currentUser.districtId && u.role !== 'ig' && u.role !== 'devadmin');
   users = users.filter(u => __devUserMatches(u, aq)).filter(u => !type || u.role === type);
   const cnt = $('#adminUsersCount'); if (cnt) cnt.textContent = users.length + ' user' + (users.length === 1 ? '' : 's');
-  if (!users.length) { tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">No users found.</td></tr>'; return; }
   const dist = getDistricts().find(d => d.id === currentUser.districtId);
   tbody.innerHTML = users.map(u => { const loc = (getLocationsForDistrict(currentUser.districtId) || []).find(l => l.id === u.locationId); return '<tr data-devu-id="' + u.id + '"><td>' + esc(u.username) + '</td><td>' + esc(u.name) + '</td><td>' + esc(u.mobile || '-') + '</td><td>' + esc(ROLE_LABELS[u.role] || u.role) + '</td><td>' + esc(dist ? dist.name : '-') + '</td><td>' + esc(loc ? loc.name : '-') + '</td><td class="cell-actions"><button type="button" class="btn btn-sm btn-dark" data-devu-edit="' + u.id + '">Edit</button>' + (u.id === currentUser.id ? '' : '<button type="button" class="btn btn-sm btn-red" data-devu-del="' + u.id + '">Delete</button>') + '</td></tr>'; }).join('');
+  if (!users.length) tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">No users found.</td></tr>';
+  if (currentUser.role === 'admin' && dist?.name === 'Panipat District' && (!type || type === 'devadmin')) {
+    const viewer = currentUser.id;
+    const tableContent = tbody.firstChild;
+    __api('GET', 'panipat-developer').then(({ developer }) => {
+      if (!developer || currentUser?.id !== viewer || tbody.firstChild !== tableContent ||
+          !__devUserMatches({ ...developer, role: 'devadmin' }, aq)) return;
+      if (!users.length) tbody.replaceChildren();
+      tbody.insertAdjacentHTML('beforeend', '<tr><td>' + esc(developer.username) + '</td><td>' +
+        esc(developer.name || 'Developer Admin') + '</td><td>—</td><td>Developer Admin</td><td>—</td><td>—</td><td><button type="button" class="btn btn-sm btn-outline">Reset Password</button></td></tr>');
+      const resetButton = tbody.lastElementChild.querySelector('button');
+      resetButton.onclick = () => {
+        if (!window.isSecureContext) return toast('Open the app over HTTPS to reset the password.', 'error');
+        const panel = document.createElement('dialog');
+        panel.innerHTML = '<form><h2>Reset Developer Password</h2>' +
+          '<p>Enter the one-time code issued by the VM administrator.</p>' +
+          '<label>Recovery code <input name="code" required autocomplete="off"></label>' +
+          '<label>New password <input name="password" type="password" required minlength="12" autocomplete="new-password"></label>' +
+          '<p role="status"></p><button class="btn btn-primary">Reset Password</button> ' +
+          '<button type="button" class="btn btn-outline">Cancel</button></form>';
+        const form = panel.querySelector('form');
+        const submit = form.querySelector('button');
+        form.querySelector('[type=button]').onclick = () => panel.close();
+        panel.addEventListener('close', () => panel.remove(), { once: true });
+        form.onsubmit = async event => {
+          event.preventDefault();
+          submit.disabled = true;
+          try {
+            await __api('POST', 'panipat-developer/reset', Object.fromEntries(new FormData(form)));
+            panel.close();
+            toast('Developer password reset. Old sessions revoked.', 'success');
+          } catch (error) {
+            form.querySelector('[role=status]').textContent = error.body?.error || 'Password reset failed.';
+          } finally {
+            submit.disabled = false;
+          }
+        };
+        document.body.append(panel);
+        panel.showModal();
+      };
+      if (cnt) cnt.textContent = (users.length + 1) + ' users';
+    }).catch(error => console.error('Developer listing failed:', error));
+  }
 }
 function openAdminUserModal(editId) {
   if (!isAdmin()) return toast('Only District or Developer Admin can manage users.', 'error');
