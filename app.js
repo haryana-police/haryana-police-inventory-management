@@ -18874,37 +18874,7 @@ function renderAdminUsers() {
           !__devUserMatches({ ...developer, role: 'devadmin' }, aq)) return;
       if (!users.length) tbody.replaceChildren();
       tbody.insertAdjacentHTML('beforeend', '<tr><td>' + esc(developer.username) + '</td><td>' +
-        esc(developer.name || 'Developer Admin') + '</td><td>—</td><td>Developer Admin</td><td>—</td><td>—</td><td><button type="button" class="btn btn-sm btn-outline">Reset Password</button></td></tr>');
-      const resetButton = tbody.lastElementChild.querySelector('button');
-      resetButton.onclick = () => {
-        if (!window.isSecureContext) return toast('Open the app over HTTPS to reset the password.', 'error');
-        const panel = document.createElement('dialog');
-        panel.innerHTML = '<form><h2>Reset Developer Password</h2>' +
-          '<p>Enter the one-time code issued by the VM administrator.</p>' +
-          '<label>Recovery code <input name="code" required autocomplete="off"></label>' +
-          '<label>New password <input name="password" type="password" required minlength="12" autocomplete="new-password"></label>' +
-          '<p role="status"></p><button class="btn btn-primary">Reset Password</button> ' +
-          '<button type="button" class="btn btn-outline">Cancel</button></form>';
-        const form = panel.querySelector('form');
-        const submit = form.querySelector('button');
-        form.querySelector('[type=button]').onclick = () => panel.close();
-        panel.addEventListener('close', () => panel.remove(), { once: true });
-        form.onsubmit = async event => {
-          event.preventDefault();
-          submit.disabled = true;
-          try {
-            await __api('POST', 'panipat-developer/reset', Object.fromEntries(new FormData(form)));
-            panel.close();
-            toast('Developer password reset. Old sessions revoked.', 'success');
-          } catch (error) {
-            form.querySelector('[role=status]').textContent = error.body?.error || 'Password reset failed.';
-          } finally {
-            submit.disabled = false;
-          }
-        };
-        document.body.append(panel);
-        panel.showModal();
-      };
+        esc(developer.name || 'Developer Admin') + '</td><td>—</td><td>Developer Admin</td><td>—</td><td>—</td><td>Read only</td></tr>');
       if (cnt) cnt.textContent = (users.length + 1) + ' users';
     }).catch(error => console.error('Developer listing failed:', error));
   }
