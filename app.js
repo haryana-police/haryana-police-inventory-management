@@ -1327,6 +1327,33 @@ function addQuickUser(u, persist) {
   const keep = list.slice(0, 3);
   (persist === false ? sessionStorage : localStorage).setItem(QUICK_USERS_KEY, JSON.stringify(keep));
 }
+function removeQuickUsers(pred) {
+  for (const s of [localStorage, sessionStorage]) {
+    try {
+      const a = JSON.parse(s.getItem(QUICK_USERS_KEY) || "[]");
+      if (!Array.isArray(a)) continue;
+      const keep = a.filter(u => u && !pred(u));
+      if (keep.length !== a.length) s.setItem(QUICK_USERS_KEY, JSON.stringify(keep));
+    } catch { /* ignore unavailable storage */ }
+  }
+}
+/* Recent sign-in chips must only offer accounts that still exist: a saved chip
+   for a deleted district admin would sit on the login screen forever. The
+   local one-click roster (auth/demo-users with localQuick) is a complete list
+   of every active account except the Developer Admin, so it is a safe pruning
+   source. The hosted "Available Accounts" list is filtered to one district and
+   is NOT complete, so it must never be used to prune. */
+async function __pruneQuickUsers() {
+  if (!window.CONFIG || !window.CONFIG.useRemote) return;
+  let res;
+  try { res = await __api("GET", "auth/demo-users"); } catch { return; }
+  if (!res || !res.ok || res.localQuick !== true) return;
+  const valid = new Set(["developer", ...(res.accounts || []).map(a => a && String(a.username || "").toLowerCase()).filter(Boolean)]);
+  const stale = readQuickUsers().some(u => u && !valid.has(String(u.username || "").toLowerCase()));
+  if (!stale) return;
+  removeQuickUsers(u => !valid.has(String(u.username || "").toLowerCase()));
+  try { renderQuickLogin(); } catch { /* ignore */ }
+}
 function renderQuickLogin() {
   const box = $("#quickLogin");
   const list = $("#quickLoginList");
@@ -1636,6 +1663,7 @@ function logout() {
   $("#loginPass").value = "";
   $("#loginError").classList.add("hidden");
   try { renderQuickLogin(); } catch (e) { console.error("quick login failed:", e); }
+  try { __pruneQuickUsers(); } catch (e) { /* ignore */ }
 }
 
 function applyRoleUI() {
@@ -12868,6 +12896,7 @@ async function init() {
   }
 
   try { renderQuickLogin(); } catch (e) { console.error("quick login failed:", e); }
+  try { __pruneQuickUsers(); } catch (e) { console.error("quick user prune failed:", e); }
   try { __loadDemoAccounts(); } catch (e) { console.error("demo accounts failed:", e); }
 
   // "Use Demo Account" collapses/expands the demo panel on narrow screens and
