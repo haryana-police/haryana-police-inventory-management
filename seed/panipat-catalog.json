@@ -1,0 +1,2489 @@
+{
+ "_comment": "Panipat inventory catalog — categories + items only. No users, no passwords. Import target must already have the district and the referenced locations.",
+ "exportedAt": "2026-11-13T09:40:26.711Z",
+ "district": {
+  "id": "dist_mugr9nwgs812q",
+  "name": "Panipat District",
+  "code": "PPT"
+ },
+ "hqLocation": {
+  "id": "loc_mugrguzgow294",
+  "name": "THC PANIPAT",
+  "type": "district"
+ },
+ "locations": [
+  {
+   "id": "loc_mugrguzgow294",
+   "name": "THC PANIPAT",
+   "type": "district"
+  }
+ ],
+ "categories": [
+  {
+   "id": "mukrrg4m9dani",
+   "name": "Appliances & Utilities"
+  },
+  {
+   "id": "muksbafmtnscy",
+   "name": "Arms & Weapon Equipment"
+  },
+  {
+   "id": "muksfkw9d2qi3",
+   "name": "Clothing & Personal Gear"
+  },
+  {
+   "id": "mukshysa72htz",
+   "name": "Electronics & Communication"
+  },
+  {
+   "id": "mukt5sjwowof3",
+   "name": "Electrical & Lighting"
+  },
+  {
+   "id": "muktl42yle9fs",
+   "name": "Fire & Emergency Safety"
+  },
+  {
+   "id": "muktqon2mcdlt",
+   "name": "Furniture & Fixtures"
+  },
+  {
+   "id": "muku4swmvsplt",
+   "name": "Investigation & Forensic"
+  },
+  {
+   "id": "muku9ue3eoxmb",
+   "name": "IT & Digital Equipment"
+  },
+  {
+   "id": "mukuxqw63rcbn",
+   "name": "Miscellaneous"
+  },
+  {
+   "id": "mum88vrir9yq4",
+   "name": "Power & Generator"
+  },
+  {
+   "id": "mum8fabqb5pah",
+   "name": "Protection & Riot Control"
+  },
+  {
+   "id": "mumh16v7ow8z5",
+   "name": "Storage & Office Equipment"
+  },
+  {
+   "id": "mumhlgi9vbi86",
+   "name": "Surveillance & Security"
+  },
+  {
+   "id": "mumhr6t9ze2xi",
+   "name": "Tools & Maintenance"
+  },
+  {
+   "id": "mumhxcgj9yq3w",
+   "name": "Traffic & Field Equipment"
+  }
+ ],
+ "items": [
+  {
+   "id": "mukrs7zkutdmw",
+   "name": "Cooler Iron कूलर लोहा",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571070064,
+   "updatedAt": 1790571070064
+  },
+  {
+   "id": "mukrsjcjpph5z",
+   "name": "Cooler Plastic कूलर प्लास्टिक",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571084787,
+   "updatedAt": 1790571084787
+  },
+  {
+   "id": "mukrsuebs89fl",
+   "name": "Container कन्टैनर",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571099107,
+   "updatedAt": 1790571099107
+  },
+  {
+   "id": "mukrtgh7sq8dn",
+   "name": "Freeze (Refrigerator) फ्रीज़",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571127723,
+   "updatedAt": 1790571127723
+  },
+  {
+   "id": "mukrtxkn4khn9",
+   "name": "Iron Cooler Stand लोहा का कूलर स्टैन्ड",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571149879,
+   "updatedAt": 1790571149879
+  },
+  {
+   "id": "mukrujy2lee7r",
+   "name": "Juicer Mixer जूसर मिक्सर",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571178874,
+   "updatedAt": 1790571178874
+  },
+  {
+   "id": "mukrutcfksfmb",
+   "name": "Oven ओवन",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571191055,
+   "updatedAt": 1790571191055
+  },
+  {
+   "id": "mukrvvy27ozdj",
+   "name": "R.O. water purifier आर. ओ.",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571241082,
+   "updatedAt": 1790571241082
+  },
+  {
+   "id": "mukrwbxpt7wb0",
+   "name": "Tullu Pump Motor Compressor पम्प कम्प्रेसर",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571261805,
+   "updatedAt": 1790571261805
+  },
+  {
+   "id": "mukrwpt58ckai",
+   "name": "Vacuum Cleaner Machine वैक्यूम क्लीनर",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571279785,
+   "updatedAt": 1790571279785
+  },
+  {
+   "id": "mukrwzisz2yrf",
+   "name": "Washing Machine वाशिंग मशीन",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571292372,
+   "updatedAt": 1790571292372
+  },
+  {
+   "id": "mukrxepvzd65k",
+   "name": "Water Camper वाटर कैम्पर",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571312067,
+   "updatedAt": 1790571312067
+  },
+  {
+   "id": "mukrxo9zrhwk7",
+   "name": "Water Cooler वाटर कूलर",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571324455,
+   "updatedAt": 1790571324455
+  },
+  {
+   "id": "mukry2aw2ys3v",
+   "name": "Water Tank Plastic टंकी प्लास्टिक",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571342632,
+   "updatedAt": 1790571342632
+  },
+  {
+   "id": "mukryja6344h7",
+   "name": "Weight Machine वैट मशीन",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571364638,
+   "updatedAt": 1790571364638
+  },
+  {
+   "id": "mukryw46i3p73",
+   "name": "Cylinder सिलिन्डर",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571381270,
+   "updatedAt": 1790571381270
+  },
+  {
+   "id": "mukrzdffjxumg",
+   "name": "Geyser गीजर",
+   "categoryId": "mukrrg4m9dani",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790571403707,
+   "updatedAt": 1790571403707
+  },
+  {
+   "id": "mukscrg1a5kg3",
+   "name": "Bandolier Leather बंडोलीर लेदर",
+   "categoryId": "muksbafmtnscy",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572028401,
+   "updatedAt": 1790572028401
+  },
+  {
+   "id": "muksdibvyodff",
+   "name": "Handcuffs Chain हथकड़ी चैन",
+   "categoryId": "muksbafmtnscy",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572063243,
+   "updatedAt": 1790572063243
+  },
+  {
+   "id": "mukse0fdkeois",
+   "name": "Rifle Chain राइफल चैन",
+   "categoryId": "muksbafmtnscy",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572086697,
+   "updatedAt": 1790572086697
+  },
+  {
+   "id": "muksef1kosjn8",
+   "name": "Rifle Rack Iron राइफल रैक लोहा",
+   "categoryId": "muksbafmtnscy",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572105640,
+   "updatedAt": 1790572105640
+  },
+  {
+   "id": "mukses1j1kko5",
+   "name": "Rifle Rack Wooden राइफल रैक लकड़ी",
+   "categoryId": "muksbafmtnscy",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572122487,
+   "updatedAt": 1790572122487
+  },
+  {
+   "id": "muksf5tdmllmf",
+   "name": "Talwar Salami तलवार सलामी",
+   "categoryId": "muksbafmtnscy",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572140337,
+   "updatedAt": 1790572140337
+  },
+  {
+   "id": "muksgtkzdqsey",
+   "name": "GUM Boot गम बूट",
+   "categoryId": "muksfkw9d2qi3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572217795,
+   "updatedAt": 1790572217795
+  },
+  {
+   "id": "muksh5zx8sra0",
+   "name": "Rain Coat रैन कोट",
+   "categoryId": "muksfkw9d2qi3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572233885,
+   "updatedAt": 1790572233885
+  },
+  {
+   "id": "mukshj9z0csks",
+   "name": "Umbrella छत्तरी",
+   "categoryId": "muksfkw9d2qi3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572251095,
+   "updatedAt": 1790572251095
+  },
+  {
+   "id": "muksii19sy3n8",
+   "name": "Amplifier ऐम्प्लफाइअर",
+   "categoryId": "mukshysa72htz",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572296141,
+   "updatedAt": 1790572296141
+  },
+  {
+   "id": "mukskgdrq9g69",
+   "name": "Cordless Telephone कोर्डलेस टेलीफोन",
+   "categoryId": "mukshysa72htz",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572387311,
+   "updatedAt": 1790572387311
+  },
+  {
+   "id": "mukslw5qx6g9q",
+   "name": "Dish T.V. डीश टीवी",
+   "categoryId": "mukshysa72htz",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572454414,
+   "updatedAt": 1790572454414
+  },
+  {
+   "id": "muksmyqk2hma1",
+   "name": "E-Challan Machine इे-चालान मशीन",
+   "categoryId": "mukshysa72htz",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572504412,
+   "updatedAt": 1790572504412
+  },
+  {
+   "id": "muksp3p8wxjof",
+   "name": "HandyCam Digital Camera हैंडीकैम डिजिटल कैमरा",
+   "categoryId": "mukshysa72htz",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572604156,
+   "updatedAt": 1790572604156
+  },
+  {
+   "id": "mukswew1s8011",
+   "name": "Fax Machine फैक्स मशीन",
+   "categoryId": "mukshysa72htz",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572945249,
+   "updatedAt": 1790572945249
+  },
+  {
+   "id": "mukswpcpgwln6",
+   "name": "LCD ROT एलसीडी राट",
+   "categoryId": "mukshysa72htz",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572958809,
+   "updatedAt": 1790572958809
+  },
+  {
+   "id": "mukswzq9io6oy",
+   "name": "Mega Phone मेगा फोन",
+   "categoryId": "mukshysa72htz",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572972257,
+   "updatedAt": 1790572972257
+  },
+  {
+   "id": "muksxk6zgdwxk",
+   "name": "Mike Battery माइक बैटरी",
+   "categoryId": "mukshysa72htz",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790572998779,
+   "updatedAt": 1790572998779
+  },
+  {
+   "id": "muksxuj0u9kyv",
+   "name": "Mobile Phone Set मोबाईल फोन सेट",
+   "categoryId": "mukshysa72htz",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573012172,
+   "updatedAt": 1790573012172
+  },
+  {
+   "id": "mukt29v3x9u1n",
+   "name": "Photostat Machine फोटस्टैट मशीन",
+   "categoryId": "mukshysa72htz",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573218671,
+   "updatedAt": 1790573218671
+  },
+  {
+   "id": "mukt2x5c2mjne",
+   "name": "LED T.V. एलईडी टीवी",
+   "categoryId": "mukshysa72htz",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573248848,
+   "updatedAt": 1790573248848
+  },
+  {
+   "id": "mukt38r4ti4ek",
+   "name": "T.V. Trolly टीवी ट्रॉली",
+   "categoryId": "mukshysa72htz",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573263888,
+   "updatedAt": 1790573263888
+  },
+  {
+   "id": "mukt3l1qzkxcv",
+   "name": "Tape Recorder (Voice) टेप रीकॉर्डर",
+   "categoryId": "mukshysa72htz",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573279822,
+   "updatedAt": 1790573279822
+  },
+  {
+   "id": "mukt6biafjkan",
+   "name": "A/C (Air Conditioner) ए /सी",
+   "categoryId": "mukt5sjwowof3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573407426,
+   "updatedAt": 1790573755291
+  },
+  {
+   "id": "mukt75hfsqfeh",
+   "name": "Ceiling Fan पंखा  छत का",
+   "categoryId": "mukt5sjwowof3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573446275,
+   "updatedAt": 1790573446275
+  },
+  {
+   "id": "mukt81dh9nso7",
+   "name": "Door Bell घंटी दरवाजे की",
+   "categoryId": "mukt5sjwowof3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573487605,
+   "updatedAt": 1790573487605
+  },
+  {
+   "id": "mukt8bham0jjl",
+   "name": "Electricity Meter बिजली मीटर",
+   "categoryId": "mukt5sjwowof3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573500702,
+   "updatedAt": 1790573500702
+  },
+  {
+   "id": "mukt9yb3iawu2",
+   "name": "Emergency Light आपातकाल लाइट",
+   "categoryId": "mukt5sjwowof3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573576943,
+   "updatedAt": 1790573576943
+  },
+  {
+   "id": "muktatr40v4hv",
+   "name": "Exhaust Fan इग्ज़ॉस्ट पंखा",
+   "categoryId": "mukt5sjwowof3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573617696,
+   "updatedAt": 1790573617696
+  },
+  {
+   "id": "muktbfhk1yki7",
+   "name": "Invertor Battery इंवर्टर बैटरी",
+   "categoryId": "mukt5sjwowof3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573645864,
+   "updatedAt": 1790573645864
+  },
+  {
+   "id": "muktcb0lw4glm",
+   "name": "LED Light Search एलईडी लाइट सर्च",
+   "categoryId": "mukt5sjwowof3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573686725,
+   "updatedAt": 1790573686725
+  },
+  {
+   "id": "muktd7kip656v",
+   "name": "Mini Fan Bathroom स्नानघर का छोटा पंखा",
+   "categoryId": "mukt5sjwowof3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573728914,
+   "updatedAt": 1790573728914
+  },
+  {
+   "id": "mukth9p28ohvp",
+   "name": "Press Electric इलेक्ट्रिक इस्त्री",
+   "categoryId": "mukt5sjwowof3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573918294,
+   "updatedAt": 1790573918294
+  },
+  {
+   "id": "mukthv2j7f8kt",
+   "name": "Room Heater रूम हीटर",
+   "categoryId": "mukt5sjwowof3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573945995,
+   "updatedAt": 1790573945995
+  },
+  {
+   "id": "muktimkrn1vbt",
+   "name": "Sky Emergency Light आकाश आपातकाल लाइट",
+   "categoryId": "mukt5sjwowof3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573981643,
+   "updatedAt": 1790573981643
+  },
+  {
+   "id": "muktiwg0fhbt3",
+   "name": "Standing Fan स्टैन्डींग पंखा",
+   "categoryId": "mukt5sjwowof3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790573994432,
+   "updatedAt": 1790573994432
+  },
+  {
+   "id": "muktjc7b3luon",
+   "name": "Wall Fan Standing दीवार स्टैन्डींग पंखा",
+   "categoryId": "mukt5sjwowof3",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574014855,
+   "updatedAt": 1790574014855
+  },
+  {
+   "id": "muktmajhc6u5k",
+   "name": "Fire Bucket आग बुझाने वाली बाल्टी",
+   "categoryId": "muktl42yle9fs",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574152669,
+   "updatedAt": 1790574152669
+  },
+  {
+   "id": "muktmx4vc83pp",
+   "name": "Fire Extinguisher आग बुझाने वाल यंत्र",
+   "categoryId": "muktl42yle9fs",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574181951,
+   "updatedAt": 1790574201227
+  },
+  {
+   "id": "muktnoo2iqizv",
+   "name": "First Add Box फर्स्ट ऐड बॉक्स",
+   "categoryId": "muktl42yle9fs",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574217634,
+   "updatedAt": 1790574217634
+  },
+  {
+   "id": "mukto4r4xdduv",
+   "name": "Gas Stock गैस चूला",
+   "categoryId": "muktl42yle9fs",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574238480,
+   "updatedAt": 1790574238480
+  },
+  {
+   "id": "muktojqkp8nft",
+   "name": "Women Health Desk वुमन हेल्थ डेस्क",
+   "categoryId": "muktl42yle9fs",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574257900,
+   "updatedAt": 1790574257900
+  },
+  {
+   "id": "muktrq2srpnns",
+   "name": "3 Seater Chair Plastic तीन सीटर कुर्सी प्लास्टिक",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574406084,
+   "updatedAt": 1790574427658
+  },
+  {
+   "id": "muktsmrrs9c2j",
+   "name": "Almira Iron अलमारी लोहा",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574448455,
+   "updatedAt": 1790574448455
+  },
+  {
+   "id": "mukttb80xskn3",
+   "name": "Almira Wooden अलमारी लकड़ी",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574480144,
+   "updatedAt": 1790574480144
+  },
+  {
+   "id": "mukttl1w2m8bc",
+   "name": "Chair Plastic कुर्सी प्लास्टिक",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574492884,
+   "updatedAt": 1790574492884
+  },
+  {
+   "id": "muktu7oy75gxz",
+   "name": "Curtains Window and Door परदे खिड़की व दरवाजे के",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574522226,
+   "updatedAt": 1790574522226
+  },
+  {
+   "id": "muktuow6v212t",
+   "name": "Dining Table Set खाने का तबेल",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574544518,
+   "updatedAt": 1790574544518
+  },
+  {
+   "id": "muktv371kpwcg",
+   "name": "Double Bed डबल बेड",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574563053,
+   "updatedAt": 1790574563053
+  },
+  {
+   "id": "muktwuycl5tyz",
+   "name": "Iron Chair Canen कुर्सी लोहा कैनन",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574645684,
+   "updatedAt": 1790574645684
+  },
+  {
+   "id": "muktxfx2renld",
+   "name": "Lecture Stand लेक्चर स्टैन्ड",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574672854,
+   "updatedAt": 1790574672854
+  },
+  {
+   "id": "muktxpmynhz73",
+   "name": "Library लाइब्रेरी",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574685450,
+   "updatedAt": 1790574685450
+  },
+  {
+   "id": "muktytkhjeift",
+   "name": "Office Chair Gade Daar ऑफिस कुर्सी गदा",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574737201,
+   "updatedAt": 1790574737201
+  },
+  {
+   "id": "muktzsdmbfp2q",
+   "name": "Plastic Table प्लास्टिक टेबल",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574782314,
+   "updatedAt": 1790574782314
+  },
+  {
+   "id": "muku08ehn4bhe",
+   "name": "Rotating Chair घूमने वाली कुर्सी",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574803081,
+   "updatedAt": 1790574803081
+  },
+  {
+   "id": "muku13elx0mgz",
+   "name": "Side Unit Wooden साइड यूनिट लकड़ी",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574843261,
+   "updatedAt": 1790574843261
+  },
+  {
+   "id": "muku1fzf9jerd",
+   "name": "Table Iron लोहा टेबल",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574859563,
+   "updatedAt": 1790574859563
+  },
+  {
+   "id": "muku28z1iqp71",
+   "name": "Table Wooden Sunmica टेबल लकड़ी सुनमिका",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574897133,
+   "updatedAt": 1790574897133
+  },
+  {
+   "id": "muku3136hwudg",
+   "name": "Takhat Bed Wooden तकत बेड लकड़ी",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574933570,
+   "updatedAt": 1790574933570
+  },
+  {
+   "id": "muku3gtnz5v7z",
+   "name": "Wooden Bench लकड़ी बेंच",
+   "categoryId": "muktqon2mcdlt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790574953963,
+   "updatedAt": 1790574953963
+  },
+  {
+   "id": "muku5k874xy6g",
+   "name": "Alco Sense Meter शराब मापने का मीटर",
+   "categoryId": "muku4swmvsplt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790575051687,
+   "updatedAt": 1790575051687
+  },
+  {
+   "id": "muku6r3ar2xta",
+   "name": "Fingerprint Kit उंगलियों की छाप किट",
+   "categoryId": "muku4swmvsplt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790575107238,
+   "updatedAt": 1790575107238
+  },
+  {
+   "id": "muku7xg2j12gz",
+   "name": "Investigation Bag तफतीश बसता",
+   "categoryId": "muku4swmvsplt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790575162130,
+   "updatedAt": 1790575162130
+  },
+  {
+   "id": "muku8c7xentvn",
+   "name": "Laser Machine लेसर मशीन",
+   "categoryId": "muku4swmvsplt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790575181277,
+   "updatedAt": 1790575181277
+  },
+  {
+   "id": "muku9e8dx1pjr",
+   "name": "Narcotic Drug नार्काटिक दृग",
+   "categoryId": "muku4swmvsplt",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790575230541,
+   "updatedAt": 1790575230541
+  },
+  {
+   "id": "mukuv0xiog08d",
+   "name": "Biometrics Scanner MFS110 बीओमेट्रिक स्कैनर  मंत्रा",
+   "categoryId": "muku9ue3eoxmb",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576239735,
+   "updatedAt": 1790576239735
+  },
+  {
+   "id": "mukuwnby9ulp6",
+   "name": "C.C.T.V. Camera सी.सी.टी.वी. कैमरा",
+   "categoryId": "muku9ue3eoxmb",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576315422,
+   "updatedAt": 1790576315422
+  },
+  {
+   "id": "mukuwxnm0d39r",
+   "name": "Drone Camera ड्रोन कैमरा",
+   "categoryId": "muku9ue3eoxmb",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576328802,
+   "updatedAt": 1790576328802
+  },
+  {
+   "id": "mukuxf1spu63x",
+   "name": "Zebronics WEB Camera वेब  कैमरा",
+   "categoryId": "muku9ue3eoxmb",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576351344,
+   "updatedAt": 1790576351344
+  },
+  {
+   "id": "mukuymkkiq7jr",
+   "name": "Brazier अंगीठी",
+   "categoryId": "mukuxqw63rcbn",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576407748,
+   "updatedAt": 1790576407748
+  },
+  {
+   "id": "mukuzd430gd59",
+   "name": "Brass Ashok Stambh अशोक स्तम्भ",
+   "categoryId": "mukuxqw63rcbn",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576442147,
+   "updatedAt": 1790576442147
+  },
+  {
+   "id": "mukv02r012g6x",
+   "name": "Brass Bell पीतल की घंटी",
+   "categoryId": "mukuxqw63rcbn",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576475372,
+   "updatedAt": 1790576475372
+  },
+  {
+   "id": "mukv0f50nxfqp",
+   "name": "Calculator कैलक्यूलेटर",
+   "categoryId": "mukuxqw63rcbn",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576491428,
+   "updatedAt": 1790576491428
+  },
+  {
+   "id": "mukv1hefu9tiz",
+   "name": "Carpet Floor दरी फ़र्शी",
+   "categoryId": "mukuxqw63rcbn",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576541015,
+   "updatedAt": 1790576541015
+  },
+  {
+   "id": "mukv23n1aysue",
+   "name": "H.P. Batch ह.पु बैच",
+   "categoryId": "mukuxqw63rcbn",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576569837,
+   "updatedAt": 1790576569837
+  },
+  {
+   "id": "mukv31gbpjuys",
+   "name": "Iron Chaarpi चारपाई लोहा",
+   "categoryId": "mukuxqw63rcbn",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576613659,
+   "updatedAt": 1790576613659
+  },
+  {
+   "id": "mukv3aurzwlg7",
+   "name": "Iron Lock ताल लोहा",
+   "categoryId": "mukuxqw63rcbn",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576625843,
+   "updatedAt": 1790576625843
+  },
+  {
+   "id": "mukv47oo4t66q",
+   "name": "Jute Carpet जुट की दरी",
+   "categoryId": "mukuxqw63rcbn",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576668392,
+   "updatedAt": 1790576668392
+  },
+  {
+   "id": "mukv4vjyq2q4u",
+   "name": "Mattress गदा",
+   "categoryId": "mukuxqw63rcbn",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576699326,
+   "updatedAt": 1790576699326
+  },
+  {
+   "id": "mukv5q5jgohnw",
+   "name": "Press Brass पीतल प्रेस",
+   "categoryId": "mukuxqw63rcbn",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576738983,
+   "updatedAt": 1790576738983
+  },
+  {
+   "id": "mukv5ymy0o3ea",
+   "name": "Swing झूला",
+   "categoryId": "mukuxqw63rcbn",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576749978,
+   "updatedAt": 1790576749978
+  },
+  {
+   "id": "mukv792oh1axj",
+   "name": "Wall Clock दीवार घड़ी",
+   "categoryId": "mukuxqw63rcbn",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576810160,
+   "updatedAt": 1790576810160
+  },
+  {
+   "id": "mukv7sov51u36",
+   "name": "Bed Sheet बेड की चादर",
+   "categoryId": "mukuxqw63rcbn",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790576835583,
+   "updatedAt": 1790576835583
+  },
+  {
+   "id": "mum8aiv1382s7",
+   "name": "Battery Tri Cell तीन सेली बैटरी",
+   "categoryId": "mum88vrir9yq4",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790659263997,
+   "updatedAt": 1790659263997
+  },
+  {
+   "id": "mum8axkphe1f6",
+   "name": "Generator Set जनरेटर सेट",
+   "categoryId": "mum88vrir9yq4",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790659283065,
+   "updatedAt": 1790659283065
+  },
+  {
+   "id": "mum8g74mrg8oa",
+   "name": "Arm Guard आर्म गार्ड",
+   "categoryId": "mum8fabqb5pah",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790659528726,
+   "updatedAt": 1790659528726
+  },
+  {
+   "id": "mum8glf5blnqs",
+   "name": "Body Protector बॉडी प्रटेक्टर",
+   "categoryId": "mum8fabqb5pah",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790659547249,
+   "updatedAt": 1790659547249
+  },
+  {
+   "id": "mum8gzryc0ct9",
+   "name": "Bullet Proof Jacket बुलेट प्रूफ जैकिट",
+   "categoryId": "mum8fabqb5pah",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790659565854,
+   "updatedAt": 1790659565854
+  },
+  {
+   "id": "mum8hdmbhlp9z",
+   "name": "Cane Shield Banet कैन शिलेड बनेट",
+   "categoryId": "mum8fabqb5pah",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790659583796,
+   "updatedAt": 1790659583796
+  },
+  {
+   "id": "mum8ioc1oac6y",
+   "name": "Dandaa Banet डंडा बनेट",
+   "categoryId": "mum8fabqb5pah",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790659644337,
+   "updatedAt": 1790659644337
+  },
+  {
+   "id": "mum8j33mrieai",
+   "name": "Dandaa Carbonateडंडा कार्बनैट",
+   "categoryId": "mum8fabqb5pah",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790659663474,
+   "updatedAt": 1790659663474
+  },
+  {
+   "id": "mum8k5ql9h88g",
+   "name": "Full Body Protector पूरा बॉडी प्रटेक्टर",
+   "categoryId": "mum8fabqb5pah",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790659713549,
+   "updatedAt": 1790659713549
+  },
+  {
+   "id": "mum8kkhps0i8a",
+   "name": "Helmet Cricket क्रिकेट  हेलमेट",
+   "categoryId": "mum8fabqb5pah",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790659732669,
+   "updatedAt": 1790659732669
+  },
+  {
+   "id": "mum8kx73hq42n",
+   "name": "Helmet Motorcycle हेलमेट मोटरसाइकिल",
+   "categoryId": "mum8fabqb5pah",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790659749135,
+   "updatedAt": 1790659749135
+  },
+  {
+   "id": "mum8l7906n98q",
+   "name": "Helmet Steel हेलमेट स्टील",
+   "categoryId": "mum8fabqb5pah",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790659762164,
+   "updatedAt": 1790659762164
+  },
+  {
+   "id": "mum8lheojwo9z",
+   "name": "Laathi Baas लाठी बास",
+   "categoryId": "mum8fabqb5pah",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790659775328,
+   "updatedAt": 1790659775328
+  },
+  {
+   "id": "mum8lz7f6vhq7",
+   "name": "Rope Banet  रस्सा बनेट",
+   "categoryId": "mum8fabqb5pah",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790659798395,
+   "updatedAt": 1790659798395
+  },
+  {
+   "id": "mum8mh6ifc2hg",
+   "name": "Shield Carbonate शील्ड कार्बनैट",
+   "categoryId": "mum8fabqb5pah",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790659821690,
+   "updatedAt": 1790659821690
+  },
+  {
+   "id": "mum8nn21wwtbn",
+   "name": "Shin Guard पिंडली गार्ड",
+   "categoryId": "mum8fabqb5pah",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790659875961,
+   "updatedAt": 1790659875961
+  },
+  {
+   "id": "mumh1w54cv4lg",
+   "name": "Black Board Wooden ब्लैक बोर्ड लकड़ी",
+   "categoryId": "mumh16v7ow8z5",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790673977848,
+   "updatedAt": 1790673977848
+  },
+  {
+   "id": "mumh2k6xvdhm7",
+   "name": "Box Iron बाक्स लोहा",
+   "categoryId": "mumh16v7ow8z5",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790674009017,
+   "updatedAt": 1790674009017
+  },
+  {
+   "id": "mumh34sfzc6jo",
+   "name": "Complaint Box शिकायत पट्टी",
+   "categoryId": "mumh16v7ow8z5",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790674035711,
+   "updatedAt": 1790674035711
+  },
+  {
+   "id": "mumh4fh90x5h4",
+   "name": "File Cabinet Iron फाइल कैबिनेट लोहा",
+   "categoryId": "mumh16v7ow8z5",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790674096221,
+   "updatedAt": 1790674096221
+  },
+  {
+   "id": "mumh8csvvfzhz",
+   "name": "Incumbency Board Alphabetic इन्कम्बन्सी मे अक्षर वाला बोर्ड",
+   "categoryId": "mumh16v7ow8z5",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790674279376,
+   "updatedAt": 1790674279376
+  },
+  {
+   "id": "mumh8rr764mpx",
+   "name": "Iron Container लोहे की पट्टी",
+   "categoryId": "mumh16v7ow8z5",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790674298755,
+   "updatedAt": 1790674298755
+  },
+  {
+   "id": "mumha1brm3hb5",
+   "name": "Iron Safe लोहे की तिजोरी",
+   "categoryId": "mumh16v7ow8z5",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790674357815,
+   "updatedAt": 1790674357815
+  },
+  {
+   "id": "mumhabs6inmbd",
+   "name": "Notice Board नोटिस बोर्ड",
+   "categoryId": "mumh16v7ow8z5",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790674371366,
+   "updatedAt": 1790674371366
+  },
+  {
+   "id": "mumhat6s11uvk",
+   "name": "Paper Rack Iron पेपर रैक लोहा",
+   "categoryId": "mumh16v7ow8z5",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790674393924,
+   "updatedAt": 1790674393924
+  },
+  {
+   "id": "mumhb74vbls35",
+   "name": "Queue Manager क्यू मैनेजर",
+   "categoryId": "mumh16v7ow8z5",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790674411999,
+   "updatedAt": 1790674411999
+  },
+  {
+   "id": "mumhbf10rh22m",
+   "name": "Stapler स्टैप्लर",
+   "categoryId": "mumh16v7ow8z5",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790674422228,
+   "updatedAt": 1790674422228
+  },
+  {
+   "id": "mumhbnu5p7d3b",
+   "name": "Tool Box Kit टूल बॉक्स किट",
+   "categoryId": "mumh16v7ow8z5",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790674433645,
+   "updatedAt": 1790674433645
+  },
+  {
+   "id": "mumhbxlbuleiw",
+   "name": "VIP Suitcase वीआईपी सूट्कैस",
+   "categoryId": "mumh16v7ow8z5",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790674446287,
+   "updatedAt": 1790674446287
+  },
+  {
+   "id": "mumhevx9jplwq",
+   "name": "Wooden Box Kit लकड़ी की बॉक्स  किट",
+   "categoryId": "mumh16v7ow8z5",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790674584093,
+   "updatedAt": 1790674584093
+  },
+  {
+   "id": "mumhmc4aue4s1",
+   "name": "Binoculars दूरबीन",
+   "categoryId": "mumhlgi9vbi86",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790674931674,
+   "updatedAt": 1790674931674
+  },
+  {
+   "id": "mumhn619wyx57",
+   "name": "DFMD डी फ एम डी",
+   "categoryId": "mumhlgi9vbi86",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790674970445,
+   "updatedAt": 1790674970445
+  },
+  {
+   "id": "mumhnzwbhnhxu",
+   "name": "GPS Vehicle Tracking Device जीपीएस वीइकल ट्रैकिंग डिवाइस",
+   "categoryId": "mumhlgi9vbi86",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675009147,
+   "updatedAt": 1790675009147
+  },
+  {
+   "id": "mumhoyq49k2zp",
+   "name": "HHMD एच एच एम डी",
+   "categoryId": "mumhlgi9vbi86",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675054284,
+   "updatedAt": 1790675054284
+  },
+  {
+   "id": "mumhpcaa7ers0",
+   "name": "Interceptor Machine इनर्सेप्टर मशीन",
+   "categoryId": "mumhlgi9vbi86",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675071858,
+   "updatedAt": 1790675071858
+  },
+  {
+   "id": "mumhpln8emws1",
+   "name": "Video Camera विडिओ कैमरा",
+   "categoryId": "mumhlgi9vbi86",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675083988,
+   "updatedAt": 1790675083988
+  },
+  {
+   "id": "mumhq3fqadhom",
+   "name": "Wheel Lock व्हील लॉक",
+   "categoryId": "mumhlgi9vbi86",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675107046,
+   "updatedAt": 1790675107046
+  },
+  {
+   "id": "mumhrtwyyyh0u",
+   "name": "Axe And Other कुल्हाड़ी और बाकी",
+   "categoryId": "mumhr6t9ze2xi",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675188018,
+   "updatedAt": 1790675188018
+  },
+  {
+   "id": "mumhs1zntcbxu",
+   "name": "Cutter Machine कटर मशीन",
+   "categoryId": "mumhr6t9ze2xi",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675198483,
+   "updatedAt": 1790675198483
+  },
+  {
+   "id": "mumhs99l7ea4z",
+   "name": "Drill Machine ड्रिल मशीन",
+   "categoryId": "mumhr6t9ze2xi",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675207913,
+   "updatedAt": 1790675207913
+  },
+  {
+   "id": "mumhsror7d8s5",
+   "name": "Grass Cutter घास काटने की मशीन",
+   "categoryId": "mumhr6t9ze2xi",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675231787,
+   "updatedAt": 1790675231787
+  },
+  {
+   "id": "mumhsz64xjynn",
+   "name": "Hammer हथोड़ा",
+   "categoryId": "mumhr6t9ze2xi",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675241484,
+   "updatedAt": 1790675264243
+  },
+  {
+   "id": "mumhtujfgt9xn",
+   "name": "Ladder Iron सीढ़ी लोहा",
+   "categoryId": "mumhr6t9ze2xi",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675282139,
+   "updatedAt": 1790675282139
+  },
+  {
+   "id": "mumhw2e9rc8xb",
+   "name": "Pipe Wrench पाइप रेन्च",
+   "categoryId": "mumhr6t9ze2xi",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675385633,
+   "updatedAt": 1790675385633
+  },
+  {
+   "id": "mumhwfivcivu2",
+   "name": "Welding Machine वैल्डिंग मशीन",
+   "categoryId": "mumhr6t9ze2xi",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675402647,
+   "updatedAt": 1790675402647
+  },
+  {
+   "id": "mumhy27l27gas",
+   "name": "Barricades Iron लोहे के बर्रिकडेस",
+   "categoryId": "mumhxcgj9yq3w",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675478705,
+   "updatedAt": 1790675478705
+  },
+  {
+   "id": "mumhyit02plzd",
+   "name": "Bigual Dori बिगुअल डोरी",
+   "categoryId": "mumhxcgj9yq3w",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675500212,
+   "updatedAt": 1790675500212
+  },
+  {
+   "id": "mumhz3zrlyd9i",
+   "name": "Ground Flag ग्राउन्ड झंडी",
+   "categoryId": "mumhxcgj9yq3w",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675527671,
+   "updatedAt": 1790675527671
+  },
+  {
+   "id": "mumhzedp1kdpn",
+   "name": "Sign Board Iron लोहे के साइन बोर्ड",
+   "categoryId": "mumhxcgj9yq3w",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675541133,
+   "updatedAt": 1790675541133
+  },
+  {
+   "id": "mumhzmxi0491f",
+   "name": "Tarffic Items ट्राफिक इटेम्स",
+   "categoryId": "mumhxcgj9yq3w",
+   "unit": "Pcs",
+   "quantity": 0,
+   "minStock": 0,
+   "locationId": "loc_mugrguzgow294",
+   "conditionCounts": {
+    "good": 0,
+    "poor": 0,
+    "damaged": 0
+   },
+   "createdAt": 1790675552214,
+   "updatedAt": 1790675552214
+  }
+ ]
+}
