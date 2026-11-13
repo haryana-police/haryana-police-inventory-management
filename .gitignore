@@ -20,3 +20,5 @@ vercel-deploy*.log
 server-out.log
 server-err.log
 *-audit.html
+/local-data/db.json
+/local-data/db.demo.json
