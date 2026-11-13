@@ -39,7 +39,7 @@ const BCRYPT_ROUNDS = 12;
 // real accounts: every other user in the database is unreachable here.
 //
 // IMS_DEMO_LOGIN=0 turns the whole thing off.
-const DEMO_LOGIN_ENABLED = process.env.IMS_DEMO_LOGIN !== '0';
+const DEMO_LOGIN_ENABLED = ['1', 'local'].includes(process.env.IMS_DEMO_LOGIN);
 function localQuickSignIn(req) {
   return process.env.IMS_DEMO_LOGIN === 'local' &&
     ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket?.remoteAddress) &&
@@ -103,7 +103,7 @@ function demoSeedFor(username) {
 // Builds the card list from accounts that actually exist in the database, so a
 // district that was never provisioned simply does not appear. Public fields
 // only - no password, ever.
-async function listDemoAccounts(localQuick) {
+async function listDemoAccounts(localQuick, available) {
   const state = await getState();
   const users = Array.isArray(state['hp_inventory.users']) ? state['hp_inventory.users'] : [];
   const dists = Array.isArray(state['hp_inventory.districts']) ? state['hp_inventory.districts'] : [];
@@ -121,8 +121,10 @@ async function listDemoAccounts(localQuick) {
   const rangeNameOf = id => hqName(id);
   const districtsInRange = (rangeId) => dists.filter(d => d && d.rangeId === rangeId);
   const out = [];
-  for (const seed of localQuick ? users.filter(Boolean) : DEMO_SEED_ACCOUNTS) {
-    const u = users.find(x => x && String(x.username || '').toLowerCase() === seed.username);
+  const candidates = localQuick || available
+    ? users.filter(u => u?.username && (!available || distName(u.districtId) === 'Panipat District'))
+    : DEMO_SEED_ACCOUNTS.map(seed => users.find(u => u?.username?.toLowerCase() === seed.username));
+  for (const u of candidates) {
     if (!u || u.active === false || u.username.toLowerCase() === 'developer') continue;
     const role = u.role || 'user';
     if (!localQuick && ['tsi', 'post', 'staff', 'station'].includes(role)) continue;
@@ -704,11 +706,10 @@ async function route(req, res) {
   // Read-only: tells the login page which cards to draw. Returns no
   // password and no user id, so it cannot be used to log in.
   if (p0 === 'auth' && seg[1] === 'demo-users') {
-    if (!DEMO_LOGIN_ENABLED) return res.status(404).json({ error: 'Demo login is disabled on this server' });
     try {
       const localQuick = localQuickSignIn(req);
-      if (process.env.IMS_DEMO_LOGIN === 'local' && !localQuick) return res.status(404).json({ error: 'Quick sign-in is local only' });
-      return res.json({ ok: true, enabled: true, localQuick, accounts: await listDemoAccounts(localQuick) });
+      const available = !localQuick && process.env.IMS_DEMO_LOGIN !== '1';
+      return res.json({ ok: true, localQuick, available, accounts: await listDemoAccounts(localQuick, available) });
     } catch (e) {
       console.error('[demo-users]', e && e.message);
       return res.status(500).json({ error: 'Could not load demo accounts' });

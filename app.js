@@ -1347,13 +1347,13 @@ function __demoClearError() {
 
 /* One card per account, grouped by role. Group order follows the order the
    server sends, which is the role hierarchy the app already uses. */
-function __renderDemoCards(accounts) {
+function __renderDemoCards(accounts, available) {
   const s = __demoShell();
   if (!s.list) return;
   s.list.innerHTML = "";
   accounts = (accounts || []).filter(a => !HIDDEN_ROLES.includes(a.role));
   if (!accounts || !accounts.length) {
-    s.list.innerHTML = '<div class="demo-empty">No demo accounts are available on this server. '
+    s.list.innerHTML = '<div class="demo-empty">No accounts are available in this panel. '
       + "Use the sign-in form on the left.</div>";
     return;
   }
@@ -1371,13 +1371,13 @@ function __renderDemoCards(accounts) {
     head.innerHTML = '<span>' + esc(g.label) + '</span>'
       + '<span class="demo-group-count">' + g.items.length + '</span>';
     wrap.appendChild(head);
-    for (const a of g.items) wrap.appendChild(__demoCard(a, g.accent));
+    for (const a of g.items) wrap.appendChild(__demoCard(a, g.accent, available));
     frag.appendChild(wrap);
   }
   s.list.appendChild(frag);
 }
 
-function __demoCard(a, accent) {
+function __demoCard(a, accent, available) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "demo-card accent-" + (accent || "blue");
@@ -1399,7 +1399,12 @@ function __demoCard(a, accent) {
       '</span>' +
     '</span>' +
     '<span class="demo-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>';
-  btn.addEventListener("click", () => __demoLogin(a.username, btn));
+  btn.addEventListener("click", () => {
+    if (!available) return __demoLogin(a.username, btn);
+    $("#loginUser").value = a.username;
+    $("#loginPass").value = "";
+    $("#loginPass").focus();
+  });
   return btn;
 }
 
@@ -1454,12 +1459,13 @@ async function __loadDemoAccounts() {
   s.list.innerHTML = '<div class="demo-loading"><span class="btn-loader"></span> Loading accounts&hellip;</div>';
   try {
     const res = await __api("GET", "auth/demo-users");
-    if (res?.localQuick) {
-      s.toggle.querySelector("span").textContent = "One-click Sign-in";
+    if (res?.localQuick || res?.available) {
+      s.toggle.querySelector("span").textContent = res.localQuick ? "One-click Sign-in" : "Available Accounts";
       $(".demo-title").textContent = "Available Accounts";
-      $(".demo-note").textContent = "One-click sign-in is available on this computer.";
+      $(".demo-sub").textContent = res.localQuick ? "Click any account to sign in instantly." : "Select your account, then enter your password.";
+      $(".demo-note").textContent = res.localQuick ? "One-click sign-in is available on this computer." : "";
     }
-    if (res && res.ok) __renderDemoCards(res.accounts || []);
+    if (res && res.ok) __renderDemoCards(res.accounts || [], res.available);
     else __renderDemoCards([]);
   } catch (err) {
     // 404 here means demo login is switched off on the server - that is a
