@@ -222,6 +222,7 @@
           <label class="district-label">District:</label>
           <select id="districtSelect" class="district-select"></select>
         </div>
+        <select id="devAccountView" class="district-select" aria-label="View district account" style="max-width:220px" hidden></select>
       </div>
 <div class="topbar-right">
         <button class="lang-toggle" id="langToggleBtn" title="Switch language / à¤­à¤¾à¤·à¤¾ à¤¬à¤¦à¤²à¥‡à¤‚" aria-label="Switch language">
@@ -259,6 +260,24 @@
             <span class="user-id-name" id="userDisplayName"></span>
             <span class="user-id-role" id="userRoleBadge"></span>
           </div>
+          <dialog id="devAccountDialog" style="width:min(960px,94vw);max-height:85vh;overflow:auto">
+            <form method="dialog"><button class="btn btn-sm">Close</button></form>
+            <h3 id="devAccountTitle"></h3>
+            <p>Records linked to this account or its assigned location.</p>
+            <label>Table <select id="devAccountTable"></select></label>
+            <div class="dev-table-wrap">
+              <table class="dev-table">
+                <thead><tr><th>Record</th><th>Linked by</th><th>Actions</th></tr></thead>
+                <tbody id="devAccountRows"></tbody>
+              </table>
+            </div>
+            <form id="devAccountEditor" hidden>
+              <label for="devAccountFields">Record fields (JSON)</label>
+              <textarea id="devAccountFields" rows="12" style="width:100%;font-family:monospace" required></textarea>
+              <button class="btn btn-sm btn-dark">Save row</button>
+              <button type="button" class="btn btn-sm" id="devAccountCancel">Cancel</button>
+            </form>
+          </dialog>
           <button class="btn btn-sm btn-red" id="devClearDataBtn" style="display:none" title="Developer Admin only">&#128465;&#65039; Clear Data</button>
           <button class="btn btn-sm btn-outline-light" id="logoutBtn">Logout</button>
         </div>
@@ -3331,7 +3350,7 @@
 <script src="api-client.js?v=2026.09.212"></script>
   <script src="enter-to-submit.js?v=2026.09.253"></script>
   <script src="cat-multiselect.js?v=2026.09.253"></script>
-  <script src="app.js?v=2026.11.13.3"></script>
+  <script src="app.js?v=2026.11.16.4"></script>
   <script src="grievances.js" defer></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
 <script src="item-profile.js?v=2026.10.051"></script>

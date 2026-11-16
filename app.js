@@ -1651,6 +1651,7 @@ function confirmLogout() {
 }
 
 function logout() {
+  $("#devAccountDialog")?.close();
   const t = getToken();
   currentUser = null;
   activeDistrictId = null;
@@ -1670,6 +1671,7 @@ function logout() {
 
 function applyRoleUI() {
   if (!currentUser) return;
+  refreshDevAccountPicker();
   $("#userRoleBadge").textContent = ROLE_LABELS[currentUser.role] || currentUser.role;
   $("#userDisplayName").textContent = currentUser.name;
   const dist = getDistricts().find(d => d.id === currentUser.districtId);
@@ -2087,6 +2089,7 @@ function render() {
   if (!render.__healed) { render.__healed = true; __healStoredMojibake(); }
   try { __syncThemeUI(); } catch (e) {}
   renderDistrictSelector();
+  refreshDevAccountPicker();
   renderDashboard();
   renderInventory();
   renderInspections();
@@ -2201,6 +2204,8 @@ function switchDistrict(newId) {
   if (!isDevAdmin() && !isIg()) return;
   if (!inDistrictScope(newId)) return toast("That district is not in your IG Range.", "error");
   if (newId === activeDistrictId) return;
+  $("#devAccountDialog")?.close();
+  if ($("#devAccountView")) $("#devAccountView").value = "";
   activeDistrictId = newId;
   setActiveDistrict(newId);
   closeModals(); // per-district lists must not survive a district switch (2026.09.213)
@@ -6371,7 +6376,10 @@ function __allVisibleDemands() {
   });
   const locId = getVisibleLocationId();
   if (!locId) return combined;
-  return combined.filter(d => (d.requestedFromLocation && d.requestedFromLocation === locId) || d.demandToLocation === locId);
+  return combined.filter(d => sidebarRecordInvolvesUser([d.requestedById, d.assigneeId], [
+    [d.requestedFromDistrict || d.__storeId, d.requestedFromLocation],
+    [d.demandToDistrict, d.demandToLocation]
+  ]));
 }
 
 function saveDemands(list) {
@@ -7414,10 +7422,25 @@ function openDistStatDetail(key) {
   openModal("#statDetailModal");
 }
 
+// Unit badges require an explicit account or same-district location link.
+function sidebarRecordInvolvesUser(userIds, endpoints) {
+  if (!currentUser) return false;
+  if (isAdmin()) return true;
+  if (currentUser.id && userIds.includes(currentUser.id)) return true;
+  const { districtId, locationId } = currentUser;
+  return !!(districtId && locationId && endpoints.some(([district, location]) =>
+    district === districtId && location === locationId));
+}
+
 function getDistDotCount() {
   if (!activeDistrictId || !currentUser) return 0;
   let n = 0;
-  __allVisibleDistributions().forEach(d => { if (__distActionableBy(d)) n++; });
+  __allVisibleDistributions().forEach(d => {
+    if (sidebarRecordInvolvesUser([d.fromUserId, d.toUserId], [
+      [d.fromDistrictId || d.__storeId, d.fromLocationId],
+      [d.toDistrictId || d.__storeId, d.toLocationId]
+    ]) && __distActionableBy(d)) n++;
+  });
   return n;
 }
 
@@ -8338,7 +8361,13 @@ function exportMaintPDF() { pdfReport(__maintExportData()); }
 function getMaintDotCount() {
   if (!activeDistrictId || !currentUser) return 0;
   let n = 0;
-  __allVisibleMaintenance().forEach(r => { if (__maintActionableBy(r)) n++; });
+  __allVisibleMaintenance().forEach(r => {
+    const district = r.districtId || r.__storeId;
+    if (sidebarRecordInvolvesUser([r.requestingUserId, r.requestToUserId, r.requestToDistrictAdminId], [
+      [district, r.requestingUnitId],
+      [district, r.requestToLocationId]
+    ]) && __maintActionableBy(r)) n++;
+  });
   return n;
 }
 
@@ -8622,6 +8651,54 @@ function __demandActionableBy(d) {
   });
 }
 
+function devManageDemandRow(button) {
+  if (!isDevAdmin()) return;
+  const { id, item: itemKey, store: districtId } = button.dataset;
+  const viewDistrict = activeDistrictId;
+  const key = "demands_" + districtId;
+  const demand = (loadData(key) || []).find(row => row.id === id);
+  if (!demand || !__allVisibleDemands().some(row => row.id === id && row.__storeId === districtId)) return;
+  const item = __demandItems(demand).find(row => row.key === itemKey);
+  if (!item) return;
+  const snapshot = JSON.stringify(demand);
+  const deleting = button.dataset.action === "dev-delete-demand-row";
+  const pending = item.status === "pending" && !item.approvedQuantity && !item.reviewStatus;
+  if (deleting && !pending && item.status !== "rejected") {
+    return toast("Processed demand rows are linked to stock history and cannot be deleted here.", "error");
+  }
+  const label = esc(demand.demandNo || demand.id) + " · " + esc(item.itemName);
+  const body = deleting ? "<p>Delete this demand row? " + label + "</p>" :
+    "<p>" + label + "</p>" +
+    (pending ? `<label>Requested quantity <input id="devDemandQty" type="number" min="1" step="1" value="${Number(item.quantity) || 1}"></label>` : "") +
+    `<label>Row remark <textarea id="devDemandRemark">${esc(item.remark || "")}</textarea></label>`;
+  __devConfirm(deleting ? "Delete Demand Row" : "Edit Demand Row", body, deleting ? "Delete row" : "Save row", () => {
+    if (!isDevAdmin() || activeDistrictId !== viewDistrict) return;
+    const records = loadData(key) || [];
+    const index = records.findIndex(row => row.id === id);
+    if (index < 0 || JSON.stringify(records[index]) !== snapshot) return toast("This demand changed. Open the row again.", "error");
+    const items = __demandItems(records[index]).slice();
+    const itemIndex = items.findIndex(row => row.key === itemKey);
+    if (deleting) items.splice(itemIndex, 1);
+    else {
+      const quantity = pending ? Number($("#devDemandQty")?.value) : item.quantity;
+      if (pending && (!Number.isSafeInteger(quantity) || quantity < 1)) return toast("Enter a whole quantity above zero.", "error");
+      items[itemIndex] = { ...item, remark: $("#devDemandRemark")?.value.trim() || "", quantity,
+        remainingQuantity: pending ? quantity : item.remainingQuantity };
+    }
+    const next = records.slice();
+    if (!items.length) next.splice(index, 1);
+    else {
+      const first = items[0];
+      next[index] = { ...demand, demandItems: items, itemName: first.itemName, quantity: first.quantity,
+        categoryId: first.categoryId, categoryName: first.categoryName, condition: first.condition,
+        itemType: first.itemType || demand.itemType, updatedAt: Date.now() };
+    }
+    saveData(key, next);
+    __audit(deleting ? "Demand Row Deleted" : "Demand Row Edited", demand.demandNo || id, { entity: "Demand" });
+    renderDemands();
+  });
+}
+
 function renderDemands() {
   if (typeof __syncApprovedDemandsStock === "function") __syncApprovedDemandsStock();
   const demands = __allVisibleDemands();
@@ -8655,6 +8732,11 @@ function renderDemands() {
         btns = `<span style="font-size:.72rem;color:${it.status === "rejected" ? "var(--red)" : "var(--muted)"}">${noteTxt ? esc(noteTxt.slice(0, 30)) : "&mdash;"}</span>`;
       }
       btns += ` <button type="button" class="btn btn-sm btn-outline" data-action="view-demand" data-id="${d.id}">Details</button>`;
+      if (isDevAdmin()) {
+        const target = `data-id="${esc(d.id)}" data-item="${esc(it.key)}" data-store="${esc(d.__storeId)}"`;
+        btns += ` <button type="button" class="btn btn-sm btn-dark" data-action="dev-edit-demand-row" ${target}>Edit</button>
+          <button type="button" class="btn btn-sm btn-red" data-action="dev-delete-demand-row" ${target}>Delete</button>`;
+      }
       const approvedNote = (Number(it.approvedQuantity) || 0) > 0 ? `<span style="display:block;color:var(--green);font-size:.72rem">${it.approvedQuantity} done${(Number(it.remainingQuantity) || 0) > 0 ? ", " + it.remainingQuantity + " left" : ""}</span>` : "";
       return `<tr data-demand-id="${d.id}"><td class="demand-no">${esc(d.demandNo || "")}</td><td>${esc(d.requestedBy)}</td><td>${esc(rfName)}${reqTo && d.demandToLocationName ? `<span style="display:block;color:var(--muted);font-size:.72rem">${esc(reqTo)}</span>` : ""}</td><td class="item-name">${__ipLinkByName(it.itemName, { id: it.itemId, categoryId: it.categoryId, districtId: d.demandToDistrict || d.districtId })}${it.categoryName ? `<span style="display:block;color:var(--muted);font-size:.72rem">${esc(it.categoryName)}</span>` : ""}</td><td class="qty-strong">${it.quantity}${approvedNote}</td><td><span class="${meta.cls}">${meta.label}</span></td><td>${new Date(d.createdAt).toLocaleDateString("en-IN")}</td><td class="actions-cell">${btns}</td></tr>`;
     }).join("");
@@ -8680,8 +8762,12 @@ function renderDemands() {
 function getDemandDotCount() {
   if (!activeDistrictId || !currentUser) return 0;
   let n = 0;
-  (loadData(`demands_${activeDistrictId}`) || []).forEach(d => {
+  __allVisibleDemands().forEach(d => {
     if (d.demandToDistrict !== activeDistrictId) return;
+    if (!sidebarRecordInvolvesUser([d.requestedById, d.assigneeId], [
+      [d.requestedFromDistrict || d.__storeId, d.requestedFromLocation],
+      [d.demandToDistrict, d.demandToLocation]
+    ])) return;
     __demandItems(d).forEach(it => { if (it.reviewStatus === "pending") return; if (it.status === "pending" || (it.status === "partial" && (Number(it.remainingQuantity) || 0) > 0)) n++; });
   });
   return n;
@@ -13006,6 +13092,10 @@ document.addEventListener("click", e => {
     if (act && act.dataset.action === "process-demand") {
       openDemandAction(act.dataset.id);
       document.querySelectorAll(".act-dd-menu:not(.hidden)").forEach(m => m.classList.add("hidden"));
+      return;
+    }
+    if (act && ["dev-edit-demand-row", "dev-delete-demand-row"].includes(act.dataset.action)) {
+      devManageDemandRow(act);
       return;
     }
     if (act && act.dataset.action === "view-demand") {
@@ -19152,7 +19242,148 @@ function devClearPageData() {
 }
 
 /* ==================== BINDING ==================== */
+const devAccountTables = [
+  { label: "Inventory", key: "items", storage: "map", locations: ["locationId"] },
+  { label: "Inspections", key: "inspections", locations: ["locationId"], users: ["inspectorId", "inspectorUserId"] },
+  { label: "Demands", key: "demands", locations: ["requestedFromLocation", "demandToLocation"], users: ["requestedById", "assigneeId"] },
+  { label: "Distribution", key: "distributions", locations: ["fromLocationId", "toLocationId"], users: ["fromUserId", "toUserId"] },
+  { label: "Maintenance", key: "maintenance", locations: ["requestingUnitId"], users: ["requestingUserId", "requestToUserId"] },
+  { label: "Shramdaan", key: "shramdaan", locations: ["locationId"], users: ["userId"] },
+  { label: "Consumables", key: "consumable_items", storage: "map", locations: ["locationId"] },
+  { label: "Persons", key: "persons", storage: "global", locations: ["locationId"] },
+  { label: "Allotments", key: "allotments", storage: "global", locations: ["locationId", "fromLocationId", "toLocationId"], users: ["issuedByUserId", "toUserId"] }
+];
+
+function refreshDevAccountPicker() {
+  const picker = $("#devAccountView");
+  if (!picker) return;
+  picker.hidden = !isDevAdmin();
+  picker.style.display = picker.hidden ? "none" : "";
+  if (picker.hidden) { picker.replaceChildren(); $("#devAccountDialog")?.close(); return; }
+  const selected = picker.value;
+  const users = getUsers().filter(user => user.districtId === activeDistrictId);
+  users.sort((a, b) => String(a.username || "").localeCompare(String(b.username || "")));
+  picker.replaceChildren(new Option("View district account", ""),
+    new Option("All records in district", ":district"),
+    ...users.map(user => new Option(user.name + " (" + user.username + ")", user.id)));
+  if (selected === ":district" || users.some(user => user.id === selected)) picker.value = selected;
+  else $("#devAccountDialog")?.close();
+}
+
+function bindDevAccountView() {
+  const picker = $("#devAccountView"), dialog = $("#devAccountDialog");
+  const tables = $("#devAccountTable"), rows = $("#devAccountRows");
+  const editor = $("#devAccountEditor"), fields = $("#devAccountFields");
+  let editing = null;
+  tables.replaceChildren(...devAccountTables.map(table => new Option(table.label, table.key)));
+
+  function context() {
+    if (!isDevAdmin() || !dialog.open) return null;
+    const districtId = activeDistrictId;
+    const districtView = picker.value === ":district";
+    const user = districtView ? { id: ":district", name: "All records in district" }
+      : getUsers().find(account => account.id === picker.value && account.districtId === districtId);
+    const table = devAccountTables.find(entry => entry.key === tables.value);
+    if (!user || !table) return null;
+    const key = table.storage ? table.key : table.key + "_" + districtId;
+    const stored = loadData(key);
+    const records = (table.storage === "map" ? stored?.[districtId] : stored) || [];
+    const linkedBy = record => {
+      if (!record?.id || (table.storage === "global" && record.districtId !== districtId)) return "";
+      if (districtView) return "District";
+      if (table.users?.some(field => record[field] === user.id)) return "Account";
+      if (user.locationId && table.locations?.some(field => record[field] === user.locationId)) return "Assigned location";
+      return "";
+    };
+    return { user, key, table, districtId, stored, records, linkedBy };
+  }
+
+  function renderRecords() {
+    editing = null;
+    editor.hidden = true;
+    fields.value = "";
+    const view = context();
+    if (!view) { dialog.close(); return; }
+    $("#devAccountTitle").textContent = view.user.username ? view.user.name + " (" + view.user.username + ")" : view.user.name;
+    const records = view.records.filter(view.linkedBy);
+    rows.innerHTML = records.length ? records.map(record => {
+      const name = record.name || record.itemName || record.title || record.requestNo || record.id;
+      return `<tr><td>${esc(name)}</td><td>${view.linkedBy(record)}</td><td>
+        <button type="button" class="btn btn-sm btn-dark" data-edit-record="${esc(record.id)}">Edit</button>
+        <button type="button" class="btn btn-sm btn-red" data-delete-record="${esc(record.id)}">Delete</button>
+        </td></tr>`;
+    }).join("") : `<tr><td colspan="3">No linked records in this table.</td></tr>`;
+  }
+
+  function updateRecord(snapshot, replacement) {
+    const view = context();
+    if (!view || view.key !== snapshot.key || view.user.id !== snapshot.userId || view.districtId !== snapshot.districtId) return;
+    const index = view.records.findIndex(record => record.id === snapshot.record.id && view.linkedBy(record));
+    if (index < 0 || JSON.stringify(view.records[index]) !== snapshot.original) {
+      toast("This row changed. Reopen it before making changes.", "error");
+      renderRecords();
+      return;
+    }
+    const next = view.records.slice();
+    if (replacement) next[index] = replacement;
+    else next.splice(index, 1);
+    saveData(view.key, view.table.storage === "map" ? { ...view.stored, [view.districtId]: next } : next);
+    __audit(replacement ? "Row Edited" : "Row Deleted", view.table.label + " · " + snapshot.record.id, { entity: view.table.label });
+    render();
+    renderRecords();
+  }
+
+  picker.addEventListener("change", () => {
+    if (!isDevAdmin() || !picker.value) return;
+    if (!dialog.open) dialog.showModal();
+    renderRecords();
+  });
+  dialog.addEventListener("close", () => { picker.value = ""; rows.replaceChildren(); editing = null; fields.value = ""; editor.hidden = true; });
+  tables.addEventListener("change", renderRecords);
+  $("#devAccountCancel").addEventListener("click", renderRecords);
+  rows.addEventListener("click", event => {
+    const button = event.target.closest("[data-edit-record],[data-delete-record]");
+    const view = context();
+    if (!button || !view) return;
+    const id = button.dataset.editRecord || button.dataset.deleteRecord;
+    const record = view.records.find(row => String(row.id) === id && view.linkedBy(row));
+    if (!record) return;
+    const snapshot = { key: view.key, districtId: view.districtId, userId: view.user.id, record, original: JSON.stringify(record) };
+    if (button.dataset.deleteRecord) {
+      if (window.confirm("Permanently delete this " + view.table.label + " row?")) updateRecord(snapshot, null);
+      return;
+    }
+    editing = snapshot;
+    fields.value = JSON.stringify(record, null, 2);
+    editor.hidden = false;
+    fields.focus();
+  });
+  editor.addEventListener("submit", event => {
+    event.preventDefault();
+    const view = context();
+    if (!view || !editing) return;
+    let next;
+    try { next = JSON.parse(fields.value); }
+    catch { toast("Enter valid JSON before saving.", "error"); return; }
+    const original = JSON.parse(editing.original);
+    const protectedFields = ["id", "districtId", ...(view.table.users || []), ...(view.table.locations || [])];
+    if (!next || Array.isArray(next) || typeof next !== "object" || protectedFields.some(key => next[key] !== original[key])) {
+      toast("Keep the record ID, district and account/location links unchanged.", "error");
+      return;
+    }
+    const keys = Object.keys(original);
+    if (Object.keys(next).length !== keys.length || keys.some(key => !Object.hasOwn(next, key) ||
+      typeof next[key] !== typeof original[key] ||
+      (typeof original[key] === "object" && JSON.stringify(next[key]) !== JSON.stringify(original[key])))) {
+      toast("Edit existing text, number or checkbox values only.", "error");
+      return;
+    }
+    updateRecord(editing, next);
+  });
+}
+
 function bindDevAdmin() {
+  bindDevAccountView();
   if (__devBound) return;
   __devBound = true;
   const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
