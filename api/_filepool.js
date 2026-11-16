@@ -109,6 +109,7 @@ class FilePool {
 
   _load() {
     this._seedFromDemo();
+    require("../clear-entries").resetEntries(DATA_DIR, { once: true });
     try { this.db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch (e) { this.db = null; }
     if (!this.db || typeof this.db !== 'object') this.db = this._empty();
     if (typeof this.db.app_state !== 'object' || this.db.app_state === null) this.db.app_state = {};
