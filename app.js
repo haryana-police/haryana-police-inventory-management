@@ -1573,6 +1573,10 @@ async function __loadDemoAccounts() {
 }
 
 let currentUser = null;
+let developerAccount = null;
+
+function signedInUser() { return developerAccount || currentUser; }
+function hasDeveloperSession() { return signedInUser()?.role === "devadmin"; }
 
 function isAdmin() { return currentUser && (currentUser.role === "admin" || currentUser.role === "devadmin" || currentUser.role === "ig"); }
 function isDevAdmin() { return currentUser && currentUser.role === "devadmin"; }
@@ -1654,6 +1658,7 @@ function logout() {
   $("#devAccountDialog")?.close();
   const t = getToken();
   currentUser = null;
+  developerAccount = null;
   activeDistrictId = null;
   __rtStop();
   clearAuth();
@@ -1672,11 +1677,11 @@ function logout() {
 function applyRoleUI() {
   if (!currentUser) return;
   refreshDevAccountPicker();
-  $("#userRoleBadge").textContent = ROLE_LABELS[currentUser.role] || currentUser.role;
+  $("#userRoleBadge").textContent = developerAccount ? "Developer account view" : (ROLE_LABELS[currentUser.role] || currentUser.role);
   $("#userDisplayName").textContent = currentUser.name;
   const dist = getDistricts().find(d => d.id === currentUser.districtId);
   $("#districtBadge").textContent = dist ? dist.name : "";
-  document.body.classList.remove("role-admin", "role-devadmin", "role-user", "role-mhc", "role-tsi", "role-station", "role-post", "role-staff");
+  document.body.classList.remove(...Array.from(document.body.classList).filter(name => name.startsWith("role-")));
   document.body.classList.add("role-" + currentUser.role);
 
   const sidebarUserName = $("#sidebarUserName");
@@ -1688,7 +1693,7 @@ function applyRoleUI() {
 
   const distSel = $("#districtSelect");
   if (distSel) {
-    const canSwitch = isDevAdmin() || isIg();
+    const canSwitch = !developerAccount && (isDevAdmin() || isIg());
     distSel.disabled = !canSwitch;
     distSel.closest(".district-selector").style.opacity = canSwitch ? "1" : "0.6";
     distSel.closest(".district-selector").style.pointerEvents = canSwitch ? "auto" : "none";
@@ -2198,6 +2203,7 @@ function renderDistrictSelector() {
 }
 
 function switchDistrict(newId) {
+  if (developerAccount) return;
   // An Inspector General moves between the districts of their own range, so the
   // selector has to work for them as well - applyRoleUI() already enables it for
   // them. Anyone else is not a district switcher at all.
@@ -5211,7 +5217,7 @@ if (filtered.length) {
       const statusCls = { completed: "status-badge status-ok", pending: "status-badge status-low", overdue: "status-badge status-out" }[ins.status] || "cat-badge";
       const statusLabel = ins.status ? ins.status.charAt(0).toUpperCase() + ins.status.slice(1) : "Unknown";
       const typeLabel = ins.type ? ins.type.charAt(0).toUpperCase() + ins.type.slice(1) : "Unknown";
-      return `<tr><td>${esc(ins.date)}</td><td class="item-name">${window.__ipLinkByName ? __ipLinkByName(ins.itemName, { id: ins.itemId }) : nameCell(ins.itemName)}</td><td>${esc(ins.inspectedBy)}</td><td><span class="${typeCls}">${typeLabel}</span></td><td>${esc(loc ? loc.name : "")}</td><td><span class="${statusCls}">${statusLabel}</span></td><td><button type="button" class="btn btn-sm btn-loc" data-insp-view="${esc(ins.id)}">View</button></td></tr>`;
+      return `<tr><td>${esc(ins.date)}</td><td class="item-name">${window.__ipLinkByName ? __ipLinkByName(ins.itemName, { id: ins.itemId }) : nameCell(ins.itemName)}</td><td>${esc(ins.inspectedBy)}</td><td><span class="${typeCls}">${typeLabel}</span></td><td>${esc(loc ? loc.name : "")}</td><td><span class="${statusCls}">${statusLabel}</span></td><td><button type="button" class="btn btn-sm btn-loc" data-insp-view="${esc(ins.id)}">View</button>${isDevAdmin() ? ` <button type="button" class="btn btn-sm btn-outline" data-insp-edit="${esc(ins.id)}">Edit</button> <button type="button" class="btn btn-sm btn-red" data-insp-delete="${esc(ins.id)}">Delete</button>` : ""}</td></tr>`;
     }).join("");
 } else {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="6">No inspections found. Click "+ New Inspection" to add one.</td></tr>`;
@@ -5260,6 +5266,7 @@ function openInspectionModal(insp) {
 async function saveInspection(e) {
   e.preventDefault();
   const id = $("#fiInspectionId").value;
+  if (id && !isDevAdmin()) return;
   const itemName = $("#fiItem").value.trim();
   const inspectedBy = $("#fiInspectedBy").value.trim();
   const type = $("#fiType").value;
@@ -5360,6 +5367,7 @@ function __inspExportPdf() {
   toast("Use the print dialog to Save as PDF.", "success");
 }
 function deleteInspection(id) {
+  if (!isDevAdmin()) return;
   if (!confirm("Delete this inspection record?")) return;
   const it = getInspections().find(i => i.id === id);
   saveInspections(getInspections().filter(i => i.id !== id));
@@ -7280,6 +7288,85 @@ function __syncCompletedDistributionsStock() {
   });
 }
 
+function __reverseDistributionStock(record) {
+  const items = structuredClone(getAllItems());
+  if (!record.items?.length) return null;
+  for (const line of record.items) {
+    const quantity = Number(line.qty);
+    const condition = line.condition;
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || !["good", "poor", "damaged"].includes(condition)) return null;
+    const source = items[record.fromDistrictId]?.find(item => item.id === line.fromItemId && !item.isDeleted);
+    const recipient = items[record.toDistrictId]?.find(item => item.id === line.toItemId && !item.isDeleted);
+    if (!source || !recipient || source === recipient) return null;
+    const held = allocTotals(recipient);
+    if (__distHasStock(recipient, condition) < quantity ||
+      Number(recipient.quantity) - quantity < held.allotted + held.damaged + held.lost) return null;
+    for (const [item, change] of [[source, quantity], [recipient, -quantity]]) {
+      const counts = item.conditionCounts || { good: item.quantity || 0, poor: 0, damaged: 0 };
+      counts[condition] = (counts[condition] || 0) + change;
+      item.conditionCounts = counts;
+      item.quantity = ["good", "poor", "damaged"].reduce((total, key) => total + (counts[key] || 0), 0);
+      item.updatedAt = Date.now();
+      itemHistoryPush(item, { type: "ADJUST", qty: change, ref: record.distNo || record.id,
+        date: todayStr(), time: nowTimeStr(), remarks: "Distribution deleted and stock reversed" });
+    }
+  }
+  return items;
+}
+
+function manageOperationalRecord(button) {
+  if (!isDevAdmin()) return;
+  const distribution = button.dataset.action.startsWith("dist-");
+  const deleting = button.dataset.action.endsWith("-delete-record");
+  const visible = distribution ? __allVisibleDistributions() : __allVisibleMaintenance();
+  const row = visible.find(record => record.id === button.dataset.id && record.__storeId === button.dataset.store);
+  if (!row) return;
+  const districtId = activeDistrictId;
+  const key = (distribution ? "distributions_" : "maintenance_") + row.__storeId;
+  const original = (loadData(key) || []).find(record => record.id === row.id);
+  if (!original) return;
+  const version = JSON.stringify(original);
+  const label = distribution ? "Distribution" : "Maintenance Request";
+  const reference = original.distNo || original.mntNo || original.id;
+  const field = distribution ? "remarks" : "description";
+  const body = deleting
+    ? `<p>Delete ${esc(reference)}${distribution ? " and reverse any transferred stock" : ""}?</p>`
+    : `<label>${distribution ? "Sender remark" : "Description"}<textarea id="devOperationalValue">${esc(original[field] || "")}</textarea></label>`;
+  __devConfirm((deleting ? "Delete " : "Edit ") + label, body, deleting ? "Delete" : "Save", () => {
+    if (!isDevAdmin() || activeDistrictId !== districtId) return;
+    const records = loadData(key) || [];
+    const index = records.findIndex(record => record.id === row.id);
+    if (index < 0 || JSON.stringify(records[index]) !== version) return toast("This record changed. Open it again.", "error");
+    const next = records.slice();
+    if (deleting) {
+      if (distribution && original.isConsumable) return toast("This distribution is linked to a consumable transaction. Its ledger must be reversed before deletion.", "error");
+      if (distribution && original.status === "completed" && !original.transferred) {
+        return toast("The completed distribution has no confirmed stock transfer to reverse.", "error");
+      }
+      if (distribution && original.transferred) {
+        const reversed = __reverseDistributionStock(original);
+        if (!reversed) return toast("Stock reversal requires the original items and sufficient recipient stock.", "error");
+        saveAllItems(reversed);
+      }
+      next.splice(index, 1);
+    } else {
+      const value = $("#devOperationalValue")?.value.trim() || "";
+      if (!distribution && !value) return toast("Description is required.", "error");
+      next[index] = { ...original, [field]: value, updatedAt: Date.now() };
+    }
+    saveData(key, next);
+    __audit(label + (deleting ? " Deleted" : " Edited"), reference, { entity: label });
+    render();
+  });
+}
+
+function operationalRecordActions(prefix, record) {
+  if (!isDevAdmin()) return "";
+  const target = `data-id="${esc(record.id)}" data-store="${esc(record.__storeId)}"`;
+  return ` <button type="button" class="btn btn-sm btn-outline" data-action="${prefix}-edit-record" ${target}>Edit</button>
+    <button type="button" class="btn btn-sm btn-red" data-action="${prefix}-delete-record" ${target}>Delete</button>`;
+}
+
 function renderDistribution() {
   const filtered = __distFiltered();
   const tbody = $("#distBody");
@@ -7305,6 +7392,7 @@ function renderDistribution() {
         btns = `<span style="font-size:.72rem;color:var(--amber)">Awaiting recipient</span>`;
       }
       btns += ` <button type="button" class="btn btn-sm btn-outline" data-action="dist-details" data-id="${d.id}">Details</button>`;
+      btns += operationalRecordActions("dist", d);
       return `<tr data-dist-id="${d.id}"><td>${start + idx + 1}</td><td class="item-name">${__ipLinkByName(it.itemName, { id: it.fromItemId || it.itemId, categoryId: it.categoryId, districtId: d.fromDistrictId })}</td><td>${esc(it.categoryName || "—")}</td><td class="qty-strong">${it.qty}</td><td>${sender}</td><td>${esc(receiver)}</td><td><span class="${meta.cls}">${meta.label}</span></td><td>${new Date(d.createdAt).toLocaleDateString("en-IN")}</td><td class="actions-cell">${btns}</td></tr>`;
     }).join("");
   } else {
@@ -8306,6 +8394,7 @@ if (addMaintBtn) {
         btns = `<span style="font-size:.72rem;color:var(--primary)">In progress</span>`;
       }
       btns += ` <button type="button" class="btn btn-sm btn-outline" data-action="maint-details" data-id="${r.id}">Details</button>`;
+      btns += operationalRecordActions("maint", r);
       return `<tr data-maint-id="${r.id}">
         <td class="item-name"><span style="font-weight:700">${esc(r.mntNo || "MR-")}</span><br><span style="font-size:.72rem;color:var(--muted)">by ${esc(r.requestingUserName || "\u2014")}</span></td>
         <td>${esc(r.requestToUserName || r.requestToDistrictAdminName || "\u2014")}</td>
@@ -8663,8 +8752,8 @@ function devManageDemandRow(button) {
   const snapshot = JSON.stringify(demand);
   const deleting = button.dataset.action === "dev-delete-demand-row";
   const pending = item.status === "pending" && !item.approvedQuantity && !item.reviewStatus;
-  if (deleting && !pending && item.status !== "rejected") {
-    return toast("Processed demand rows are linked to stock history and cannot be deleted here.", "error");
+  if (deleting && (item.reviewStatus === "pending" || Number(item.approvedQuantity) > 0)) {
+    return toast("This demand has stock movements that must be reversed before deletion.", "error");
   }
   const label = esc(demand.demandNo || demand.id) + " · " + esc(item.itemName);
   const body = deleting ? "<p>Delete this demand row? " + label + "</p>" :
@@ -10951,6 +11040,9 @@ function renderAllottedList() {
       ] : []),
       ...(canEdit() && recoverable > 0 ? [
         { label: "Recovery", attrs: `data-alloc-action="recovery" data-id="${a.id}"` }
+      ] : []),
+      ...(isDevAdmin() ? [
+        { label: "Delete", cls: "act-dd-del", attrs: `data-alloc-action="delete" data-id="${esc(a.id)}"` }
       ] : [])
     ]);
     const d = a.createdAt || 0;
@@ -11612,6 +11704,38 @@ persistAlloc(items, allotments, null);
 }
 
 /* ---- Cancel allotment ---- */
+function deleteIssuedItem(id) {
+  if (!isDevAdmin()) return;
+  const issue = getVisibleAllotments().find(row => row.id === id);
+  if (!issue) return;
+  if (!confirm(`Delete the issue of "${issue.itemName}" to "${issue.name}" and reverse its stock effects?`)) return;
+  const items = getItemsForDistrict(issue.districtId);
+  const item = items.find(row => row.id === issue.itemId && !row.isDeleted);
+  if (!item) return toast("The source inventory item is missing.", "error");
+  const counts = allocTotals(item);
+  const returns = issue.returns || [];
+  const returnedAs = condition => returns.reduce((qty, row) =>
+    row.condition === condition ? qty + Number(row.qty) : qty, 0);
+  const outstanding = issue.status === "CANCELLED" ? 0 : allocOutstanding(issue);
+  const damaged = returnedAs("damaged");
+  const lost = returnedAs("lost") + allocRecoverable(issue);
+  if ([outstanding, damaged, lost].some(qty => !Number.isSafeInteger(qty) || qty < 0) ||
+    outstanding > counts.allotted || damaged > counts.damaged || lost > counts.lost) {
+    return toast("Inventory totals do not match this issue's stock history.", "error");
+  }
+  item.allotted = counts.allotted - outstanding;
+  item.damagedReturned = counts.damaged - damaged;
+  item.lostReturned = counts.lost - lost;
+  itemHistoryPush(item, {
+    type: "ADJUST", qty: outstanding + damaged + lost, person: issue.name, ref: issue.beltNo,
+    date: todayStr(), time: nowTimeStr(), remarks: "Issue deleted and stock reversed"
+  });
+  persistAlloc(items, getAllotments().filter(row => row.id !== id), null);
+  __audit("Issue Deleted", issue.itemName + " · " + issue.name, { entity: "Allotment" });
+  render();
+  toast("Issue deleted and stock reversed.", "success");
+}
+
 function cancelAllotment(id) {
   const a = getAllotments().find(x => x.id === id);
   if (!a) return;
@@ -13103,6 +13227,10 @@ document.addEventListener("click", e => {
       document.querySelectorAll(".act-dd-menu:not(.hidden)").forEach(m => m.classList.add("hidden"));
       return;
     }
+    if (act && /^(dist|maint)-(edit|delete)-record$/.test(act.dataset.action)) {
+      manageOperationalRecord(act);
+      return;
+    }
     if (act && (act.dataset.action === "dist-approve" || act.dataset.action === "dist-reject" || act.dataset.action === "dist-details")) {
       if (act.dataset.action === "dist-approve") openDistApprove(act.dataset.id);
       else if (act.dataset.action === "dist-reject") openDistReject(act.dataset.id);
@@ -13222,6 +13350,14 @@ $("#inventoryBody").addEventListener("click", e => {
     });
   });
   $("#inspBody")?.addEventListener("click", e => {
+  const edit = e.target.closest("[data-insp-edit]");
+  if (edit && isDevAdmin()) {
+    const inspection = getInspections().find(row => row.id === edit.dataset.inspEdit);
+    if (inspection) openInspectionModal(inspection);
+    return;
+  }
+  const del = e.target.closest("[data-insp-delete]");
+  if (del && isDevAdmin()) { deleteInspection(del.dataset.inspDelete); return; }
   const b = e.target.closest("[data-insp-view]");
   if (b) { openInspectionView(b.getAttribute("data-insp-view")); return; }
 });
@@ -13893,6 +14029,7 @@ if (e.target.closest("[data-ccat-edit]")) startEditConsCat(parseInt(e.target.clo
     if (action === "person") openAllocPersonDetail(el.dataset.belt);
     else if (action === "view") openAllocItemDetail(getAllotments().find(a => a.id === id)?.itemId);
     else if (action === "edit") openEditAllotment(id);
+    else if (action === "delete") deleteIssuedItem(id);
     else if (action === "return") openReturnModal(id);
     else if (action === "loss") openLossModal(id);
     else if (action === "recovery") openRecoveryModal(id);
@@ -13984,7 +14121,7 @@ let __rt = {
   audio: null,
   ws: null, wsOk: false, wsRetries: 0, wsFallback: false, wsReconnectTimer: null,
 };
-const __rtCursorKey = () => (STORAGE_PREFIX + "rt_cursor_" + (currentUser ? (currentUser.username || currentUser.id) : "anon"));
+const __rtCursorKey = () => (STORAGE_PREFIX + "rt_cursor_" + (signedInUser()?.username || signedInUser()?.id || "anon"));
 const __rtReadKey = () => (STORAGE_PREFIX + "rt_read_" + (currentUser ? (currentUser.username || currentUser.id) : "anon"));
 const __rtApiBase = () => (window.CONFIG && CONFIG.apiBase ? CONFIG.apiBase : "");
 
@@ -14485,17 +14622,18 @@ function __audit(action, detail, opts) {
     const did = (opts && opts.districtId) || activeDistrictId;
     if (!did) return;
     const list = loadData("audit_" + did) || [];
+    const actor = signedInUser();
     list.unshift({
       id: uid(),
       ts: Date.now(),
-      userId: currentUser ? currentUser.id : null,
-      user: currentUser ? currentUser.name : "System",
-      role: currentUser ? currentUser.role : "system",
+      userId: actor?.id || null,
+      user: actor?.name || "System",
+      role: actor?.role || "system",
       districtId: did,
       locationId: currentUser ? (currentUser.locationId || "") : "",
       action,
       entity: (opts && opts.entity) || "",
-      detail: detail || "",
+      detail: developerAccount ? "[Account: " + currentUser.username + "] " + (detail || "") : (detail || ""),
     });
     if (list.length > 5000) list.length = 5000;
     saveData("audit_" + did, list);
@@ -19257,13 +19395,14 @@ const devAccountTables = [
 function refreshDevAccountPicker() {
   const picker = $("#devAccountView");
   if (!picker) return;
-  picker.hidden = !isDevAdmin();
+  picker.hidden = !hasDeveloperSession();
+  $("#devAccountRecords").hidden = !developerAccount;
   picker.style.display = picker.hidden ? "none" : "";
   if (picker.hidden) { picker.replaceChildren(); $("#devAccountDialog")?.close(); return; }
-  const selected = picker.value;
+  const selected = developerAccount ? currentUser.id : picker.value;
   const users = getUsers().filter(user => user.districtId === activeDistrictId);
   users.sort((a, b) => String(a.username || "").localeCompare(String(b.username || "")));
-  picker.replaceChildren(new Option("View district account", ""),
+  picker.replaceChildren(new Option(developerAccount ? "Back to Developer" : "View district account", ""),
     new Option("All records in district", ":district"),
     ...users.map(user => new Option(user.name + " (" + user.username + ")", user.id)));
   if (selected === ":district" || users.some(user => user.id === selected)) picker.value = selected;
@@ -19278,7 +19417,7 @@ function bindDevAccountView() {
   tables.replaceChildren(...devAccountTables.map(table => new Option(table.label, table.key)));
 
   function context() {
-    if (!isDevAdmin() || !dialog.open) return null;
+    if (!hasDeveloperSession() || !dialog.open) return null;
     const districtId = activeDistrictId;
     const districtView = picker.value === ":district";
     const user = districtView ? { id: ":district", name: "All records in district" }
@@ -19333,12 +19472,49 @@ function bindDevAccountView() {
     renderRecords();
   }
 
-  picker.addEventListener("change", () => {
-    if (!isDevAdmin() || !picker.value) return;
+  function openRecords() {
+    if (!hasDeveloperSession() || !picker.value) return;
+    closeModals();
     if (!dialog.open) dialog.showModal();
     renderRecords();
+  }
+
+  function switchAccount(account) {
+    closeModals();
+    $("#notifPanel")?.classList.add("hidden");
+    if (account) {
+      developerAccount = signedInUser();
+      currentUser = { ...account };
+    } else if (developerAccount) {
+      currentUser = developerAccount;
+      developerAccount = null;
+    }
+    picker.value = account?.id || "";
+    applyRoleUI();
+    switchTab(["itstaff", "mtostaff"].includes(currentUser.role) ? "maintenance" : "dashboard");
+  }
+
+  picker.addEventListener("change", () => {
+    if (!hasDeveloperSession()) return;
+    const selected = picker.value;
+    if (selected === ":district") {
+      if (developerAccount) switchAccount(null);
+      picker.value = selected;
+      openRecords();
+      return;
+    }
+    const account = getUsers().find(user => user.id === selected && user.districtId === activeDistrictId);
+    switchAccount(account);
   });
-  dialog.addEventListener("close", () => { picker.value = ""; rows.replaceChildren(); editing = null; fields.value = ""; editor.hidden = true; });
+  $("#devAccountRecords").addEventListener("click", openRecords);
+  dialog.addEventListener("close", () => {
+    if (dialog.open) return;
+    if (picker.value === ":district") picker.value = "";
+    rows.replaceChildren();
+    editing = null;
+    fields.value = "";
+    editor.hidden = true;
+  });
   tables.addEventListener("change", renderRecords);
   $("#devAccountCancel").addEventListener("click", renderRecords);
   rows.addEventListener("click", event => {
