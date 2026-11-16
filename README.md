@@ -180,3 +180,8 @@ See [DOCKER-README.md](DOCKER-README.md).
 The agent runs **offline by default** with a built-in local NLU. To upgrade it to
 Gemini, copy `.env.example` to `.env.local` and set `GEMINI_API_KEY`. The key
 stays on your machine and is never committed.
+# Panipat accounts on a fresh clone
+
+Run `npm ci`, `npm run setup:panipat`, then `npm start`. Run setup before the first start so it can create the local database with the 22 Panipat setup accounts. Setup generates a unique password for each account and saves them in the Git-ignored `local-data/panipat-initial-passwords.json`. Keep this file private.
+
+Open `http://localhost:3210` for local Quick Access. Developer Admin signs in with its generated password. For an installation that already has a database, setup requires the Panipat accounts to exist and preserves their passwords.

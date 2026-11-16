@@ -1,0 +1,314 @@
+{
+  "users": [
+    {
+      "id": "u0",
+      "name": "Developer Admin",
+      "role": "devadmin",
+      "username": "developer",
+      "districtId": "",
+      "locationId": "loc_phq_haryana",
+      "locationType": "phq",
+      "state": "Haryana"
+    },
+    {
+      "id": "muky9kpst9t8h",
+      "name": "IG Karnal",
+      "role": "ig",
+      "username": "igkarnal",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "loc_range_2",
+      "locationType": "igRange",
+      "state": "Haryana"
+    },
+    {
+      "id": "u_mugrhvyhj535n",
+      "name": "THC PANIPAT",
+      "role": "admin",
+      "username": "thcpanipat",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "loc_mugrguzgow294"
+    },
+    {
+      "id": "us_35c6662fea8ac9a5",
+      "name": "Computer/IT Staff",
+      "role": "itstaff",
+      "username": "it.staff.panipatdistr",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "staff_it_dist_mugr9nwgs812q"
+    },
+    {
+      "id": "u_mukr5os6g0tqf",
+      "name": "PS BAPOLI",
+      "role": "mhc",
+      "username": "mhcbapoli",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "mudmmfzq1wscc"
+    },
+    {
+      "id": "u_mukqmo2nqoyst",
+      "name": "PS CHANDANI BAGH",
+      "role": "mhc",
+      "username": "mhcchandanibagh",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "mudmhhtdimcm5"
+    },
+    {
+      "id": "u_mukqywxnxudgd",
+      "name": "PS CITY",
+      "role": "mhc",
+      "username": "mhccity",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "mudmiolh7g18d"
+    },
+    {
+      "id": "u_mukrbt0lcu2bs",
+      "name": "PS CYBER CRIME",
+      "role": "mhc",
+      "username": "mhccybercrime",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "mudmomz3blsen"
+    },
+    {
+      "id": "u_mukqq5luu0qm4",
+      "name": "PS INDUSTRIAL SEC 29",
+      "role": "mhc",
+      "username": "mhcindustrialsec29",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "mudmhxf2po2ve"
+    },
+    {
+      "id": "u_mugrn833otfpo",
+      "name": "PS ISRANA",
+      "role": "mhc",
+      "username": "mhcisrana",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "loc_mugrlik4t0is5"
+    },
+    {
+      "id": "u_mukr73ur218a3",
+      "name": "PS MATLAUDA",
+      "role": "mhc",
+      "username": "mhcmatlauda",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "mudmmxvhskf4x"
+    },
+    {
+      "id": "u_mukqioiiqnuzi",
+      "name": "PS MODEL TOWN",
+      "role": "mhc",
+      "username": "mhcmodeltown",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "mudmgs5k73h9k"
+    },
+    {
+      "id": "u_mukqttvss3mnx",
+      "name": "PS OLD INDUSTRIAL",
+      "role": "mhc",
+      "username": "mhcoldindustrial",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "mudmi9eqo62ly"
+    },
+    {
+      "id": "u_mukqvpqh7vyhe",
+      "name": "PS QUILLA",
+      "role": "mhc",
+      "username": "mhcquilla",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "mudmijc45nl7f"
+    },
+    {
+      "id": "u_mukr9c41ek6bq",
+      "name": "PS SADAR",
+      "role": "mhc",
+      "username": "mhcsadar",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "mudmnxccvuu4r"
+    },
+    {
+      "id": "u_mukr8cjmzhap0",
+      "name": "PS SAMALKHA",
+      "role": "mhc",
+      "username": "mhcsamalkha",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "mudmnqx15gzou"
+    },
+    {
+      "id": "u_mukraefdg2ea1",
+      "name": "PS SANOLI",
+      "role": "mhc",
+      "username": "mhcsanoli",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "mudmo5xl6i029"
+    },
+    {
+      "id": "u_mukr1q845zp8i",
+      "name": "PS SECTOR 13/17",
+      "role": "mhc",
+      "username": "mhcsector13/17",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "mudmkgivn8p55"
+    },
+    {
+      "id": "u_mukr06w689k73",
+      "name": "PS TEHSIL CAMP",
+      "role": "mhc",
+      "username": "mhctehsilcamp",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "mudmj8isz4tun"
+    },
+    {
+      "id": "u_mukr4kl1kiu9c",
+      "name": "PS TRAFFIC",
+      "role": "mhc",
+      "username": "mhctraffic",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "mudml6i71e5f5"
+    },
+    {
+      "id": "u_mukr3mwykswqy",
+      "name": "PS WOMEN",
+      "role": "mhc",
+      "username": "mhcwomen",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "mudmkw8cs690s"
+    },
+    {
+      "id": "us_6e8002d82c0cb0de",
+      "name": "MTO Staff",
+      "role": "mtostaff",
+      "username": "mto.staff.panipatdistr",
+      "districtId": "dist_mugr9nwgs812q",
+      "locationId": "staff_mto_dist_mugr9nwgs812q"
+    }
+  ],
+  "districts": [
+    {
+      "id": "dist_mugr9nwgs812q",
+      "name": "Panipat District",
+      "code": "PPT",
+      "headquarters": "Panipat",
+      "rangeId": "loc_range_2"
+    }
+  ],
+  "locations": {
+    "dist_mugr9nwgs812q": [
+      {
+        "id": "loc_mugrguzgow294",
+        "name": "THC PANIPAT",
+        "type": "district"
+      },
+      {
+        "id": "staff_it_dist_mugr9nwgs812q",
+        "name": "Computer/IT Staff",
+        "type": "staff"
+      },
+      {
+        "id": "staff_mto_dist_mugr9nwgs812q",
+        "name": "MTO Staff",
+        "type": "staff"
+      },
+      {
+        "id": "loc_mugrlik4t0is5",
+        "name": "PS ISRANA",
+        "type": "station"
+      },
+      {
+        "id": "mudmgs5k73h9k",
+        "name": "PS MODEL TOWN",
+        "type": "station"
+      },
+      {
+        "id": "mudmhhtdimcm5",
+        "name": "PS CHANDANI BAGH",
+        "type": "station"
+      },
+      {
+        "id": "mudmhxf2po2ve",
+        "name": "PS INDUSTRIAL SEC 29",
+        "type": "station"
+      },
+      {
+        "id": "mudmi9eqo62ly",
+        "name": "PS OLD INDUSTRIAL",
+        "type": "station"
+      },
+      {
+        "id": "mudmijc45nl7f",
+        "name": "PS QUILLA",
+        "type": "station"
+      },
+      {
+        "id": "mudmiolh7g18d",
+        "name": "PS CITY",
+        "type": "station"
+      },
+      {
+        "id": "mudmj8isz4tun",
+        "name": "PS TEHSIL CAMP",
+        "type": "station"
+      },
+      {
+        "id": "mudmkgivn8p55",
+        "name": "PS SECTOR 13/17",
+        "type": "station"
+      },
+      {
+        "id": "mudmkw8cs690s",
+        "name": "PS WOMEN",
+        "type": "station"
+      },
+      {
+        "id": "mudml6i71e5f5",
+        "name": "PS TRAFFIC",
+        "type": "station"
+      },
+      {
+        "id": "mudmmfzq1wscc",
+        "name": "PS BAPOLI",
+        "type": "station"
+      },
+      {
+        "id": "mudmmxvhskf4x",
+        "name": "PS MATLAUDA",
+        "type": "station"
+      },
+      {
+        "id": "mudmnqx15gzou",
+        "name": "PS SAMALKHA",
+        "type": "station"
+      },
+      {
+        "id": "mudmnxccvuu4r",
+        "name": "PS SADAR",
+        "type": "station"
+      },
+      {
+        "id": "mudmo5xl6i029",
+        "name": "PS SANOLI",
+        "type": "station"
+      },
+      {
+        "id": "mudmomz3blsen",
+        "name": "PS CYBER CRIME",
+        "type": "station"
+      },
+      {
+        "id": "loc_otherhq_dist_mugr9nwgs812q",
+        "name": "Other HQ - Panipat District",
+        "type": "otherHq"
+      }
+    ],
+    "__hq__": [
+      {
+        "id": "loc_phq_haryana",
+        "name": "PHQ Haryana",
+        "type": "phq"
+      },
+      {
+        "id": "loc_range_2",
+        "name": "IG Range - Panipat",
+        "type": "igRange"
+      }
+    ]
+  }
+}

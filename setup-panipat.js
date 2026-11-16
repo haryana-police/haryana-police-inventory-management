@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { randomUUID } = require('node:crypto');
+const { randomBytes, randomUUID } = require('node:crypto');
 
 const quickAccounts = [
   'igkarnal', 'thcpanipat', 'it.staff.panipatdistr', 'mto.staff.panipatdistr',
@@ -15,6 +15,33 @@ const allowed = new Set(['developer', ...quickAccounts]);
 const dataDir = path.join(__dirname, 'local-data');
 const dbPath = path.join(dataDir, 'db.json');
 const envPath = path.join(__dirname, '.env.local');
+const fresh = !fs.existsSync(dbPath);
+if (fresh) {
+  const bcrypt = require('bcryptjs');
+  const seed = require('./seed/panipat-accounts.json');
+  const credentials = seed.users.map(({ username }) => ({
+    username,
+    password: randomBytes(18).toString('base64url'),
+  }));
+  const users = seed.users.map((user, index) => ({
+    ...user,
+    password: bcrypt.hashSync(credentials[index].password, 12),
+  }));
+  fs.mkdirSync(dataDir, { recursive: true });
+  fs.writeFileSync(path.join(dataDir, 'panipat-initial-passwords.json'),
+    JSON.stringify(credentials, null, 2), { flag: 'wx', mode: 0o600 });
+  fs.writeFileSync(dbPath, JSON.stringify({
+    app_state: {
+      'hp_inventory.users': users,
+      'hp_inventory.districts': seed.districts,
+      'hp_inventory.locations': seed.locations,
+    },
+    rt_seq: 0,
+    rt_events: [],
+    rt_dedupe: {},
+  }), { flag: 'wx', mode: 0o600 });
+  console.log('Initial passwords saved in local-data/panipat-initial-passwords.json.');
+}
 const original = fs.readFileSync(dbPath, 'utf8');
 const db = JSON.parse(original);
 const state = db.app_state;
