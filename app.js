@@ -16635,9 +16635,9 @@ function __consQtyOwn(itemId) {
   else status = "Distributed";
   return { total: received, available: avail, pending: pendingIn + outPending, distributed: outDist, lost: lost, availForNew: avail, status: status };
 }
-function __consLedger() {
+function __consLedger(transactions = getConsTxns()) {
   const m = {};
-  for (const t of getConsTxns()) {
+  for (const t of transactions) {
     if (!t || !t.itemId) continue;
     const q = Math.max(0, Math.floor(Number(t.qty) || 0));
     const a = (m[t.itemId] = m[t.itemId] || { total: 0, pending: 0, distributed: 0, lost: 0 });
@@ -16742,7 +16742,7 @@ function __consTotals() {
 }
 let __consTab = "stock";
 /* Per-location consumable view (admin selecting a unit/staff): received stock of that unit/staff minus what that unit/staff further distributed onward (Available = after distribution), their losses and pending onward requests. */
-function __consQtyAt(itemId, loc) {
+function __consQtyAt(itemId, loc, transactions = getConsTxns()) {
   const c = String(loc).indexOf(":");
   const tt = String(loc).slice(0, c), tid = String(loc).slice(c + 1);
   let mates, recvKeys;
@@ -16760,7 +16760,7 @@ function __consQtyAt(itemId, loc) {
     return false;
   };
   const onwardReqIds = new Set();
-  for (const t of getConsTxns()) {
+  for (const t of transactions) {
     if (t && t.type === "DISTRIBUTION_REQUEST" && isOnward(t)) onwardReqIds.add(String(t.requestId || t.id));
   }
   const addMatch = (t) => {
@@ -16770,7 +16770,7 @@ function __consQtyAt(itemId, loc) {
     return String(u.id) === String(tid) && !(u.locationId && getLocations().some(l => l.id === u.locationId));
   };
   let received = 0, pendingIn = 0, lost = 0, outPending = 0, outDist = 0;
-  for (const t of getConsTxns()) {
+  for (const t of transactions) {
     if (!t || t.itemId !== itemId) continue;
     const q = Math.max(0, Math.floor(Number(t.qty) || 0));
     if (t.type === "ADD" && addMatch(t)) received += q;
@@ -16853,7 +16853,7 @@ function renderConsStock() {
           ...((!isAdmin || !locF) && x.q.availForNew > 0 ? [{ label: "Distribute", attrs: `data-cons-dist="${x.i.id}"` }] : []),
           ...((!isAdmin || !locF) && x.q.availForNew > 0 ? [{ label: "Mark Lost", attrs: `data-cons-loss="${x.i.id}"` }] : [])
         ]) : `<button type="button" class="btn btn-sm btn-outline" data-cons-view="${x.i.id}">View</button>`;
-        return `<tr><td>${baseNo + idx + 1}</td><td class="item-name"><button type="button" class="linklike" data-cons-view="${x.i.id}" title="Open item details">${nameCell(x.i.name)}</button></td><td class="qty-strong">${x.q.total}</td><td class="qty-strong">${x.q.available}</td><td>${x.q.distributed}</td><td>${x.q.lost}</td><td><span class="status-badge">${esc(st)}</span></td><td>${acts}</td></tr>`;
+        return `<tr><td>${baseNo + idx + 1}</td><td class="item-name"><button type="button" class="linklike" data-cons-view="${x.i.id}" title="Open item details">${nameCell(x.i.name)}</button></td><td class="qty-strong">${x.q.total}</td><td class="qty-strong">${x.q.available}</td><td>${x.q.distributed}</td><td>${x.q.lost}</td><td><span class="status-badge">${esc(st)}</span></td><td>${acts}${isDevAdmin() ? ` <button type="button" class="btn btn-sm btn-outline" data-cons-history="${esc(x.i.id)}">History</button>` : ""}</td></tr>`;
       }).join("");
   body.innerHTML = rowsHtml +
     `<tr class="rpt-total-row"><td></td><td class="rpt-total-label">Total</td><td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavail}</td><td>${tdist}</td><td>${tlost}</td><td></td><td></td></tr>`;
@@ -16995,6 +16995,79 @@ function openConsTxnDetails(txnId) {
     (rj && rj.reason ? row("Reject Reason", esc(rj.reason)) : "");
   openModal("#consTxnModal");
 }
+function consTransactionActions(transaction) {
+  if (!isDevAdmin()) return "";
+  const id = esc(transaction.id);
+  return `<button type="button" class="btn btn-sm btn-outline" data-cons-txn-edit="${id}">Edit</button>
+    <button type="button" class="btn btn-sm btn-red" data-cons-txn-delete="${id}">Delete</button>`;
+}
+
+function consTransactionBalancesValid(itemId, current, next) {
+  const districtBalance = transactions => {
+    const ledger = __consLedger(transactions)[itemId];
+    return ledger ? ledger.total - ledger.distributed - ledger.lost - ledger.pending : 0;
+  };
+  if (districtBalance(next) < Math.min(0, districtBalance(current))) return false;
+  const locations = [
+    ...getLocations().map(location => "unit:" + location.id),
+    ...getUsers().filter(user => user.districtId === activeDistrictId).map(user => "staff:" + user.id),
+  ];
+  const balanceAt = (location, transactions) => {
+    const stock = __consQtyAt(itemId, location, transactions);
+    return stock.total - stock.lost - stock.distributed;
+  };
+  return locations.every(location => balanceAt(location, next) >= Math.min(0, balanceAt(location, current)));
+}
+
+function manageConsTransaction(id, deleting, itemDetails) {
+  if (!isDevAdmin()) return;
+  const district = activeDistrictId;
+  const current = getConsTxns();
+  const transaction = current.find(row => row.id === id);
+  if (!transaction) return;
+  if (transaction.type === "ADD" && String(transaction.remarks || "").startsWith("Received via Demand ")) {
+    return toast("Manage this receipt through its linked demand.", "error");
+  }
+  const distribution = /^DISTRIBUTION_(REQUEST|APPROVED|REJECTED)$/.test(transaction.type);
+  const requestId = transaction.type === "DISTRIBUTION_REQUEST" ? id : transaction.requestId;
+  const group = row => row.id === id || (distribution && requestId &&
+    row.itemId === transaction.itemId && (row.id === requestId || row.requestId === requestId));
+  const snapshot = JSON.stringify(current.filter(group));
+  const quantityEditable = ["ADD", "LOSS"].includes(transaction.type);
+  const remarkField = transaction.type === "DISTRIBUTION_REJECTED" ? "reason" : "remarks";
+  const body = deleting
+    ? `<p>Delete ${esc(transaction.itemName || "this transaction")} and reverse its ledger effect?</p>` +
+      (distribution ? "<p>This removes the distribution request and its linked approval or rejection.</p>" : "")
+    : (quantityEditable ? `<label>Quantity<input id="devConsTxnQty" type="number" min="1" step="1" value="${esc(transaction.qty)}"></label>` : "") +
+      `<label>${remarkField === "reason" ? "Rejection reason" : "Remark"}<textarea id="devConsTxnRemark">${esc(transaction[remarkField] || "")}</textarea></label>`;
+  __devConfirm(deleting ? "Delete Transaction" : "Edit Transaction", body, deleting ? "Delete" : "Save", () => {
+    if (!isDevAdmin() || activeDistrictId !== district) return;
+    const records = getConsTxns();
+    if (JSON.stringify(records.filter(group)) !== snapshot) return toast("This transaction changed. Open it again.", "error");
+    const quantity = !deleting && quantityEditable ? Number($("#devConsTxnQty")?.value) : transaction.qty;
+    if (!deleting && quantityEditable && (!Number.isSafeInteger(quantity) || quantity < 1)) return toast("Enter a positive whole quantity.", "error");
+    const remark = $("#devConsTxnRemark")?.value.trim() || "";
+    if (!deleting && remarkField === "reason" && !remark) return toast("Rejection reason is required.", "error");
+    const next = deleting ? records.filter(row => !group(row)) : records.map(row => row.id === id
+      ? { ...row, qty: quantity, [remarkField]: remark, updatedAt: Date.now() } : row);
+    if (!consTransactionBalancesValid(transaction.itemId, records, next)) {
+      return toast("This change would leave insufficient stock for recorded transactions.", "error");
+    }
+    const requestChanged = distribution && requestId && (deleting || id === requestId);
+    if (requestChanged) {
+      const linked = getDistributions();
+      if (linked.some(row => row.id === requestId && row.isConsumable)) {
+        saveDistributions(deleting ? linked.filter(row => row.id !== requestId || !row.isConsumable) :
+          linked.map(row => row.id === requestId && row.isConsumable ? { ...row, remarks: remark, updatedAt: Date.now() } : row));
+      }
+    }
+    saveConsTxns(next);
+    __audit(deleting ? "Consumable Transaction Deleted" : "Consumable Transaction Edited", transaction.itemName || id, { entity: "Consumable" });
+    renderConsumables();
+    if (itemDetails) openConsItem(transaction.itemId);
+  });
+}
+
 function renderConsLedger() {
   const body = $("#consBody");
   if (!body) return;
@@ -17007,6 +17080,7 @@ function renderConsLedger() {
     const q = __consQty(t.itemId);
     const acts = [];
     acts.push(`<button type="button" class="btn btn-sm btn-outline" data-cons-txnview="${t.id}">View</button>`);
+    acts.push(consTransactionActions(t));
     // removed: distribute button moved to Item Consume tab
     // removed: mark lost button moved to Item Consume tab
     // removed: recipient approve moved out of history actions
@@ -17619,6 +17693,7 @@ function openConsItem(itemId) {
       <td data-th="Type">${t.toType === "unit" ? "Unit" : t.toType === "staff" ? "Staff" : "&mdash;"}</td>
       <td data-th="Distributed By">${esc(t.approvedByName && t.type === "DISTRIBUTION_APPROVED" ? t.approvedByName : (t.byName || ""))}</td>
       <td data-th="Status">${st ? __consStatusBadge(st) : "&mdash;"}</td>
+      ${isDevAdmin() ? `<td data-th="Actions">${consTransactionActions(t)}</td>` : ""}
     </tr>`;
   }).join("");
   box.innerHTML =
@@ -17639,8 +17714,8 @@ function openConsItem(itemId) {
       <div class="cons-qty"><span class="cons-qty-v">${esc(q.status)}</span><span class="cons-qty-l">Status</span></div>
     </div>
     <h4 style="margin:14px 0 6px">Distribution History</h4>
-    <div class="table-wrap"><table class="table"><thead><tr><th>Date</th><th>Type</th><th>Quantity</th><th>Distributed To</th><th>Distributed By</th><th>Status</th></tr></thead>
-    <tbody>${histRows || `<tr><td colspan="6" class="empty-row">No transactions yet.</td></tr>`}</tbody></table></div>`;
+    <div class="table-wrap"><table class="table"><thead><tr><th>Date</th><th>Type</th><th>Quantity</th><th>Distributed To</th><th>Recipient Type</th><th>Distributed By</th><th>Status</th>${isDevAdmin() ? "<th>Actions</th>" : ""}</tr></thead>
+    <tbody>${histRows || `<tr><td colspan="${isDevAdmin() ? 8 : 7}" class="empty-row">No transactions yet.</td></tr>`}</tbody></table></div>`;
   if (__consCanManage()) $("#consItemEditBtn").classList.remove("hidden"); else $("#consItemEditBtn").classList.add("hidden");
   openModal("#consItemModal");
 }
@@ -17885,6 +17960,15 @@ function __consRefreshFilterOptions() {
 }
 /* ---- Event delegation ---- */
 document.addEventListener("click", (e) => {
+  const history = e.target.closest("[data-cons-history]");
+  if (history && isDevAdmin()) { openConsItem(history.dataset.consHistory); return; }
+  const transactionAction = e.target.closest("[data-cons-txn-edit], [data-cons-txn-delete]");
+  if (transactionAction) {
+    const deleting = transactionAction.hasAttribute("data-cons-txn-delete");
+    manageConsTransaction(transactionAction.dataset.consTxnDelete || transactionAction.dataset.consTxnEdit,
+      deleting, !!transactionAction.closest("#consItemBody"));
+    return;
+  }
   const view = e.target.closest("[data-cons-view]");
   if (view) { if (window.openItemProfile) openItemProfile(view.dataset.consView); else openConsItem(view.dataset.consView); return; }
   const txnv = e.target.closest("[data-cons-txnview]");
