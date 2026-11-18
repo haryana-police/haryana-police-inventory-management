@@ -46,7 +46,7 @@ body {
   -webkit-font-smoothing: antialiased;
   letter-spacing: .1px;
 }
-.hidden { display: none !important; }
+.hidden, [hidden], #devAccountView[hidden], #devAccountRecords[hidden] { display: none !important; }
 
 /* ==================== SCROLLBAR ==================== */
 ::-webkit-scrollbar { width: 10px; height: 10px; }

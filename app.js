@@ -1660,6 +1660,7 @@ function logout() {
   currentUser = null;
   developerAccount = null;
   activeDistrictId = null;
+  refreshDevAccountPicker();
   __rtStop();
   clearAuth();
   if (window.CONFIG && window.CONFIG.useRemote && t) {
@@ -19478,11 +19479,16 @@ const devAccountTables = [
 
 function refreshDevAccountPicker() {
   const picker = $("#devAccountView");
+  const recBtn = $("#devAccountRecords");
   if (!picker) return;
-  picker.hidden = !hasDeveloperSession();
-  $("#devAccountRecords").hidden = !developerAccount;
-  picker.style.display = picker.hidden ? "none" : "";
-  if (picker.hidden) { picker.replaceChildren(); $("#devAccountDialog")?.close(); return; }
+  const isDev = hasDeveloperSession();
+  picker.hidden = !isDev;
+  picker.style.display = isDev ? "" : "none";
+  if (recBtn) {
+    recBtn.hidden = !isDev;
+    recBtn.style.display = isDev ? "" : "none";
+  }
+  if (!isDev) { picker.replaceChildren(); $("#devAccountDialog")?.close(); return; }
   const selected = developerAccount ? currentUser.id : picker.value;
   const users = getUsers().filter(user => user.districtId === activeDistrictId);
   users.sort((a, b) => String(a.username || "").localeCompare(String(b.username || "")));
@@ -19557,7 +19563,8 @@ function bindDevAccountView() {
   }
 
   function openRecords() {
-    if (!hasDeveloperSession() || !picker.value) return;
+    if (!hasDeveloperSession()) return;
+    if (!picker.value) picker.value = ":district";
     closeModals();
     if (!dialog.open) dialog.showModal();
     renderRecords();
@@ -19593,7 +19600,7 @@ function bindDevAccountView() {
   $("#devAccountRecords").addEventListener("click", openRecords);
   dialog.addEventListener("close", () => {
     if (dialog.open) return;
-    if (picker.value === ":district") picker.value = "";
+    if (picker.value === ":district" && !developerAccount) picker.value = "";
     rows.replaceChildren();
     editing = null;
     fields.value = "";
