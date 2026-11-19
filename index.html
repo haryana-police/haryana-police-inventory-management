@@ -505,8 +505,8 @@
                 <th class="sortable" data-sort-col="1" tabindex="0" aria-sort="none">Item Name <span class="sort-arrow"></span></th>
                 <th class="sortable" data-sort-col="2" tabindex="0" aria-sort="none">Action / Type <span class="sort-arrow"></span></th>
                 <th class="sortable" data-sort-col="3" tabindex="0" aria-sort="none">Stock Change <span class="sort-arrow"></span></th>
-                <th class="sortable" data-sort-col="4" tabindex="0" aria-sort="none">Prev Qty <span class="sort-arrow"></span></th>
-                <th class="sortable" data-sort-col="5" tabindex="0" aria-sort="none">New Balance <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort-col="4" tabindex="0" aria-sort="none">Total Before <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort-col="5" tabindex="0" aria-sort="none">Total After <span class="sort-arrow"></span></th>
                 <th class="sortable" data-sort-col="6" tabindex="0" aria-sort="none">Location <span class="sort-arrow"></span></th>
                 <th class="sortable" data-sort-col="7" tabindex="0" aria-sort="none">Done By / Remarks <span class="sort-arrow"></span></th>
                 <th>Actions</th>
@@ -1770,6 +1770,7 @@
 <button class="modal-close" data-close>&times;</button>
 </div>
 <form id="addStockForm">
+  <div class="form-group"><label for="asLocation">Stock location</label><select id="asLocation" required></select></div>
   <div class="as-cols-head"><span>Category</span><span>Item</span><span>Unit</span><span>Min Qty</span><span>Quantity &mdash; Good / Damaged</span><span></span></div>
   <div id="asRows"></div>
   <div class="as-rows-toolbar">
@@ -3197,20 +3198,19 @@
       <div class="form-group">
         <label for="ajType">Adjustment Type</label>
         <select id="ajType" required>
-          <option value="add">Stock Added</option>
           <option value="correction">Stock Correction (Set Total)</option>
-          <option value="writeoff">Written Off</option>
           <option value="damage">Mark Scrap</option>
           <option value="loss">Mark Lost</option>
         </select>
       </div>
+      <div id="ajStockSummary" class="form-group" role="status" aria-live="polite"></div>
       <div class="form-group" id="ajQtyGroup">
         <label for="ajQty">Quantity</label>
         <input type="number" id="ajQty" min="1" required>
       </div>
       <div class="form-group hidden" id="ajTotalGroup">
         <label for="ajTotal">Corrected Total Quantity</label>
-        <input type="number" id="ajTotal" min="0" required>
+        <input type="number" id="ajTotal" min="0" disabled>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -3351,7 +3351,7 @@
 <script src="api-client.js?v=2026.09.212"></script>
   <script src="enter-to-submit.js?v=2026.09.253"></script>
   <script src="cat-multiselect.js?v=2026.09.253"></script>
-  <script src="app.js?v=2026.11.18.1"></script>
+  <script src="app.js?v=2026.11.19.4"></script>
   <script src="grievances.js" defer></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
 <script src="item-profile.js?v=2026.10.051"></script>

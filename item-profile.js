@@ -755,7 +755,7 @@
       ["LOST", item.lostReturned || 0, "ip-red"]
     ];
     var cardsRow2 = [
-      ["SCRAP", (cc.damaged || 0) + (item.damagedReturned || 0), "ip-red"],
+      ["SCRAP", (cc.damaged || 0) + (item.damagedReturned || 0) + (item.scrappedQuantity || 0), "ip-red"],
       ["GOOD", cc.good || 0, "ip-green"], ["DAMAGED", cc.poor || 0, "ip-amber"], ["RECOVERED", recovered, ""]
     ];
     var statCard = function (c) {

@@ -575,7 +575,14 @@ function rtDiffState(prev, next) {
   return events;
 }
 
-module.exports = async (req, res) => {
+let mutationQueue = Promise.resolve();
+module.exports = function(req, res) {
+  if (req.method === "GET" || req.method === "OPTIONS") return handleRequest(req, res);
+  const operation = mutationQueue.catch(() => {}).then(() => handleRequest(req, res));
+  mutationQueue = operation.catch(() => {});
+  return operation;
+};
+async function handleRequest(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -781,20 +788,48 @@ async function route(req, res) {
   }
 
   // ---------- ALLOTMENT / STOCK INVARIANTS ----------
-function validateAllocState(state) {
+function validateAllocState(state, previousState = {}) {
   const items = state['hp_inventory.items'];
   if (items && typeof items === 'object') {
     for (const dist of Object.values(items)) {
       if (!Array.isArray(dist)) continue;
       for (const i of dist) {
+        const previous = Object.values(previousState['hp_inventory.items'] || {}).flat().find(row => row.id === i.id);
+        const changed = !previous || ['quantity', 'conditionCounts', 'locationId', 'categoryId', 'unit', 'name', 'minStock'].some(key => JSON.stringify(previous[key]) !== JSON.stringify(i[key]));
+        if (changed) {
+          if (!Number.isSafeInteger(i.minStock || 0) || (i.minStock || 0) < 0) return 'Minimum stock must be a non-negative whole number.';
+          const counts = i.conditionCounts;
+          if (!Number.isSafeInteger(i.quantity) || i.quantity < 0 ||
+            (counts && (!['good', 'poor', 'damaged'].every(key => Number.isSafeInteger(counts[key] || 0) && (counts[key] || 0) >= 0) ||
+            ['good', 'poor', 'damaged'].reduce((sum, key) => sum + (counts[key] || 0), 0) !== i.quantity))) {
+            return 'Item quantities must be whole numbers and the condition counts must equal the total.';
+          }
+          if (previous && (previous.history?.length || previous.quantity || previous.allotted) &&
+            ['locationId', 'categoryId', 'unit'].some(key => previous[key] !== i[key])) {
+            return 'Items with stock history must be transferred through Distribution. Category and unit require a separate item.';
+          }
+          if (!i.isDeleted && dist.some(other => other.id !== i.id && !other.isDeleted &&
+            other.locationId === i.locationId && other.categoryId === i.categoryId && other.unit === i.unit &&
+            String(other.name || '').trim().toLowerCase() === String(i.name || '').trim().toLowerCase())) {
+            return 'An item with this name, category, unit and location already exists.';
+          }
+        }
+        for (const field of ['allotted', 'damagedReturned', 'lostReturned']) {
+          if (i[field] !== undefined && (!Number.isSafeInteger(i[field]) || i[field] < 0)) return 'Stock counters must be non-negative whole numbers.';
+        }
         const q = i.quantity || 0;
         const al = i.allotted || 0;
         const dmg = i.damagedReturned || 0;
         const lost = i.lostReturned || 0;
+        if (i.scrappedQuantity !== undefined && (!Number.isSafeInteger(i.scrappedQuantity) || i.scrappedQuantity < 0)) {
+          return "Scrapped quantity must be a non-negative whole number";
+        }
         if (!Number.isFinite(q) || q < 0 || al < 0 || dmg < 0 || lost < 0) {
           return `Negative quantity not allowed for item "${(i.name || '')}"`;
         }
-        if (al + dmg + lost > q) {
+        const scrap = i.conditionCounts?.damaged || 0;
+        const previousDeficit = previous ? (previous.allotted || 0) + (previous.damagedReturned || 0) + (previous.lostReturned || 0) + (previous.conditionCounts?.damaged || 0) - (previous.quantity || 0) : 0;
+        if (al + dmg + lost + scrap - q > Math.max(0, previousDeficit)) {
           return `Available quantity cannot go negative for item "${(i.name || '')}"`;
         }
       }
@@ -813,7 +848,8 @@ function validateAllocState(state) {
       if (returned + lost > allotted) {
         return `Returned + lost quantity (${returned + lost}) exceeds allotted quantity (${allotted}) for allotment "${a.id}"`;
       }
-      if (recovered > lost) {
+      const legacyLost = (a.returns || []).reduce((sum, row) => sum + (row.condition === "lost" && !row.lossTracked ? Number(row.qty) || 0 : 0), 0);
+      if (recovered > lost + legacyLost) {
         return `Recovered quantity (${recovered}) exceeds lost quantity (${lost}) for allotment "${a.id}"`;
       }
     }
@@ -846,6 +882,7 @@ function validateAllocState(state) {
       }
       publicState[k] = v;
     }
+    delete publicState['hp_inventory.write_receipts'];
     return res.json(publicState);
   }
 
@@ -864,6 +901,28 @@ function validateAllocState(state) {
     // Developer Admin is shown everything, so nothing is restored and the
     // document is written exactly as it was sent.
     const { user: writeUser } = await authFromRequest(req);
+    const receiptsKey = 'hp_inventory.write_receipts';
+    const receipts = Array.isArray(current[receiptsKey]) ? current[receiptsKey] : [];
+    const receiptId = body.requestId && writeUser ? writeUser.id + ':' + body.requestId : null;
+    if (receiptId && receipts.includes(receiptId)) return res.json({ ok: true, replayed: true });
+    const visible = structuredClone(projectStateFor(writeUser, current));
+    if (Array.isArray(visible['hp_inventory.users'])) visible['hp_inventory.users'] = visible['hp_inventory.users'].map(publicUser);
+    delete visible[receiptsKey];
+    const { stableStringify } = require('./_rbac');
+    if (Array.isArray(body.changedKeys) && body.baseState) {
+      const merged = { ...visible };
+      for (const key of body.changedKeys) {
+        if (key === receiptsKey || key === TOKEN_KEY) continue;
+        if (!Object.prototype.hasOwnProperty.call(body.state, key)) return res.status(400).json({ error: 'Missing changed state value.' });
+        if (stableStringify(visible[key] ?? null) !== stableStringify(body.baseState[key] ?? null)) {
+          return res.status(409).json({ error: 'Another user changed this data. Latest records have been loaded. Review them before saving again.', key });
+        }
+        merged[key] = body.state[key];
+      }
+      body.state = merged;
+    } else if (stableStringify(body.state[ITEM_STORE_KEY] ?? null) !== stableStringify(visible[ITEM_STORE_KEY] ?? null)) {
+      return res.status(409).json({ error: 'Refresh this page to use the current stock save workflow.' });
+    }
     let incoming = restoreScopeFor(writeUser, current, body.state);
     body.state = incoming;
     const currentUsers = Array.isArray(current['hp_inventory.users']) ? current['hp_inventory.users'] : [];
@@ -983,7 +1042,17 @@ function validateAllocState(state) {
     for (const k of Object.keys(current)) {
       if (k.indexOf(SCAN_FILES_PREFIX) === 0) incoming[k] = current[k];
     }
-    const verr = validateAllocState(incoming);
+    if (writeUser?.role !== 'devadmin') {
+      const previousItems = Object.values(current[ITEM_STORE_KEY] || {}).flat();
+      for (const item of Object.values(incoming[ITEM_STORE_KEY] || {}).flat()) {
+        const previous = previousItems.find(row => row.id === item.id);
+        const history = previous?.history || [];
+        if (history.some((entry, index) => stableStringify(entry) !== stableStringify((item.history || [])[index]))) {
+          return res.status(403).json({ error: 'Only Developer Admin can edit or delete existing inventory history.' });
+        }
+      }
+    }
+    const verr = validateAllocState(incoming, current);
     if (verr) return res.status(400).json({ error: verr });
     // Only the maintenance keys are taken from the finalised document, never
     // the whole of it. finalising captures the state as it arrived, which is
@@ -997,6 +1066,7 @@ function validateAllocState(state) {
     for (const k of Object.keys(incomingFinal)) {
       if (k.indexOf(MAINT_KEY_PREFIX) === 0) incoming[k] = incomingFinal[k];
     }
+    incoming[receiptsKey] = receiptId ? [...receipts.slice(-199), receiptId] : receipts;
     await setState(incoming);
     // Publish realtime events by diffing what changed between the
     // previously stored state and the incoming state (server = source of
@@ -1029,6 +1099,7 @@ function validateAllocState(state) {
     if (!body.key || !body.value) return res.status(400).json({ error: 'key and value required' });
     const isUsersWrite = body.key === 'hp_inventory.users' || body.key === TOKEN_KEY;
     const isItemsWrite = body.key === ITEM_STORE_KEY;
+    if (isItemsWrite) return res.status(409).json({ error: 'Use the version-checked state save workflow for inventory.' });
     const isMaintenanceWrite = body.key.indexOf(MAINT_KEY_PREFIX) === 0;
     let nextAll = null; // normalised items map for item key-writes (legacy arrays are merged)
     if (isUsersWrite || isItemsWrite || isMaintenanceWrite) {
@@ -1093,7 +1164,8 @@ function validateAllocState(state) {
         }
       }
     }
-    const state = await getState();
+    const previousState = await getState();
+    const state = structuredClone(previousState);
     if (body.key === 'hp_inventory.users' && Array.isArray(body.value)) {
       const currentUsers = Array.isArray(state['hp_inventory.users']) ? state['hp_inventory.users'] : [];
       state[body.key] = await mergeUsers(body.value, currentUsers);
@@ -1115,7 +1187,7 @@ function validateAllocState(state) {
     } else {
       state[body.key] = body.value;
     }
-    const verr = validateAllocState(state);
+    const verr = validateAllocState(state, previousState);
     if (verr) return res.status(400).json({ error: verr });
     await setState(state);
     return res.json({ ok: true });

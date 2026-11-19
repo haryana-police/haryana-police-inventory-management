@@ -64,7 +64,7 @@ function districtScopeLabel(user) {
 }
 const CONTENT_FIELDS = [
   'name', 'categoryId', 'unit', 'quantity', 'minStock', 'locationId',
-  'conditionCounts',
+  'conditionCounts', 'scrappedQuantity',
 ];
 
 // Deterministic stringify (sorted object keys) so comparisons are stable

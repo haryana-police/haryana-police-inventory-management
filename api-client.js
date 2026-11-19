@@ -44,80 +44,97 @@ function __authToken() {
   } catch { return null; }
 }
 
-// Fetch full state from the server into local cache.
+// Keep the last acknowledged snapshot separate from optimistic edits.
+var __apiBase = {};
+var __apiSaving = false;
+var __apiLastWrite = Promise.resolve();
+function __stateEqual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+function __hasPendingState() {
+  return Object.keys(__apiCache).some(key => !__stateEqual(__apiCache[key], __apiBase[key]));
+}
 async function __apiLoadAll() {
   const state = await __api("GET", "state");
-  // state is a map: "hp_inventory.xxx" -> value
-  Object.keys(state || {}).forEach(k => { __apiCache[k] = state[k]; });
+  if (!__apiSaving && !__hasPendingState()) {
+    __apiCache = state || {};
+    __apiBase = JSON.parse(JSON.stringify(__apiCache));
+  } else if (!__apiReady) {
+    __apiCache = state || {};
+    __apiBase = JSON.parse(JSON.stringify(__apiCache));
+  }
   __apiReady = true;
   return state;
 }
 window.__apiLoadAll = __apiLoadAll;
 
-// Debounced full-state write.
+async function __persistStateNow() {
+  const snapshot = JSON.parse(JSON.stringify(__apiCache));
+  const changedKeys = Object.keys(snapshot).filter(key => !__stateEqual(snapshot[key], __apiBase[key]));
+  if (!changedKeys.length) return;
+  const baseState = {};
+  for (const key of changedKeys) baseState[key] = __apiBase[key] === undefined ? null : __apiBase[key];
+  const requestId = globalThis.crypto?.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+  __apiSaving = true;
+  try {
+    const payload = { state: snapshot, baseState, changedKeys, requestId };
+    let result;
+    try { result = await __api("POST", "state", payload); }
+    catch (error) {
+      if (error.status) throw error;
+      // A lost response may follow a committed write. Reuse its receipt ID.
+      result = await __api("POST", "state", payload);
+    }
+    __apiBase = snapshot;
+    if (result && Array.isArray(result.users)) {
+      const key = __prefix + "users";
+      if (__stateEqual(__apiCache[key], snapshot[key])) __apiCache[key] = result.users;
+      __apiBase[key] = JSON.parse(JSON.stringify(result.users));
+    }
+  } catch (error) {
+    try {
+      const state = await __api("GET", "state");
+      __apiCache = state || {};
+      __apiBase = JSON.parse(JSON.stringify(__apiCache));
+      if (typeof window.__rbacResynced === "function") window.__rbacResynced(error);
+    } catch (refreshError) {
+      if (typeof window.__writeFailed === "function") window.__writeFailed(error);
+    }
+    throw error;
+  } finally { __apiSaving = false; }
+}
+function __queuePersist() {
+  __apiLastWrite = __apiQueue.catch(() => {}).then(__persistStateNow);
+  __apiQueue = __apiLastWrite.catch(error => {
+    console.error("save to server failed:", error);
+    if (typeof toast === "function") toast(error.body?.error || "Save failed. Check the connection and refresh before retrying.", "error");
+  });
+  return __apiLastWrite;
+}
 function __apiPersist() {
   clearTimeout(__apiSaveTimer);
   __apiSaveTimer = setTimeout(() => {
-    __apiQueue = __apiQueue.then(() =>
-      __api("POST", "state", { state: JSON.parse(JSON.stringify(__apiCache)) })
-    ).then(res => {
-      // Server returns the sanitised users (passwords hashed & stripped);
-      // refresh the cache so no plaintext lingers in browser memory.
-      if (res && Array.isArray(res.users)) {
-        __apiCache[__prefix + "users"] = res.users;
-      }
-    }).catch(e => {
-      console.error("save to server failed:", e);
-      // RBAC: the server is the source of truth. Any rejection - not just 401/403
-      // - means the change never landed, so the local cache is pulled back to the
-      // server's authoritative state and the reason is shown to the user. A 400
-      // used to be logged and dropped, which left a form claiming success for a
-      // change the server had actually thrown away.
-      var st = e && e.status;
-      if (st && st >= 400) {
-        __api("GET", "state").then(s => {
-          Object.keys(s || {}).forEach(k => { __apiCache[k] = s[k]; });
-          if (typeof window.__rbacResynced === "function") window.__rbacResynced(e);
-          else if (typeof render === "function") { try { render(); } catch (e2) {} }
-        }).catch(() => {});
-        return;
-      }
-      // no status means the request never reached the server: tell the user that
-      // too, rather than letting the optimistic success toast stand.
-      if (typeof window.__writeFailed === "function") {
-        window.__writeFailed(e);
-      }
-    });
+    __apiSaveTimer = null;
+    __queuePersist().catch(() => {});
   }, 400);
 }
-
-// ============================================================
-// PUBLIC OVERRIDES - app.js delegates to these via globals
-// ============================================================
-
+window.__apiFlush = async function() {
+  if (!CONFIG.useRemote) return;
+  await __ensureReady();
+  clearTimeout(__apiSaveTimer);
+  __apiSaveTimer = null;
+  return __queuePersist();
+};
 window.__apiLoadFn = function(key) {
-  const storeKey = __prefix + key;
-  return __apiCache.hasOwnProperty(storeKey) ? __apiCache[storeKey] : null;
+  const name = __prefix + key;
+  return Object.prototype.hasOwnProperty.call(__apiCache, name) ? __apiCache[name] : null;
 };
-
 window.__apiSaveFn = function(key, data) {
-  const storeKey = __prefix + key;
-  __apiCache[storeKey] = data;
-  if (__apiReady) { __apiPersist(); }
-  else {
-    __ensureReady().then(() => __apiPersist());
-  }
+  __apiCache[__prefix + key] = data;
+  if (__apiReady) __apiPersist();
+  else __ensureReady().then(__apiPersist);
 };
-
-// Live refresh: fetch latest state from the server into the local cache
-// (no page reload needed). Called periodically by app.js.
 window.__apiPoll = function() {
-  if (__apiSaveTimer !== null) return Promise.resolve();
-  return __api("GET", "state")
-    .then(state => {
-      Object.keys(state || {}).forEach(k => { __apiCache[k] = state[k]; });
-    })
-    .catch(e => console.error("poll failed:", e));
+  if (__apiSaving || __apiSaveTimer !== null || __hasPendingState()) return Promise.resolve();
+  return __apiLoadAll().catch(error => console.error("poll failed:", error));
 };
 
 function __ensureReady() {

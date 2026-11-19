@@ -2092,6 +2092,7 @@ function switchTab(name) {
 
 function render() {
   if (!currentUser) return; /* never render before login (2026.09.89) */
+  if (!$("#adjustModal")?.classList.contains("hidden")) renderAdjustmentStockSummary();
   if (!render.__healed) { render.__healed = true; __healStoredMojibake(); }
   try { __syncThemeUI(); } catch (e) {}
   renderDistrictSelector();
@@ -2240,7 +2241,7 @@ function renderDashboard() {
 
   $("#statTotalItems").textContent = items.length;
   $("#statTotalQuantity").textContent = items.reduce((a, i) => a + i.quantity, 0).toLocaleString();
-  $("#statLowStock").textContent = items.filter(i => i.quantity <= i.minStock).length;
+  $("#statLowStock").textContent = items.filter(i => availableQty(i) <= i.minStock).length;
   $("#statCategories").textContent = cats.length;
 const condTotals = { good: 0, poor: 0, damaged: 0 };
   items.forEach(i => {
@@ -2253,7 +2254,7 @@ const condTotals = { good: 0, poor: 0, damaged: 0 };
   $("#statPoor").textContent = condTotals.poor;
   $("#statGood").textContent = condTotals.good;
 
-const lowItems = __sortRows("dashLow", items.filter(i => i.quantity <= i.minStock));
+const lowItems = __sortRows("dashLow", items.filter(i => availableQty(i) <= i.minStock));
   const lowBody = $("#lowStockBody");
   // Item, Category and the one action worth having here. The quantity figures
   // that used to sit in this table - current, minimum, reorder - each already
@@ -2611,7 +2612,7 @@ function __statConditionRows(cond) {
       const cc = i.conditionCounts || { good: 0, poor: 0, damaged: 0 };
       const cat = cats.find(c => c.id === i.categoryId);
       const loc = locs.find(l => l.id === i.locationId);
-      const status = i.quantity === 0 ? "Out" : i.quantity <= i.minStock ? "Low" : "OK";
+      const status = availableQty(i) === 0 ? "Out" : availableQty(i) <= i.minStock ? "Low" : "OK";
       return [i.name, cat ? cat.name : "", loc ? loc.name : "", cc[cond] || 0, i.quantity, i.unit, status];
     });
   return { title: label + " Condition Items", cols: ["Item", "Category", "Location", label + " Qty", "Total Qty", "Unit", "Status"], rows };
@@ -2625,7 +2626,7 @@ const __STAT_BUILDERS = {
     const rows = items.map(i => {
       const cat = cats.find(c => c.id === i.categoryId);
       const loc = locs.find(l => l.id === i.locationId);
-      const status = i.quantity === 0 ? "Out" : i.quantity <= i.minStock ? "Low" : "OK";
+      const status = availableQty(i) === 0 ? "Out" : availableQty(i) <= i.minStock ? "Low" : "OK";
       return [i.name, cat ? cat.name : "", loc ? loc.name : "", i.quantity, i.unit, i.minStock, status];
     });
     return { title: "Total Items", cols: ["Item", "Category", "Location", "Qty", "Unit", "Min", "Status"], rows };
@@ -2638,7 +2639,7 @@ const __STAT_BUILDERS = {
 const cc = i.conditionCounts || { good: 0, poor: 0, damaged: 0 };
       const cat = cats.find(c => c.id === i.categoryId);
       const loc = locs.find(l => l.id === i.locationId);
-      const status = i.quantity === 0 ? "Out" : i.quantity <= i.minStock ? "Low" : "OK";
+      const status = availableQty(i) === 0 ? "Out" : availableQty(i) <= i.minStock ? "Low" : "OK";
       return [i.name, cat ? cat.name : "", loc ? loc.name : "", i.quantity, i.unit, i.minStock, cc.good || 0, cc.poor || 0, cc.damaged || 0, status];
     });
     return { title: "Total Quantity", cols: ["Item", "Category", "Location", "Qty", "Unit", "Min", "Good", "Damaged", "Scrap", "Status"], rows };
@@ -2647,10 +2648,10 @@ const cc = i.conditionCounts || { good: 0, poor: 0, damaged: 0 };
     const items = getItems();
     const cats = getCategories();
     const locs = getLocations();
-    const rows = items.filter(i => i.quantity <= i.minStock).map(i => {
+    const rows = items.filter(i => availableQty(i) <= i.minStock).map(i => {
       const cat = cats.find(c => c.id === i.categoryId);
       const loc = locs.find(l => l.id === i.locationId);
-      const status = i.quantity === 0 ? "Out" : "Low";
+      const status = availableQty(i) === 0 ? "Out" : "Low";
       return [i.name, cat ? cat.name : "", loc ? loc.name : "", i.quantity, i.minStock, status];
     });
     return { title: "Low Stock Alerts", cols: ["Item", "Category", "Location", "Current", "Min", "Status"], rows };
@@ -3050,6 +3051,7 @@ function __invHistoryEntries() {
 
         entries.push({
           item,
+          historyIndex: h.historyIndex,
           cat,
           loc,
           at,
@@ -3120,11 +3122,11 @@ function __invFiltered() {
       if (!matchName && !matchCat && !matchRem && !matchPerson && !matchRef && !matchUser && !matchType) return false;
     }
     if (dateFrom) {
-      const d = e.at || 0;
+      const d = e.date && /^\d{4}-\d{2}-\d{2}$/.test(e.date) ? new Date(e.date + "T00:00:00").getTime() : e.at || 0;
       if (!d || d < new Date(dateFrom + "T00:00:00").getTime()) return false;
     }
     if (dateTo) {
-      const d = e.at || 0;
+      const d = e.date && /^\d{4}-\d{2}-\d{2}$/.test(e.date) ? new Date(e.date + "T00:00:00").getTime() : e.at || 0;
       if (!d || d >= new Date(dateTo + "T00:00:00").getTime() + 86400000) return false;
     }
     return true;
@@ -3175,6 +3177,105 @@ function actDdReflow() {
 window.addEventListener("resize", actDdReflow);
 window.addEventListener("scroll", actDdReflow, true);
 
+function inventoryHistoryEffect(entry) {
+  if (entry.effect) return structuredClone(entry.effect);
+  if (entry.type === "STOCK_IN" && !entry.person && !entry.ref) {
+    return { quantity: Number(entry.qty) || 0, conditions: { good: Number(entry.qty) || 0 } };
+  }
+  return null;
+}
+
+function manageInventoryHistory(button) {
+  if (!isDevAdmin()) return;
+  const district = activeDistrictId;
+  const item = getItems().find(row => row.id === button.dataset.id);
+  const index = Number(button.dataset.historyIndex);
+  const entry = item?.history?.[index];
+  if (!entry) return;
+  const deleting = button.dataset.action === "history-delete";
+  const effect = inventoryHistoryEffect(entry);
+  const snapshot = JSON.stringify(item);
+  const linkedModule = ["ALLOTMENT", "RETURN", "RECOVERED", "CANCELLED"].includes(entry.type) || /Issued quantity|Issue deleted/.test(entry.remarks || "") ? "allotments" :
+    entry.type === "DISPATCH" || /Distribution/i.test(entry.remarks || "") ? "distribution" :
+    /Demand/i.test(entry.remarks || "") ? "demands" : null;
+  const reversible = effect && !linkedModule;
+  if (deleting && !reversible) {
+    if (linkedModule) {
+      closeModals();
+      switchTab(linkedModule);
+      toast("Open the original transaction to reverse or delete this movement.", "");
+    } else toast("This legacy entry has no reliable stock reversal details. Use Adjust Stock to record its correction.", "error");
+    return;
+  }
+  const body = deleting
+    ? "<p>Delete this stock movement and reverse its effect on inventory?</p>"
+    : `<label>Date<input id="historyDate" type="date" value="${esc(entry.date || todayStr())}" max="${todayStr()}"></label>
+       <label>Time<input id="historyTime" type="time" value="${esc(entry.time || nowTimeStr())}"></label>
+       ${reversible && Number(entry.qty) !== 0 ? `<label>Quantity<input id="historyQty" type="number" min="1" step="1" value="${Math.abs(Number(entry.qty))}"></label>` : ""}
+       <label>Remark<textarea id="historyRemark">${esc(entry.remarks || "")}</textarea></label>`;
+  __devConfirm(deleting ? "Delete Stock Movement" : "Edit Stock Movement", body, deleting ? "Delete" : "Save", async () => {
+    if (!isDevAdmin() || activeDistrictId !== district) return;
+    const items = structuredClone(getItems());
+    const target = items.find(row => row.id === item.id);
+    if (!target || JSON.stringify(target) !== snapshot) return toast("This item changed. Open the entry again.", "error");
+    const nextEntry = { ...entry };
+    let factor = deleting ? 0 : 1;
+    if (!deleting) {
+      nextEntry.date = $("#historyDate").value;
+      nextEntry.time = $("#historyTime").value;
+      nextEntry.remarks = $("#historyRemark").value.trim();
+      if (!nextEntry.date || nextEntry.date > todayStr() || (nextEntry.date === todayStr() && nextEntry.time > nowTimeStr())) return toast("Enter a valid date and time.", "error");
+      if ($("#historyQty")) {
+        const quantity = Number($("#historyQty").value);
+        if (!Number.isSafeInteger(quantity) || quantity < 1) return toast("Enter a positive whole quantity.", "error");
+        factor = quantity / Math.abs(Number(entry.qty));
+        nextEntry.qty = Math.sign(Number(entry.qty)) * quantity;
+        if (quantity !== Math.abs(Number(entry.qty)) && nextEntry.remarks === (entry.remarks || "")) {
+          nextEntry.remarks += ` (quantity corrected from ${Math.abs(Number(entry.qty))} to ${quantity})`;
+        }
+      }
+    }
+    const quantityChange = reversible ? (Number(effect.quantity) || 0) * (factor - 1) : 0;
+    if (reversible) {
+      const counts = { ...(target.conditionCounts || { good: target.quantity || 0, poor: 0, damaged: 0 }) };
+      for (const condition of ["good", "poor", "damaged"]) {
+        counts[condition] = (counts[condition] || 0) + (Number(effect.conditions?.[condition]) || 0) * (factor - 1);
+        if (!Number.isSafeInteger(counts[condition]) || counts[condition] < 0) return toast("The recorded condition stock cannot support this change.", "error");
+      }
+      target.quantity += quantityChange;
+      target.conditionCounts = counts;
+      for (const field of ["lostReturned", "scrappedQuantity"]) {
+        target[field] = (target[field] || 0) + (Number(effect[field]) || 0) * (factor - 1);
+        if (!Number.isSafeInteger(target[field]) || target[field] < 0) return toast("Stock counters cannot support this reversal.", "error");
+      }
+      const held = allocTotals(target);
+      if (!Number.isSafeInteger(target.quantity) || target.quantity < 0 ||
+        target.quantity < held.allotted + held.damaged + held.lost + (counts.damaged || 0)) {
+        return toast("This stock is already issued, lost or reserved. Reverse those movements first.", "error");
+      }
+      if (!deleting) {
+        nextEntry.effect = { quantity: (effect.quantity || 0) * factor, conditions: {} };
+        for (const key of ["good", "poor", "damaged"]) nextEntry.effect.conditions[key] = (effect.conditions?.[key] || 0) * factor;
+        for (const key of ["lostReturned", "scrappedQuantity"]) nextEntry.effect[key] = (effect[key] || 0) * factor;
+        nextEntry.totalDelta = (effect.quantity || 0) * factor;
+        if (Number.isFinite(nextEntry.balance)) nextEntry.balance += quantityChange;
+      }
+      for (let later = index + 1; later < target.history.length; later++) {
+        for (const key of ["prev", "balance"]) if (Number.isFinite(target.history[later][key])) target.history[later][key] += quantityChange;
+      }
+    }
+    if (deleting) target.history.splice(index, 1);
+    else target.history[index] = { ...nextEntry, updatedAt: Date.now(), updatedBy: currentUser.id };
+    target.updatedAt = Date.now();
+    saveItems(items);
+    __audit(deleting ? "Stock Movement Deleted" : "Stock Movement Edited", target.name, { entity: "Inventory", entryId: entry.id });
+    try { if (window.__apiFlush) await window.__apiFlush(); }
+    catch (error) { return toast(error.body?.error || "History change could not be saved.", "error"); }
+    render();
+    toast(deleting ? "Movement deleted and stock reversed." : "Movement updated.", "success");
+  });
+}
+
 function renderInventory() {
   const cats = getCategories();
   const locs = getLocations();
@@ -3216,6 +3317,11 @@ function renderInventory() {
       else if (e.type === "ALLOTMENT") badgeCls = "status-low";
 
       let btns = actDD([{ label: "View Item", attrs: `data-action="view" data-id="${i.id}"` }]);
+      if (isDevAdmin() && Number.isInteger(e.historyIndex)) {
+        const attrs = `data-id="${esc(i.id)}" data-history-index="${e.historyIndex}"`;
+        btns += ` <button type="button" class="btn btn-sm btn-outline" data-action="history-edit" ${attrs}>Edit</button>
+          <button type="button" class="btn btn-sm btn-red" data-action="history-delete" ${attrs}>Delete</button>`;
+      }
 
       return `<tr data-item-id="${i.id}">
         <td>${whenHtml}</td>
@@ -3266,7 +3372,7 @@ function __invExportData() {
   return {
     title: "Stock History Report",
     subtitle: (dist ? dist.name + " \u00b7 " : "") + "Generated " + new Date().toLocaleString() + " (" + rows.length + " change" + (rows.length === 1 ? "" : "s") + ")",
-    cols: ["Date & Time", "Item Name", "Category", "Action", "Stock Change", "Prev Qty", "Balance", "Location", "Details"],
+    cols: ["Date & Time", "Item Name", "Category", "Action", "Movement Qty", "Total Before", "Total After", "Location", "Details"],
     rows,
     fileName: "stock-history-report"
   };
@@ -3706,7 +3812,17 @@ function __saveItemProfilePhotos(itemId, photos, meta) {
 }
 window.__saveItemProfilePhotos = __saveItemProfilePhotos;
 
+let __saveItemBusy = false;
 async function saveItem(e) {
+  e.preventDefault();
+  if (__saveItemBusy) return;
+  __saveItemBusy = true;
+  $("#itemSaveBtn").disabled = true;
+  try { await commitItem(e); }
+  catch (error) { toast(error.body?.error || "Item could not be saved. Refresh before retrying.", "error"); }
+  finally { __saveItemBusy = false; $("#itemSaveBtn").disabled = false; }
+}
+async function commitItem(e) {
   e.preventDefault();
   const id = $("#fItemId").value;
   // RBAC: ownership & role are re-checked here (UI convenience only — the
@@ -3720,16 +3836,17 @@ async function saveItem(e) {
   const name = $("#fItemName").value.trim();
   const categoryId = $("#fCategory").value;
   const unit = $("#fUnit").value;
-  const minStock = parseInt($("#fMinStock").value, 10);
+  const minStock = Number($("#fMinStock").value);
   const locationId = (!isAdmin() && currentUser && currentUser.locationId)
     ? currentUser.locationId
     : ($("#fLocation") ? $("#fLocation").value : "");
-  const good = parseInt($("#fCondGood").value, 10) || 0;
-  const poor = parseInt($("#fCondPoor").value, 10) || 0;
-  const damaged = parseInt($("#fCondDamaged").value, 10) || 0;
+  const good = Number($("#fCondGood").value || 0);
+  const poor = Number($("#fCondPoor").value || 0);
+  const damaged = Number($("#fCondDamaged").value || 0);
   const quantity = good + poor + damaged;
   const conditionCounts = { good, poor, damaged };
   if (!name || !categoryId || !locationId) return toast("Please fill all required fields.", "error");
+  if (![good, poor, damaged, minStock].every(value => Number.isSafeInteger(value) && value >= 0)) return toast("Quantities and minimum stock must be non-negative whole numbers.", "error");
   if (quantity === 0) return toast("Total quantity cannot be 0. Enter at least one condition count.", "error");
   if (currentUser && !isAdmin() && locationId !== currentUser.locationId) {
     return toast("You can only assign items to your own unit.", "error");
@@ -3745,7 +3862,7 @@ async function saveItem(e) {
     }
   }
 
-  const items = getItems();
+  const items = structuredClone(getItems());
   const histDate = ($("#fDate") && $("#fDate").value) || todayStr();
   const histTime = ($("#fTime") && $("#fTime").value) || nowTimeStr();
   if (histDate > todayStr()) return toast("Future date is not allowed. Please select today or a past date.", "error");
@@ -3754,6 +3871,9 @@ async function saveItem(e) {
   if (id) {
     const item = items.find(i => i.id === id);
     if (item) {
+      if (item.locationId !== locationId || item.categoryId !== categoryId || item.unit !== unit) {
+        if ((item.history || []).length || item.quantity || item.allotted) return toast("This item has stock history. Use Distribution to transfer stock and create a separate item for a different category or unit.", "error");
+      }
       const __origQty = item.quantity || 0;
       if (quantity !== __origQty) return toast("Total quantity cannot be changed by Update. Adjust Good / Damaged / Scrap so their total equals " + __origQty + " \u2014 Total Qty changes only via Add Stock.", "error");
       const held = (item.allotted || 0) + (item.damagedReturned || 0) + (item.lostReturned || 0);
@@ -3805,7 +3925,7 @@ async function saveItem(e) {
       }
       __audit("Item Updated", `"${name}" — qty ${quantity} (${good}G/${poor}P/${damaged}D)`, { entity: "Item" });
     }
-    toast("Item updated.", "success");
+
   } else {
     const newItem = { id: uid(), name, categoryId, unit, quantity, minStock, locationId, conditionCounts, createdAt: Date.now(), updatedAt: Date.now() };
     items.push(newItem);
@@ -3823,11 +3943,14 @@ async function saveItem(e) {
       photos: photoRefs.length ? photoRefs : undefined
     });
     __audit("Item Added", `"${name}" — qty ${quantity} (${good}G/${poor}P/${damaged}D)`, { entity: "Item" });
-    toast("Item added.", "success");
+
   }
   __attStore.itemEdit = [];
   __attRender("itemEdit");
   saveItems(items);
+  toast("Saving item…", "");
+  if (window.__apiFlush) await window.__apiFlush();
+  toast(id ? "Item updated." : "Item added.", "success");
   closeModals();
   render();
 }
@@ -4108,6 +4231,10 @@ function openAddStockModal(preset) {
   if (isDevAdmin()) { /* view-only open allowed */ }
   else
   if (!canManageItems()) return toast("You do not have permission to add stock.", "error");
+  const target = $("#asLocation");
+  target.innerHTML = getLocations().filter(location => isAdmin() || location.id === currentUser.locationId).map(location => `<option value="${esc(location.id)}">${esc(location.name)}</option>`).join("");
+  target.value = preset?.locationId || currentUser.locationId || target.options[0]?.value || "";
+  target.disabled = !isAdmin();
   __asPhotos = {}; __asSeq = 0;
   $("#asRows").innerHTML = "";
   addAsRow();
@@ -4122,7 +4249,7 @@ function openAddStockModal(preset) {
       catSel.value = preset.categoryId;
       __asPopulateRowItems(row);
       if (itemSel && !itemSel.disabled && preset.name) {
-        const hit = Array.from(itemSel.options).find(o => o.value === preset.name);
+        const hit = Array.from(itemSel.options).find(o => o.value === preset.id);
         if (hit) itemSel.value = preset.name;
       }
       if (row.__catCombo) row.__catCombo.sync();
@@ -4253,12 +4380,17 @@ function __asPopulateRowItems(row) {
     if (row.__itemCombo) row.__itemCombo.sync();
     return;
   }
-  const ownItems = getItems().filter(i => (!currentUser.locationId || i.locationId === currentUser.locationId) && i.categoryId === cid && !i.isDeleted);
-  const distItems = getAllDistrictItems().filter(i => i.categoryId === cid && !i.isDeleted);
-  const combined = [...new Set([...ownItems.map(i => i.name), ...distItems.map(i => i.name)].filter(Boolean))];
-  const names = __byName(combined, x => x);
+  const locationId = $("#asLocation").value;
+  const choices = getAllDistrictItems().filter(item => item.categoryId === cid && !item.isDeleted);
+  const ownItems = choices.filter(item => item.locationId === locationId);
+  const unique = [...ownItems];
+  for (const item of choices) {
+    if (!unique.some(existing => existing.name.trim().toLowerCase() === item.name.trim().toLowerCase() && existing.unit === item.unit)) unique.push(item);
+  }
   itemSel.disabled = false;
-  itemSel.innerHTML = `<option value="">Select item</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("") + `<option value="__new__">&#10133; New item...</option>`;
+  itemSel.innerHTML = '<option value="">Select item</option>' + __byName(unique, item => item.name).map(item =>
+    `<option value="${esc(item.id)}">${esc(item.name)} (${esc(item.unit || "pcs")})</option>`).join("") +
+    '<option value="__new__">&#10133; New item...</option>';
   if (row.__itemCombo) row.__itemCombo.sync();
 }
 function __asRenderThumbs(row) {
@@ -4313,8 +4445,7 @@ function __asRowsChange(e) {
       newName.value = "";
       const val = (e.target.value || "").trim();
       if (val) {
-        const it = getItems().find(i => (i.name || "").toLowerCase() === val.toLowerCase() && !i.isDeleted)
-          || getAllDistrictItems().find(i => (i.name || "").toLowerCase() === val.toLowerCase() && !i.isDeleted);
+        const it = getAllDistrictItems().find(i => i.id === val && !i.isDeleted);
         if (it) {
           if (unitSel && it.unit) {
             const hit = Array.from(unitSel.options).find(o => o.value.toLowerCase() === String(it.unit).toLowerCase());
@@ -4343,7 +4474,24 @@ function __asBreakdown(p) {
   return parts.length ? " (" + parts.join(", ") + ")" : "";
 }
 
+let __addStockBusy = false;
 async function saveAddStock(e) {
+  e.preventDefault();
+  if (__addStockBusy) return;
+  __addStockBusy = true;
+  const submit = e.target.querySelector('[type="submit"]');
+  if (submit) submit.disabled = true;
+  try {
+    await commitAddStock(e);
+  } catch (error) {
+    toast(error.body?.error || "Stock could not be saved. Refresh before retrying.", "error");
+  } finally {
+    __addStockBusy = false;
+    if (submit) submit.disabled = false;
+  }
+}
+
+async function commitAddStock(e) {
   e.preventDefault();
   if (!canManageItems()) return toast("You do not have permission to add stock.", "error");
   const date = ($("#asDate").value || "").trim() || todayStr();
@@ -4355,24 +4503,30 @@ async function saveAddStock(e) {
   const remarks = ($("#asRemarks").value || "").trim();
   const rows = $$("#asRows .as-item-row");
   if (!rows.length) return toast("Add at least one item.", "error");
+  const locationId = $("#asLocation").value;
+  if (!getLocations().some(location => location.id === locationId) || (!isAdmin() && locationId !== currentUser.locationId)) return toast("Select an authorised stock location.", "error");
   const plan = [];
   for (const row of rows) {
     const categoryId = (row.querySelector(".as-row-cat") || {}).value || "";
     const itemSel = row.querySelector(".as-row-item");
     const newNameEl = row.querySelector(".as-row-newname");
     const v = (itemSel || {}).value || "";
-    const name = (v === "__new__" ? (newNameEl.value || "") : v).trim();
-    const unit = (row.querySelector(".as-row-unit") || {}).value || "pcs";
-    const minStockVal = parseInt((row.querySelector(".as-row-min") || {}).value, 10);
-    const minStock = isNaN(minStockVal) || minStockVal < 0 ? 5 : minStockVal;
-    const qg = parseInt((row.querySelector(".as-row-qty-good") || {}).value, 10) || 0;
-    const qp = parseInt((row.querySelector(".as-row-qty-poor") || {}).value, 10) || 0;
-    const qd = parseInt((row.querySelector(".as-row-qty-damaged") || {}).value, 10) || 0;
+    const selected = getAllDistrictItems().find(item => item.id === v && !item.isDeleted && item.categoryId === categoryId);
+    const name = (v === "__new__" ? (newNameEl.value || "") : selected?.name || "").trim();
+    const requestedUnit = (row.querySelector(".as-row-unit") || {}).value || "pcs";
+    const unit = selected?.unit || requestedUnit;
+    const minStockVal = Number((row.querySelector(".as-row-min") || {}).value || 0);
+    if (!Number.isSafeInteger(minStockVal) || minStockVal < 0) return toast("Minimum stock must be a non-negative whole number.", "error");
+    const minStock = minStockVal;
+    const qg = Number((row.querySelector(".as-row-qty-good") || {}).value || 0);
+    const qp = Number((row.querySelector(".as-row-qty-poor") || {}).value || 0);
+    const qd = Number((row.querySelector(".as-row-qty-damaged") || {}).value || 0);
     const qty = qg + qp + qd;
     if (!categoryId) return toast("Every row needs a category.", "error");
     if (!name) return toast(v === "__new__" ? "Enter the new item name." : "Select an item in every row (or choose \u2795 New item...).", "error");
-    if (qty <= 0) return toast("Enter at least one quantity above 0 in every row.", "error");
-    plan.push({ row, categoryId, name, unit, minStock, qty, qg, qp, qd });
+    if (![qg, qp, qd].every(value => Number.isSafeInteger(value) && value >= 0) || !Number.isSafeInteger(qty) || qty <= 0) return toast("Enter non-negative whole quantities and at least one unit in every row.", "error");
+    if (String(unit).trim().toLowerCase() !== requestedUnit.trim().toLowerCase()) return toast("Keep the selected item unit. Create a separate item for a different unit.", "error");
+    plan.push({ row, categoryId, name, unit, minStock, qty, qg, qp, qd, selectedId: selected?.id });
   }
   // Photos are uploaded separately from the item data (server scan-file store
   // in remote mode; a dedicated local store otherwise). Only lightweight
@@ -4385,21 +4539,23 @@ async function saveAddStock(e) {
       catch (err) { toast(`Photo "${ph.name}" could not be uploaded. Please try again.`, "error"); return; }
     }
   }
-  const items = getItems();
+  const items = structuredClone(getItems());
   let updated = 0, created = 0;
   for (const p of plan) {
     const histPhotos = p.photoRefs.length ? p.photoRefs : undefined;
-    let item = items.find(i => i.locationId === currentUser.locationId && (i.name || "").toLowerCase() === p.name.toLowerCase());
+    const matchesTarget = item => !item.isDeleted && item.locationId === locationId && item.categoryId === p.categoryId &&
+      String(item.unit || "pcs").trim().toLowerCase() === String(p.unit).trim().toLowerCase();
+    let item = items.find(item => matchesTarget(item) && item.id === p.selectedId) ||
+      items.find(item => matchesTarget(item) && (item.name || "").trim().toLowerCase() === p.name.toLowerCase());
     if (item) {
-      if (p.unit) item.unit = p.unit;
       if (typeof p.minStock === "number") item.minStock = p.minStock;
-      item.conditionCounts = item.conditionCounts || { good: item.quantity || 0, poor: 0, damaged: 0 };
+      item.conditionCounts = stockConditionCounts(item);
       item.conditionCounts.good = (item.conditionCounts.good || 0) + p.qg;
       item.conditionCounts.poor = (item.conditionCounts.poor || 0) + p.qp;
       item.conditionCounts.damaged = (item.conditionCounts.damaged || 0) + p.qd;
       item.quantity = (item.conditionCounts.good || 0) + (item.conditionCounts.poor || 0) + (item.conditionCounts.damaged || 0);
       item.updatedAt = Date.now();
-      itemHistoryPush(item, { type: "STOCK_IN", qty: p.qty, person: "", ref: "", date, time, remarks: remarks || ("Stock added +" + p.qty + __asBreakdown(p)), photos: histPhotos });
+      itemHistoryPush(item, { type: "STOCK_IN", qty: p.qty, person: "", ref: "", date, time, remarks: remarks || ("Stock added +" + p.qty + __asBreakdown(p)), photos: histPhotos, effect: { quantity: p.qty, conditions: { good: p.qg, poor: p.qp, damaged: p.qd } } });
       updated++;
     } else {
       const cc = { good: p.qg, poor: p.qp, damaged: p.qd };
@@ -4410,14 +4566,14 @@ async function saveAddStock(e) {
         unit: p.unit || "pcs",
         quantity: p.qty,
         minStock: typeof p.minStock === "number" ? p.minStock : 5,
-        locationId: currentUser.locationId,
+        locationId,
         conditionCounts: cc,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         history: []
       };
       items.push(item);
-      itemHistoryPush(item, { type: "STOCK_IN", qty: p.qty, person: "", ref: "", date, time, remarks: remarks || ("New item created with opening stock +" + p.qty + __asBreakdown(p)), photos: histPhotos });
+      itemHistoryPush(item, { type: "STOCK_IN", qty: p.qty, person: "", ref: "", date, time, remarks: remarks || ("New item created with opening stock +" + p.qty + __asBreakdown(p)), photos: histPhotos, effect: { quantity: p.qty, conditions: { good: p.qg, poor: p.qp, damaged: p.qd } } });
       created++;
     }
     const rowPhotos = __asPhotos[p.row.dataset.key] || [];
@@ -4427,6 +4583,8 @@ async function saveAddStock(e) {
     __audit("Stock Added", '"' + item.name + '" +' + p.qty + __asBreakdown(p) + ", total " + item.quantity, { entity: "Item" });
   }
   saveItems(items);
+  toast("Saving stock…", "");
+  if (window.__apiFlush) await window.__apiFlush();
   closeModals();
   render();
   toast(created ? `Stock added: ${updated} updated, ${created} new item(s).` : `Stock added to ${updated} item(s).`, "success");
@@ -10335,14 +10493,14 @@ const __RPT_BUILDERS = {
     const rows = items.map(i => {
       const cat = cats.find(c => c.id === i.categoryId);
       const loc = locs.find(l => l.id === i.locationId);
-      const status = i.quantity === 0 ? "Out" : i.quantity <= i.minStock ? "Low" : "OK";
+      const status = availableQty(i) === 0 ? "Out" : availableQty(i) <= i.minStock ? "Low" : "OK";
       return [i.name, cat ? cat.name : "", loc ? loc.name : "", i.quantity, i.unit, i.minStock, status];
     });
     return { title: "Total Items", cols: ["Item", "Category", "Location", "Qty", "Unit", "Min", "Status"], rows };
   },
-  instock: () => __rptStockRows(i => i.quantity > i.minStock, "In Stock Items"),
-  lowstock: () => __rptStockRows(i => i.quantity > 0 && i.quantity <= i.minStock, "Low Stock Items"),
-  outofstock: () => __rptStockRows(i => i.quantity === 0, "Out of Stock Items"),
+  instock: () => __rptStockRows(i => availableQty(i) > i.minStock, "In Stock Items"),
+  lowstock: () => __rptStockRows(i => availableQty(i) > 0 && availableQty(i) <= i.minStock, "Low Stock Items"),
+  outofstock: () => __rptStockRows(i => availableQty(i) === 0, "Out of Stock Items"),
 good: () => __rptCondRows("good", "Good Units"),
   poor: () => __rptCondRows("poor", "Damaged Units"),
   damaged: () => __rptCondRows("damaged", "Scrap Units")
@@ -10355,7 +10513,7 @@ function __rptStockRows(pred, label) {
   const rows = items.map(i => {
     const cat = cats.find(c => c.id === i.categoryId);
     const loc = locs.find(l => l.id === i.locationId);
-    const status = i.quantity === 0 ? "Out" : i.quantity <= i.minStock ? "Low" : "OK";
+    const status = availableQty(i) === 0 ? "Out" : availableQty(i) <= i.minStock ? "Low" : "OK";
     return [i.name, cat ? cat.name : "", loc ? loc.name : "", i.quantity, i.unit, i.minStock, status];
   });
   return { title: label, cols: ["Item", "Category", "Location", "Qty", "Unit", "Min", "Status"], rows };
@@ -10492,7 +10650,7 @@ function __rptMergedRows() {
       "Issued": i.allotted || 0,
       "Good": cc.good || 0,
       "Damaged": cc.poor || 0,
-      "Scrap": cc.damaged || 0,
+      "Scrap": scrapQty(i),
       "Lost": i.lostReturned || 0,
       "Recovered": recovered,
       "Min Stock": i.minStock || 0,
@@ -10504,9 +10662,9 @@ function __rptMergedRows() {
 function renderMergedReport() {
   const items = getItems();
   const total = items.length;
-  const inStock = items.filter(i => i.quantity > i.minStock).length;
-  const lowStock = items.filter(i => i.quantity > 0 && i.quantity <= i.minStock).length;
-  const outOfStock = items.filter(i => i.quantity === 0).length;
+  const inStock = items.filter(i => availableQty(i) > i.minStock).length;
+  const lowStock = items.filter(i => availableQty(i) > 0 && availableQty(i) <= i.minStock).length;
+  const outOfStock = items.filter(i => availableQty(i) === 0).length;
   const goodUnits = items.reduce((sum, i) => sum + ((i.conditionCounts || {}).good || 0), 0);
   const poorUnits = items.reduce((sum, i) => sum + ((i.conditionCounts || {}).poor || 0), 0);
   const damagedUnits = items.reduce((sum, i) => sum + ((i.conditionCounts || {}).damaged || 0), 0);
@@ -10601,6 +10759,19 @@ function allocTotals(item) {
   };
 }
 
+function scrapQty(item) {
+  return ((item.conditionCounts || {}).damaged || 0) + (item.scrappedQuantity || 0) + (item.damagedReturned || 0);
+}
+
+// Older loss entries removed Good counts without reducing the stock total.
+// Preserve that total when an item next receives a stock or condition update.
+function stockConditionCounts(item) {
+  const counts = { good: 0, poor: 0, damaged: 0, ...item.conditionCounts };
+  const missing = (Number(item.quantity) || 0) - counts.good - counts.poor - counts.damaged;
+  if (missing > 0) counts.good += missing;
+  return counts;
+}
+
 function availableQty(item) {
   const t = allocTotals(item);
   const __dmg = (item.conditionCounts || {}).damaged || 0;
@@ -10611,7 +10782,7 @@ function allocStatusOfItem(item) {
   const avail = availableQty(item);
   if (avail <= 0) {
     const t = allocTotals(item);
-    if (t.allotted > 0 || t.damaged > 0 || t.lost > 0) return { cls: "status-out", label: "Fully Issued" };
+    if (t.allotted > 0 && t.allotted === item.quantity) return { cls: "status-out", label: "Fully Issued" };
     return { cls: "status-out", label: "Out of Stock" };
   }
   if (avail <= (item.minStock || 0)) return { cls: "status-low", label: "Low" };
@@ -10620,8 +10791,11 @@ function allocStatusOfItem(item) {
 
 function allocLost(a) { return Math.max(0, a.qtyLost || 0); }
 function allocRecovered(a) { return Math.max(0, a.qtyRecovered || 0); }
-function allocRecoverable(a) { return Math.max(0, allocLost(a) - allocRecovered(a)); }
-function allocOutstanding(a) { return Math.max(0, (a.qtyAllotted || 0) - (a.qtyReturned || 0) - allocLost(a)); }
+function legacyReturnedLoss(a) {
+  return (a.returns || []).reduce((sum, row) => sum + (row.condition === "lost" && !row.lossTracked ? Number(row.qty) || 0 : 0), 0);
+}
+function allocRecoverable(a) { return Math.max(0, allocLost(a) + legacyReturnedLoss(a) - allocRecovered(a)); }
+function allocOutstanding(a) { return a.status === "CANCELLED" ? 0 : Math.max(0, (a.qtyAllotted || 0) - (a.qtyReturned || 0) - allocLost(a)); }
 function allocRemaining(a) { return allocOutstanding(a); }
 
 function __allocMobileOf(a) {
@@ -10635,7 +10809,7 @@ function allocStatusOf(a) {
   const out = allocOutstanding(a);
   const recoverable = allocRecoverable(a);
   if (out <= 0 && recoverable <= 0) {
-    if (a.status === "DAMAGED") return "DAMAGED";
+    if (a.status === "DAMAGED" || (a.returns || []).some(row => row.condition === "damaged")) return "DAMAGED";
     if (a.status === "LOST" && allocLost(a) === 0 && allocRecovered(a) === 0) return "LOST";
     return "RETURNED";
   }
@@ -10661,9 +10835,24 @@ function allocStatusBadge(st) {
   return `<span class="status-badge ${m.cls}">${m.label}</span>`;
 }
 
+function historyTotalDelta(entry) {
+  if (Number.isFinite(entry.totalDelta)) return entry.totalDelta;
+  if (entry.effect) return Number(entry.effect.quantity) || 0;
+  if (["ALLOTMENT", "RETURN", "RECOVERED", "CANCELLED", "LOSS"].includes(entry.type)) return 0;
+  if (entry.type === "DAMAGE" && Number(entry.qty) > 0) return 0;
+  if (entry.type === "ADJUST" && /Issued quantity changed|Issue deleted|Condition breakdown|Item details|photos uploaded/i.test(entry.remarks || "")) return 0;
+  return Number(entry.qty) || 0;
+}
+
 function itemHistoryPush(item, ev) {
   if (!item.history) item.history = [];
+  const totalDelta = historyTotalDelta(ev);
   const entry = {
+    id: uid(),
+    totalDelta,
+    prev: (Number(item.quantity) || 0) - totalDelta,
+    balance: Number(item.quantity) || 0,
+    effect: ev.effect,
     type: ev.type,
     qty: ev.qty || 0,
     person: ev.person || "",
@@ -10680,8 +10869,12 @@ function itemHistoryPush(item, ev) {
 
 function __histWithBalances(item) {
   const h = (item.history || []).slice();
-  let run = (item.quantity || 0) - h.reduce((s, x) => s + (Number(x.qty) || 0), 0);
-  return h.map(x => { const prev = run; run += (Number(x.qty) || 0); return Object.assign({}, x, { prev: prev, balance: run }); });
+  let run = (item.quantity || 0) - h.reduce((sum, entry) => sum + historyTotalDelta(entry), 0);
+  return h.map((entry, index) => {
+    const prev = Number.isFinite(entry.prev) ? entry.prev : run;
+    run = Number.isFinite(entry.balance) ? entry.balance : prev + historyTotalDelta(entry);
+    return { ...entry, historyIndex: index, prev, balance: run };
+  });
 }
 const __hTypeLabel = { STOCK_IN: "Stock Added", ADJUST: "Stock Adjustment", WRITEOFF: "Write-off", DAMAGE: "Marked Scrap", LOSS: "Marked Lost", RETURN: "Returned", RECOVERED: "Recovered", CANCELLED: "Issue Cancelled", ITEM_DELETED: "Item Deleted" };
 function persistAlloc(items, allotments, persons) {
@@ -10803,7 +10996,7 @@ function __allocStockSorted(rows) {
     else if (key === "allotted") { av = a.allotted || 0; bv = b.allotted || 0; }
     else if (key === "loss") { av = a.lostReturned || 0; bv = b.lostReturned || 0; }
     else if (key === "damaged") { av = (a.conditionCounts || {}).poor || 0; bv = (b.conditionCounts || {}).poor || 0; }
-    else if (key === "scrap") { av = (a.conditionCounts || {}).damaged || 0; bv = (b.conditionCounts || {}).damaged || 0; }
+    else if (key === "scrap") { av = scrapQty(a); bv = scrapQty(b); }
     else if (key === "status") { av = allocStatusOfItem(a).label; bv = allocStatusOfItem(b).label; }
     if (typeof av === "number") return (av - bv) * dir;
     return String(av).localeCompare(String(bv)) * dir;
@@ -10879,7 +11072,7 @@ function renderAllocStock() {
     tloss += i.lostReturned || 0;
     const __cc = i.conditionCounts || {};
     tdamaged += __cc.poor || 0;
-    tscrap += __cc.damaged || 0;
+    tscrap += scrapQty(i);
   });
   const baseNo = __pgPage("allocStock", rows.length) * __pgSize("allocStock");
   body.innerHTML = __pgRows("allocStock", rows).map((i, idx) => {
@@ -10897,7 +11090,7 @@ function renderAllocStock() {
         { label: "Mark Lost", cls: "act-dd-del", attrs: `data-alloc-action="loss" data-id="${i.id}"` }
       ] : [])
     ]);
-    return `<tr><td>${baseNo + idx + 1}</td><td class="item-name">${__ipLink(i)}</td>${unitCell}<td class="qty-strong">${i.quantity || 0}</td><td class="qty-strong" style="color:var(--green)">${availableQty(i)}</td><td class="qty-strong" style="color:var(--primary)">${i.allotted || 0}</td><td class="qty-strong" style="color:var(--red)">${i.lostReturned || 0}</td><td class="qty-strong" style="color:var(--amber)">${(i.conditionCounts || {}).poor || 0}</td><td class="qty-strong" style="color:var(--red)">${(i.conditionCounts || {}).damaged || 0}</td><td><span class="status-badge ${st.cls}">${st.label}</span></td><td class="actions-cell">${acts}</td></tr>`;
+    return `<tr><td>${baseNo + idx + 1}</td><td class="item-name">${__ipLink(i)}</td>${unitCell}<td class="qty-strong">${i.quantity || 0}</td><td class="qty-strong" style="color:var(--green)">${availableQty(i)}</td><td class="qty-strong" style="color:var(--primary)">${i.allotted || 0}</td><td class="qty-strong" style="color:var(--red)">${i.lostReturned || 0}</td><td class="qty-strong" style="color:var(--amber)">${(i.conditionCounts || {}).poor || 0}</td><td class="qty-strong" style="color:var(--red)">${scrapQty(i)}</td><td><span class="status-badge ${st.cls}">${st.label}</span></td><td class="actions-cell">${acts}</td></tr>`;
   }).join("") +
     `<tr class="rpt-total-row"><td></td><td class="rpt-total-label">Total</td>${allMode ? "<td></td>" : ""}<td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavailable}</td><td class="qty-strong">${tallot}</td><td class="qty-strong">${tloss}</td><td class="qty-strong">${tdamaged}</td><td class="qty-strong">${tscrap}</td><td colspan="2"></td></tr>`;
   renderPager("allocStock", rows.length, renderAllocStock);
@@ -10929,8 +11122,8 @@ function saveInvLoss(e) {
   if (!canEditItem(item)) return toast(__rbacLockMsg(), "error");
 
   const avail = availableQty(item);
-  const qty = Math.floor(Number($("#ilQty").value));
-  if (!isFinite(qty) || qty <= 0) return toast("Lost quantity must be a positive whole number.", "error");
+  const qty = Number($("#ilQty").value);
+  if (!Number.isSafeInteger(qty) || qty <= 0) return toast("Lost quantity must be a positive whole number.", "error");
   if (qty > avail) return toast("Insufficient available quantity. Available quantity: " + avail + " | Requested quantity: " + qty, "error");
 
   const remarks = ($("#ilRemarks").value || "").trim();
@@ -10940,32 +11133,12 @@ function saveInvLoss(e) {
   // Deduct from available by increasing lostReturned counter
   item.lostReturned = (item.lostReturned || 0) + qty;
 
-  // Deduct from conditionCounts (good first, then poor, then damaged)
-  if (!item.conditionCounts) {
-    item.conditionCounts = { good: Math.max(0, (item.quantity || 0) - qty), poor: 0, damaged: 0 };
-  } else {
-    let remDeduct = qty;
-    if (item.conditionCounts.good > 0) {
-      const take = Math.min(item.conditionCounts.good, remDeduct);
-      item.conditionCounts.good -= take;
-      remDeduct -= take;
-    }
-    if (remDeduct > 0 && item.conditionCounts.poor > 0) {
-      const take = Math.min(item.conditionCounts.poor, remDeduct);
-      item.conditionCounts.poor -= take;
-      remDeduct -= take;
-    }
-    if (remDeduct > 0 && item.conditionCounts.damaged > 0) {
-      const take = Math.min(item.conditionCounts.damaged, remDeduct);
-      item.conditionCounts.damaged -= take;
-      remDeduct -= take;
-    }
-  }
   item.updatedAt = Date.now();
 
   itemHistoryPush(item, {
     type: "LOSS",
     qty: -qty,
+    effect: { lostReturned: qty },
     date,
     time,
     remarks: remarks || ("Marked " + qty + " " + (item.unit || "pcs") + " lost from stock")
@@ -11621,6 +11794,7 @@ function saveEditedAllotment(e, id) {
   const qEl = first ? document.querySelector(`.al-row-qty[data-row="${first.key}"]`) : null;
   const newQty = qEl ? parseInt(qEl.value, 10) : 0;
   if (!newQty || newQty < 1) return toast("Enter a valid quantity.", "error");
+  if (a.status === "CANCELLED") return toast("Cancelled issues cannot be edited.", "error");
   const committed = (a.qtyReturned || 0) + allocLost(a);
   if (newQty < committed) return toast(`Quantity cannot be less than the already committed amount (${committed} = returned ${a.qtyReturned || 0} + lost ${allocLost(a)}).`, "error");
 
@@ -11665,14 +11839,14 @@ function saveReturn(e) {
   e.preventDefault();
   if (!canEdit()) return toast("You do not have permission to process returns.", "error");
   const id = __returnAllotId;
-  const qty = parseInt($("#rtQty").value, 10);
+  const qty = Number($("#rtQty").value);
   const date = $("#rtDate").value || todayStr();
   const time = $("#rtTime").value || nowTimeStr();
   if (date > todayStr()) return toast("Future date is not allowed. Please select today or a past date.", "error");
   if (date === todayStr() && time > nowTimeStr()) return toast("Future time is not allowed. Please select current or past time.", "error");
   const condition = $("#rtCondition").value;
   const remarks = $("#rtRemarks").value.trim();
-  if (!qty || qty < 1) return toast("Enter a valid return quantity.", "error");
+  if (!Number.isSafeInteger(qty) || qty < 1) return toast("Enter a valid whole return quantity.", "error");
 
   const allotments = getAllotments();
   const a = allotments.find(x => x.id === id);
@@ -11684,18 +11858,38 @@ function saveReturn(e) {
   const item = items.find(i => i.id === a.itemId);
   if (!item) return toast("Item not found.", "error");
 
-  a.qtyReturned = (a.qtyReturned || 0) + qty;
-  (a.returns || (a.returns = [])).push({ qty, date, time, condition, remarks, receivedBy: currentUser ? (currentUser.name || currentUser.username) : "", at: Date.now() });
-
-  item.allotted = Math.max(0, (item.allotted || 0) - qty);
-  if (condition === "damaged") item.damagedReturned = (item.damagedReturned || 0) + qty;
-  else if (condition === "lost") item.lostReturned = (item.lostReturned || 0) + qty;
+  if (!["good", "poor", "damaged", "lost", "other"].includes(condition)) return toast("Select a valid return condition.", "error");
+  if (qty > (item.allotted || 0)) return toast("Issued stock counters need reconciliation.", "error");
+  const conditionEffect = {};
+  if (condition !== "lost") {
+    const original = a.condition === "poor" ? "poor" : "good";
+    const returned = condition === "other" ? original : condition;
+    const counts = stockConditionCounts(item);
+    if (original !== returned) {
+      if (counts[original] < qty) return toast("Not enough stock in the original issue condition.", "error");
+      counts[original] -= qty;
+      counts[returned] += qty;
+      conditionEffect[original] = -qty;
+      conditionEffect[returned] = qty;
+    }
+    item.conditionCounts = counts;
+    a.qtyReturned = (a.qtyReturned || 0) + qty;
+  } else {
+    a.qtyLost = allocLost(a) + qty;
+    item.lostReturned = (item.lostReturned || 0) + qty;
+  }
+  (a.returns || (a.returns = [])).push({
+    qty, date, time, condition, remarks, conditionEffect,
+    ...(condition === "lost" ? { lossTracked: true } : {}),
+    receivedBy: currentUser ? (currentUser.name || currentUser.username) : "", at: Date.now()
+  });
+  item.allotted -= qty;
 
   a.status = allocStatusOf(a);
 
   const typeMap = { good: "RETURN", poor: "RETURN", other: "RETURN", damaged: "DAMAGE", lost: "LOSS" };
   const condText = condition === "damaged" ? "Returned as damaged" : condition === "poor" ? "Returned in poor condition" : condition === "lost" ? "Reported lost" : "Returned in good condition";
-  itemHistoryPush(item, { type: typeMap[condition] || "RETURN", qty, person: a.name, ref: a.beltNo, date, time, remarks: condText });
+  itemHistoryPush(item, { type: typeMap[condition] || "RETURN", qty, person: a.name, ref: a.beltNo, date, time, effect: { conditions: conditionEffect, allotted: -qty, lostReturned: condition === "lost" ? qty : 0 }, remarks: condText });
 
 persistAlloc(items, allotments, null);
   closeModals();
@@ -11715,15 +11909,23 @@ function deleteIssuedItem(id) {
   if (!item) return toast("The source inventory item is missing.", "error");
   const counts = allocTotals(item);
   const returns = issue.returns || [];
-  const returnedAs = condition => returns.reduce((qty, row) =>
-    row.condition === condition ? qty + Number(row.qty) : qty, 0);
   const outstanding = issue.status === "CANCELLED" ? 0 : allocOutstanding(issue);
-  const damaged = returnedAs("damaged");
-  const lost = returnedAs("lost") + allocRecoverable(issue);
+  const damaged = returns.reduce((sum, row) => sum + (row.condition === "damaged" && !row.conditionEffect ? Number(row.qty) || 0 : 0), 0);
+  const lost = allocRecoverable(issue);
   if ([outstanding, damaged, lost].some(qty => !Number.isSafeInteger(qty) || qty < 0) ||
     outstanding > counts.allotted || damaged > counts.damaged || lost > counts.lost) {
     return toast("Inventory totals do not match this issue's stock history.", "error");
   }
+  const conditions = stockConditionCounts(item);
+  for (const row of returns) {
+    for (const [condition, delta] of Object.entries(row.conditionEffect || {})) {
+      conditions[condition] -= delta;
+    }
+  }
+  if (Object.values(conditions).some(qty => !Number.isSafeInteger(qty) || qty < 0)) {
+    return toast("Returned stock has changed condition. Reconcile it before deleting this issue.", "error");
+  }
+  item.conditionCounts = conditions;
   item.allotted = counts.allotted - outstanding;
   item.damagedReturned = counts.damaged - damaged;
   item.lostReturned = counts.lost - lost;
@@ -11738,18 +11940,22 @@ function deleteIssuedItem(id) {
 }
 
 function cancelAllotment(id) {
-  const a = getAllotments().find(x => x.id === id);
-  if (!a) return;
+  if (!canEdit()) return;
+  const allotments = getAllotments();
+  const a = allotments.find(x => x.id === id);
+  if (!a || a.status === "CANCELLED") return;
   if (!confirm(`Cancel this issue to "${a.name}"? Remaining units (${allocRemaining(a)}) will be returned to stock.`)) return;
   const items = getItems();
   const item = items.find(i => i.id === a.itemId);
+  if (!item) return toast("Item not found.", "error");
   const rem = allocRemaining(a);
+  if (rem > (item.allotted || 0)) return toast("Issued stock counters need reconciliation.", "error");
   if (rem > 0 && item) item.allotted = Math.max(0, (item.allotted || 0) - rem);
   if (item) itemHistoryPush(item, { type: "CANCELLED", qty: rem, person: a.name, ref: a.beltNo, date: todayStr(), time: nowTimeStr(), remarks: "Issue cancelled, stock restored" });
   (a.returns || (a.returns = [])).push({ qty: rem, date: todayStr(), time: nowTimeStr(), condition: "cancelled", remarks: "Issue cancelled", receivedBy: currentUser ? (currentUser.name || currentUser.username) : "", at: Date.now() });
 a.status = "CANCELLED";
   a.statusNote = "Cancelled by " + (currentUser ? (currentUser.name || currentUser.username) : "");
-  persistAlloc(items, getAllotments(), null);
+  persistAlloc(items, allotments, null);
   render();
   __audit("Issue Cancelled", `${a.itemName} ? ${a.name} (BELT: ${a.beltNo})`, { entity: "Allotment" });
   toast("Issue cancelled. Stock restored.", "success");
@@ -11801,9 +12007,10 @@ function submitLoss(e) {
       __allocFieldErr($("#lsError"), "Lost reason is required.");
       return;
     }
-    const qty = parseInt($("#lsQty").value, 10);
-    if (!qty || qty < 1) return __allocFieldErr($("#lsError"), "Lost quantity is required.");
-    const a = getAllotments().find(x => x.id === __allocLossId);
+    const qty = Number($("#lsQty").value);
+    if (!Number.isSafeInteger(qty) || qty < 1) return __allocFieldErr($("#lsError"), "Enter a positive whole lost quantity.");
+    const allotments = getAllotments();
+    const a = allotments.find(x => x.id === __allocLossId);
     if (!a) return toast("Issue record not found.", "error");
     const outstanding = allocOutstanding(a);
     if (outstanding <= 0) return toast("No quantity eligible for loss.", "error");
@@ -11822,7 +12029,7 @@ function submitLoss(e) {
     item.lostReturned = (item.lostReturned || 0) + qty;
     itemHistoryPush(item, { type: "LOSS", qty, person: a.name, ref: a.beltNo, date, time, remarks: reason });
     a.status = allocStatusOf(a);
-    persistAlloc(items, getAllotments(), null);
+    persistAlloc(items, allotments, null);
     closeModals();
     render();
     __audit("Item Lost Reported", `${qty} x ${a.itemName} lost from ${a.name} (BELT: ${a.beltNo}) \u2014 ${reason}`, { entity: "Allotment" });
@@ -11883,8 +12090,8 @@ function submitRecovery(e) {
     if (!categoryId) return __allocFieldErr(err, "Category is required.");
     const itemId = ($("#rcItem").value || "").trim();
     if (!itemId) return __allocFieldErr(err, "Item is required.");
-    const qty = parseInt($("#rcQty").value, 10);
-    if (!qty || qty < 1) return __allocFieldErr(err, "Recovery quantity is required.");
+    const qty = Number($("#rcQty").value);
+    if (!Number.isSafeInteger(qty) || qty < 1) return __allocFieldErr(err, "Enter a positive whole recovery quantity.");
     const mode = ($("#rcMode").value || "").trim();
     if (!mode) return __allocFieldErr(err, "Mode of recovery is required.");
     const date = ($("#rcDate").value || "").trim();
@@ -11894,7 +12101,8 @@ function submitRecovery(e) {
     if (!time) return __allocFieldErr(err, "Time is required.");
     if (date === todayStr() && time > nowTimeStr()) return __allocFieldErr(err, "Future time is not allowed. Please select current or past time.");
 
-    const a = getAllotments().find(x => x.id === __allocRecoveryId);
+    const allotments = getAllotments();
+    const a = allotments.find(x => x.id === __allocRecoveryId);
     if (!a) return toast("Issue record not found.", "error");
     const recoverable = allocRecoverable(a);
     if (recoverable <= 0) return toast("No recoverable loss quantity exists for this issue.", "error");
@@ -11912,7 +12120,7 @@ function submitRecovery(e) {
     item.lostReturned = Math.max(0, (item.lostReturned || 0) - qty);
     itemHistoryPush(item, { type: "RECOVERED", qty, person: a.name, ref: a.beltNo, date, time, remarks: "Recovered via " + mode + (remarks ? " ? " + remarks : "") });
     a.status = allocStatusOf(a);
-    persistAlloc(items, getAllotments(), null);
+    persistAlloc(items, allotments, null);
     closeModals();
     render();
     __audit("Item Recovery", `${qty} x ${a.itemName} recovered for ${a.name} (BELT: ${a.beltNo}) ? Mode: ${mode}`, { entity: "Allotment" });
@@ -11923,14 +12131,43 @@ function submitRecovery(e) {
 }
 
 /* ---- Adjust stock ---- */
+function renderAdjustmentStockSummary() {
+  const summary = $("#ajStockSummary");
+  const item = getItems().find(row => row.id === $("#ajItem").value);
+  if (!item) {
+    summary.textContent = "Select an item to see its current stock quantities.";
+    return;
+  }
+  const totals = allocTotals(item);
+  const quantities = [
+    ["Total", item.quantity || 0],
+    ["Available", availableQty(item)],
+    ["Issued", totals.allotted],
+    ["Lost", totals.lost],
+    ["Damaged", (item.conditionCounts || {}).poor || 0],
+    ["Scrap", scrapQty(item)]
+  ];
+  summary.innerHTML = `<label>Current Stock Quantities</label><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">${quantities.map(([label, value]) => `<div style="padding:10px;border:1px solid var(--border);border-radius:8px"><span>${label}</span><strong style="display:block;font-size:1.15rem">${esc(String(value))}</strong></div>`).join("")}</div>`;
+}
+
+function syncAdjustmentFields() {
+  const isCorrection = $("#ajType").value === "correction";
+  $("#ajQtyGroup").classList.toggle("hidden", isCorrection);
+  $("#ajTotalGroup").classList.toggle("hidden", !isCorrection);
+  $("#ajQty").required = !isCorrection;
+  $("#ajQty").disabled = isCorrection;
+  $("#ajTotal").required = isCorrection;
+  $("#ajTotal").disabled = !isCorrection;
+  renderAdjustmentStockSummary();
+}
+
 function openAdjustStock(presetItemId) {
   const items = getItems().slice().sort((a, b) => a.name.localeCompare(b.name));
   const itemSel = $("#ajItem");
   itemSel.innerHTML = items.map(i => `<option value="${i.id}">${esc(i.name)} (Available: ${availableQty(i)})</option>`).join("");
   itemSel.value = presetItemId || "";
-  $("#ajType").value = "add";
-  $("#ajQtyGroup").classList.remove("hidden");
-  $("#ajTotalGroup").classList.add("hidden");
+  $("#ajType").value = "correction";
+  syncAdjustmentFields();
   $("#ajQty").value = 1;
   $("#ajTotal").value = "";
   $("#ajRemarks").value = "";
@@ -11940,13 +12177,25 @@ function openAdjustStock(presetItemId) {
   openModal("#adjustModal");
 }
 
-function saveAdjust(e) {
+let __adjustBusy = false;
+async function saveAdjust(e) {
+  e.preventDefault();
+  if (__adjustBusy) return;
+  __adjustBusy = true;
+  const submit = e.target.querySelector('[type="submit"]');
+  if (submit) submit.disabled = true;
+  try { await commitAdjustment(e); }
+  catch (error) { toast(error.body?.error || "Adjustment could not be saved.", "error"); }
+  finally { __adjustBusy = false; if (submit) submit.disabled = false; }
+}
+async function commitAdjustment(e) {
   e.preventDefault();
   if (!canEdit()) return toast("You do not have permission to adjust stock.", "error");
   const itemId = $("#ajItem").value;
   const type = $("#ajType").value;
-  const qty = parseInt($("#ajQty").value, 10);
-  const total = parseInt($("#ajTotal").value, 10);
+  if (!["correction", "damage", "loss"].includes(type)) return toast("Select a valid adjustment type.", "error");
+  const qty = Number($("#ajQty").value);
+  const total = Number($("#ajTotal").value);
   const date = $("#ajDate").value || todayStr();
   const time = $("#ajTime").value || nowTimeStr();
   if (date > todayStr()) return toast("Future date is not allowed. Please select today or a past date.", "error");
@@ -11954,45 +12203,71 @@ function saveAdjust(e) {
   const remarks = $("#ajRemarks").value.trim();
   if (!itemId) return toast("Select an item.", "error");
 
-  const items = getItems();
+  const items = structuredClone(getItems());
   const item = items.find(i => i.id === itemId);
   if (!item) return toast("Item not found.", "error");
   if (!itemOwnedByCurrentUser(item)) return toast(__rbacLockMsg(), "error");
   const held = (item.allotted || 0) + (item.damagedReturned || 0) + (item.lostReturned || 0);
 
   if (type === "correction") {
-    if (!(total >= 0) || isNaN(total)) return toast("Enter the corrected total quantity.", "error");
+    if (!Number.isSafeInteger(total) || total < 0) return toast("Enter the corrected total quantity.", "error");
     if (total < held) return toast(`Corrected total cannot be less than currently held units (issued+damaged+lost = ${held}).`, "error");
     const delta = total - (item.quantity || 0);
+    const counts = stockConditionCounts(item);
+    const correctedGood = (Number(counts.good) || 0) + delta;
+    if (correctedGood < 0) return toast(`Cannot reduce the total by more than the Good quantity (${counts.good || 0}).`, "error");
+    if (delta < 0 && -delta > availableQty(item)) return toast(`Cannot reduce the total by more than the available quantity (${availableQty(item)}).`, "error");
+    counts.good = correctedGood;
+    item.conditionCounts = counts;
     item.quantity = total;
-    itemHistoryPush(item, { type: "ADJUST", qty: delta, person: "", ref: "", date, time, remarks: remarks || ("Stock correction (set to " + total + ")") });
+    itemHistoryPush(item, { type: "ADJUST", qty: delta, person: "", ref: "", date, time, effect: { quantity: delta, conditions: { good: delta } }, remarks: remarks || ("Stock correction (set to " + total + ")") });
 persistAlloc(items, getAllotments(), null);
+  toast("Saving adjustment…", "");
+  try { if (window.__apiFlush) await window.__apiFlush(); }
+  catch (error) { return toast(error.body?.error || "Adjustment could not be saved.", "error"); }
     closeModals(); render();
     __audit("Stock Correction", `${item.name} — set to ${total}`, { entity: "Inventory" });
     toast("Stock corrected to " + total + ".", "success");
     return;
   }
 
-  if (!qty || qty < 1) return toast("Enter a valid quantity.", "error");
+  if (!Number.isSafeInteger(qty) || qty < 1) return toast("Enter a positive whole quantity.", "error");
   if (type === "add") {
+    item.conditionCounts = item.conditionCounts || { good: item.quantity || 0, poor: 0, damaged: 0 };
+    item.conditionCounts.good += qty;
     item.quantity = (item.quantity || 0) + qty;
-    itemHistoryPush(item, { type: "STOCK_IN", qty, person: "", ref: "", date, time, remarks: remarks || "Stock added" });
+    itemHistoryPush(item, { type: "STOCK_IN", qty, person: "", ref: "", date, time, effect: { quantity: qty, conditions: { good: qty } }, remarks: remarks || "Stock added" });
   } else if (type === "writeoff") {
     if (qty > availableQty(item)) return toast(`Cannot write off more than available quantity (${availableQty(item)}).`, "error");
-    item.quantity = Math.max(0, (item.quantity || 0) - qty);
-    itemHistoryPush(item, { type: "WRITEOFF", qty: -qty, person: "", ref: "", date, time, remarks: remarks || "Written off" });
+    const counts = stockConditionCounts(item);
+    const fromGood = Math.min(counts.good || 0, qty);
+    const fromPoor = qty - fromGood;
+    if ((counts.poor || 0) < fromPoor) return toast("Not enough usable condition stock.", "error");
+    counts.good -= fromGood;
+    counts.poor = (counts.poor || 0) - fromPoor;
+    item.conditionCounts = counts;
+    item.quantity -= qty;
+    itemHistoryPush(item, { type: "WRITEOFF", qty: -qty, person: "", ref: "", date, time, effect: { quantity: -qty, conditions: { good: -fromGood, poor: -fromPoor } }, remarks: remarks || "Written off" });
   } else if (type === "damage") {
     if (qty > availableQty(item)) return toast(`Cannot mark more than available quantity (${availableQty(item)}) as damaged.`, "error");
-    item.quantity = Math.max(0, (item.quantity || 0) - qty);
-    item.damagedReturned = (item.damagedReturned || 0) + qty;
-    itemHistoryPush(item, { type: "DAMAGE", qty, person: "", ref: "", date, time, remarks: remarks || "Marked damaged" });
+    const counts = stockConditionCounts(item);
+    if ((counts.good || 0) + (counts.poor || 0) < qty) return toast("Condition counts do not contain enough usable stock.", "error");
+    const fromGood = Math.min(counts.good || 0, qty);
+    counts.good = (counts.good || 0) - fromGood;
+    counts.poor = (counts.poor || 0) - (qty - fromGood);
+    item.conditionCounts = counts;
+    item.quantity -= qty;
+    item.scrappedQuantity = (item.scrappedQuantity || 0) + qty;
+    itemHistoryPush(item, { type: "DAMAGE", qty: -qty, person: "", ref: "", date, time, effect: { quantity: -qty, conditions: { good: -fromGood, poor: -(qty - fromGood) }, scrappedQuantity: qty }, remarks: remarks || "Marked scrap" });
   } else if (type === "loss") {
     if (qty > availableQty(item)) return toast(`Cannot mark more than available quantity (${availableQty(item)}) as lost.`, "error");
-    item.quantity = Math.max(0, (item.quantity || 0) - qty);
     item.lostReturned = (item.lostReturned || 0) + qty;
-    itemHistoryPush(item, { type: "LOSS", qty, person: "", ref: "", date, time, remarks: remarks || "Marked lost" });
+    itemHistoryPush(item, { type: "LOSS", qty, person: "", ref: "", date, time, effect: { lostReturned: qty }, remarks: remarks || "Marked lost" });
   }
 persistAlloc(items, getAllotments(), null);
+  toast("Saving adjustment…", "");
+  try { if (window.__apiFlush) await window.__apiFlush(); }
+  catch (error) { return toast(error.body?.error || "Adjustment could not be saved.", "error"); }
   closeModals();
   render();
   __audit("Stock Adjusted", `${item.name} — ${type}${qty ? " — " + qty : total >= 0 ? " — total " + total : ""}`, { entity: "Inventory" });
@@ -12060,19 +12335,20 @@ function __allocStockExportData() {
     const loc = i.locationId ? locations.find(l => l.id === i.locationId) : null;
     const st = allocStatusOfItem(i);
     if (allMode) {
-      return [i.name, loc ? loc.name : "", cat ? cat.name : "", i.quantity || 0, availableQty(i), i.allotted || 0, i.lostReturned || 0, (i.damagedReturned || 0), st.label];
+      return [i.name, loc ? loc.name : "", cat ? cat.name : "", i.quantity || 0, availableQty(i), i.allotted || 0, i.lostReturned || 0, ((i.conditionCounts || {}).poor || 0), scrapQty(i), st.label];
     }
-    return [i.name, cat ? cat.name : "", i.quantity || 0, availableQty(i), i.allotted || 0, i.lostReturned || 0, (i.damagedReturned || 0), st.label];
+    return [i.name, cat ? cat.name : "", i.quantity || 0, availableQty(i), i.allotted || 0, i.lostReturned || 0, ((i.conditionCounts || {}).poor || 0), scrapQty(i), st.label];
   });
   const ttotal = rows.reduce((a, r) => a + (r[allMode ? 3 : 2] || 0), 0);
   const tavail = rows.reduce((a, r) => a + (r[allMode ? 4 : 3] || 0), 0);
   const tallot = rows.reduce((a, r) => a + (r[allMode ? 5 : 4] || 0), 0);
   const tloss = rows.reduce((a, r) => a + (r[allMode ? 6 : 5] || 0), 0);
   const tdamaged = rows.reduce((a, r) => a + (r[allMode ? 7 : 6] || 0), 0);
-  rows.push(["Total", ...(allMode ? [""] : []), "", ttotal, tavail, tallot, tloss, tdamaged, ""]);
+  const tscrap = rows.reduce((sum, row) => sum + (row[allMode ? 8 : 7] || 0), 0);
+  rows.push(["Total", ...(allMode ? [""] : []), "", ttotal, tavail, tallot, tloss, tdamaged, tscrap, ""]);
   const cols = allMode
-    ? ["Item Name", "Locations", "Category", "Total Qty", "Available", "Issued", "Loss", "Damaged", "Status"]
-    : ["Item Name", "Category", "Total Qty", "Available", "Issued", "Loss", "Damaged", "Status"];
+    ? ["Item Name", "Locations", "Category", "Total Qty", "Available", "Issued", "Loss", "Damaged", "Scrap", "Status"]
+    : ["Item Name", "Category", "Total Qty", "Available", "Issued", "Loss", "Damaged", "Scrap", "Status"];
   return { title: "Issued Items \u2014 Item Stock Report", subtitle: (dist ? dist.name + " \u00b7 " : "") + "Generated " + new Date().toLocaleString(), cols, rows, fileName: "allotment-item-stock" };
 }
 
@@ -13199,6 +13475,7 @@ async function init() {
   });
 document.addEventListener("click", e => {
     const act = e.target.closest("[data-action]");
+    if (act && ["history-edit", "history-delete"].includes(act.dataset.action)) { manageInventoryHistory(act); return; }
     if (act && act.dataset.action === "dash-add-stock") {
       // Opens Add Stock already set to this row's item. The item is looked up
       // by id from the store rather than carried on the button, so the button
@@ -13874,6 +14151,9 @@ if (e.target.closest("[data-ccat-edit]")) startEditConsCat(parseInt(e.target.clo
   $("#allocOpenBtn")?.addEventListener("click", openAllotModal);
   $("#allocAddStockBtn")?.addEventListener("click", openAddStockModal);
   $("#addStockForm")?.addEventListener("submit", saveAddStock);
+  $("#asLocation")?.addEventListener("change", () => {
+    $$("#asRows .as-item-row").forEach(__asPopulateRowItems);
+  });
   $("#asAddItemBtn")?.addEventListener("click", addAsRow);
   $("#asRows")?.addEventListener("click", __asRowsClick);
   $("#asRows")?.addEventListener("change", __asRowsChange);
@@ -14039,11 +14319,8 @@ if (e.target.closest("[data-ccat-edit]")) startEditConsCat(parseInt(e.target.clo
   $("#lossForm")?.addEventListener("submit", submitLoss);
   $("#recoveryForm")?.addEventListener("submit", submitRecovery);
   $("#adjustForm")?.addEventListener("submit", saveAdjust);
-  $("#ajType")?.addEventListener("change", () => {
-    const isCorrection = $("#ajType").value === "correction";
-    $("#ajQtyGroup").classList.toggle("hidden", isCorrection);
-    $("#ajTotalGroup").classList.toggle("hidden", !isCorrection);
-  });
+  $("#ajType")?.addEventListener("change", syncAdjustmentFields);
+  $("#ajItem")?.addEventListener("change", renderAdjustmentStockSummary);
 
   // Two different jobs hang off this one button, and they are told apart by
   // width alone. Between 769px and 1024px the sidebar is a side drawer and
@@ -15003,7 +15280,7 @@ function handleItemImportFile(file) {
         if (!(good || poor || damaged)) { skipped++; errors.push(`Row ${idx + 2} (<b>${esc(name)}</b>): no quantity ? skipped.`); return; }
         const existing = out.find(i => i.name.toLowerCase() === name.toLowerCase() && i.locationId === locationId);
         if (existing) {
-          const cc = existing.conditionCounts || { good: 0, poor: 0, damaged: 0 };
+          const cc = stockConditionCounts(existing);
           cc.good = (cc.good || 0) + good;
           cc.poor = (cc.poor || 0) + poor;
           cc.damaged = (cc.damaged || 0) + damaged;
@@ -17403,7 +17680,8 @@ function saveConsAdd(e) {
     const newName = (selV === "__new__" ? (newNameEl ? newNameEl.value : "") : selV).trim();
     const unit = (row.querySelector(".cons-row-unit") || {}).value || "pcs";
     const minStockVal = parseInt((row.querySelector(".cons-row-min") || {}).value, 10);
-    const minStock = isNaN(minStockVal) || minStockVal < 0 ? 5 : minStockVal;
+    if (!Number.isSafeInteger(minStockVal) || minStockVal < 0) return toast("Minimum stock must be a non-negative whole number.", "error");
+    const minStock = minStockVal;
     const qty = Math.floor(Number((row.querySelector(".cons-row-qty") || {}).value));
     if (!cid && !newName && (!isFinite(qty) || qty <= 0)) continue;
     if (!cid) return toast("Har row me category select karo.", "error");
