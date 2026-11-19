@@ -439,6 +439,10 @@
               <button data-export="print"><span class="ee-ic">&#128424;</span> Print</button>
             </div>
           </div>
+          <div class="stat-export-dd">
+            <button type="button" class="btn btn-sm btn-outline" id="stockColumnsBtn" aria-expanded="false" aria-controls="stockColumnsMenu">Columns <span class="ee-caret">&#9662;</span></button>
+            <div class="stat-export-menu stock-columns-menu hidden" id="stockColumnsMenu"></div>
+          </div>
         </div>
         <div class="card">
           <div class="table-wrap">
@@ -1723,11 +1727,7 @@
             <label for="fCondPoor">Damaged</label>
             <input type="number" id="fCondPoor" min="0" value="0" class="cond-input cond-input-poor">
           </div>
-          <div class="cond-input-group">
-            <span class="cond-dot cond-dot-damaged"></span>
-            <label for="fCondDamaged">Scrap</label>
-            <input type="number" id="fCondDamaged" min="0" value="0" class="cond-input cond-input-damaged">
-          </div>
+          <input type="hidden" id="fCondDamaged" value="0">
         </div>
         <small id="fQtyHint" style="display:block;margin-top:6px;font-size:.72rem;font-weight:600"></small>
       </div>

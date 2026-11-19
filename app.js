@@ -3668,7 +3668,12 @@ function openItemModal(item) {
   $("#fItemName").value = item ? item.name : "";
   $("#fCategory").value = item ? item.categoryId : "";
   __populateItemNameList();
-  $("#fUnit").value = item ? item.unit : "pcs";
+  const unitSelect = $("#fUnit");
+  const savedUnit = item?.unit || "pcs";
+  const unitOption = Array.from(unitSelect.options).find(option =>
+    option.value.trim().toLowerCase() === savedUnit.trim().toLowerCase());
+  if (!unitOption) unitSelect.add(new Option(savedUnit, savedUnit));
+  unitSelect.value = unitOption ? unitOption.value : savedUnit;
   $("#fMinStock").value = item ? item.minStock : 5;
   $("#fItemId").value = item ? item.id : "";
   const fdEl = $("#fDate");
@@ -3713,10 +3718,10 @@ function __updateItemQtyHint(sum) {
   if (!editing) { hint.textContent = ""; return; }
   const orig = parseInt(($("#fQuantity") || {}).value, 10) || 0;
   if (sum === orig) {
-    hint.textContent = "Good + Damaged + Scrap = " + sum + " \u2713 matches Total Qty";
+    hint.textContent = "Condition total = " + sum + " \u2713 matches Total Qty";
     hint.style.color = "var(--green)";
   } else {
-    hint.textContent = "Good + Damaged + Scrap = " + sum + " \u2014 must equal Total Qty (" + orig + "). Total Qty changes only via Add Stock.";
+    hint.textContent = "Condition total = " + sum + " \u2014 must equal Total Qty (" + orig + "). Total Qty changes only via Add Stock.";
     hint.style.color = "var(--red)";
   }
 }
@@ -3835,7 +3840,10 @@ async function commitItem(e) {
   }
   const name = $("#fItemName").value.trim();
   const categoryId = $("#fCategory").value;
-  const unit = $("#fUnit").value;
+  const selectedUnit = $("#fUnit").value;
+  const storedUnit = id ? getItems().find(item => item.id === id)?.unit : "";
+  const unit = storedUnit && storedUnit.trim().toLowerCase() === selectedUnit.trim().toLowerCase()
+    ? storedUnit : selectedUnit;
   const minStock = Number($("#fMinStock").value);
   const locationId = (!isAdmin() && currentUser && currentUser.locationId)
     ? currentUser.locationId
@@ -3845,7 +3853,7 @@ async function commitItem(e) {
   const damaged = Number($("#fCondDamaged").value || 0);
   const quantity = good + poor + damaged;
   const conditionCounts = { good, poor, damaged };
-  if (!name || !categoryId || !locationId) return toast("Please fill all required fields.", "error");
+  if (!name || !categoryId || !locationId || !unit) return toast("Please fill all required fields.", "error");
   if (![good, poor, damaged, minStock].every(value => Number.isSafeInteger(value) && value >= 0)) return toast("Quantities and minimum stock must be non-negative whole numbers.", "error");
   if (quantity === 0) return toast("Total quantity cannot be 0. Enter at least one condition count.", "error");
   if (currentUser && !isAdmin() && locationId !== currentUser.locationId) {
@@ -10995,6 +11003,7 @@ function __allocStockSorted(rows) {
     else if (key === "available") { av = availableQty(a); bv = availableQty(b); }
     else if (key === "allotted") { av = a.allotted || 0; bv = b.allotted || 0; }
     else if (key === "loss") { av = a.lostReturned || 0; bv = b.lostReturned || 0; }
+    else if (key === "good") { av = (a.conditionCounts || {}).good || 0; bv = (b.conditionCounts || {}).good || 0; }
     else if (key === "damaged") { av = (a.conditionCounts || {}).poor || 0; bv = (b.conditionCounts || {}).poor || 0; }
     else if (key === "scrap") { av = scrapQty(a); bv = scrapQty(b); }
     else if (key === "status") { av = allocStatusOfItem(a).label; bv = allocStatusOfItem(b).label; }
@@ -11031,8 +11040,8 @@ function __allocStockFiltered() {
   });
 }
 
-const __STOCK_HEAD_STD = '<tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th class="sortable" data-sort="status">Status <span class="sort-arrow"></span></th><th>Actions</th></tr>';
-const __STOCK_HEAD_ALL = '<tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort="location">Locations <span class="sort-arrow"></span></th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th class="sortable" data-sort="status">Status <span class="sort-arrow"></span></th><th>Actions</th></tr>';
+const __STOCK_HEAD_STD = '<tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="good">Good <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th class="sortable" data-sort="status">Status <span class="sort-arrow"></span></th><th>Actions</th></tr>';
+const __STOCK_HEAD_ALL = '<tr><th style="width:54px">S.No</th><th class="sortable" data-sort="name">Item Name <span class="sort-arrow"></span></th><th class="sortable" data-sort="location">Locations <span class="sort-arrow"></span></th><th class="sortable" data-sort="total">Total Qty <span class="sort-arrow"></span></th><th class="sortable" data-sort="available">Available <span class="sort-arrow"></span></th><th class="sortable" data-sort="allotted">Issued <span class="sort-arrow"></span></th><th class="sortable" data-sort="loss">Lost <span class="sort-arrow"></span></th><th class="sortable" data-sort="good">Good <span class="sort-arrow"></span></th><th class="sortable" data-sort="damaged">Damaged <span class="sort-arrow"></span></th><th class="sortable" data-sort="scrap">Scrap <span class="sort-arrow"></span></th><th class="sortable" data-sort="status">Status <span class="sort-arrow"></span></th><th>Actions</th></tr>';
 function renderStockLocToggle() {
   const seg = $("#allocStockLocToggle");
   if (!seg) return;
@@ -11052,6 +11061,53 @@ function setInvStockLoc(mode) {
   renderAllocStock();
 }
 
+function stockColumnPreferencesKey() {
+  return "hp_inventory.ui.stockColumns." + (signedInUser()?.id || "guest");
+}
+
+function hiddenStockColumns() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(stockColumnPreferencesKey()) || "[]");
+    const hidden = new Set(Array.isArray(saved) ? saved : []);
+    const columns = stockTableColumns();
+    if (columns.length && columns.every(column => hidden.has(column.key))) hidden.delete("name");
+    return hidden;
+  } catch { return new Set(); }
+}
+
+function stockTableColumns() {
+  return Array.from(document.querySelectorAll("#allocStockTable thead th")).map((header, index) => ({
+    key: header.dataset.sort || (index === 0 ? "number" : "actions"),
+    label: header.textContent.replace(/[▲▼⇅]/g, "").trim()
+  }));
+}
+
+function applyStockColumnVisibility() {
+  const columns = stockTableColumns();
+  const hidden = hiddenStockColumns();
+  document.querySelectorAll("#allocStockTable tr").forEach(row => {
+    let index = 0;
+    Array.from(row.cells).forEach(cell => {
+      const span = Number(cell.dataset.stockOriginalSpan || cell.colSpan || 1);
+      cell.dataset.stockOriginalSpan = String(span);
+      const visible = columns.slice(index, index + span).filter(column => !hidden.has(column.key)).length;
+      cell.style.display = visible ? "" : "none";
+      cell.colSpan = visible || 1;
+      index += span;
+    });
+  });
+}
+
+function renderStockColumns() {
+  const menu = $("#stockColumnsMenu");
+  if (!menu) return;
+  const hidden = hiddenStockColumns();
+  menu.innerHTML = stockTableColumns().map(column =>
+    `<label class="stock-column-option"><input type="checkbox" data-stock-column="${esc(column.key)}"${hidden.has(column.key) ? "" : " checked"}><span>${esc(column.label)}</span></label>`
+  ).join("");
+  applyStockColumnVisibility();
+}
+
 function renderAllocStock() {
   const body = $("#allocStockBody");
   if (!body) return;
@@ -11063,14 +11119,15 @@ function renderAllocStock() {
   if (head) head.innerHTML = allMode ? __STOCK_HEAD_ALL : __STOCK_HEAD_STD;
   const rows = __allocStockSorted(__allocStockFiltered());
   updateStockSortHeader();
-  if (!rows.length) { body.innerHTML = `<tr class="empty-row"><td colspan="${allMode ? 12 : 11}">No items found.</td></tr>`; renderPager("allocStock", 0, renderAllocStock); return; }
-  let ttotal = 0, tavailable = 0, tallot = 0, tloss = 0, tdamaged = 0, tscrap = 0;
+  if (!rows.length) { body.innerHTML = `<tr class="empty-row"><td colspan="${allMode ? 12 : 11}">No items found.</td></tr>`; renderPager("allocStock", 0, renderAllocStock); renderStockColumns(); return; }
+  let ttotal = 0, tavailable = 0, tallot = 0, tloss = 0, tdamaged = 0, tscrap = 0, tgood = 0;
   rows.forEach(i => {
     ttotal += i.quantity || 0;
     tallot += i.allotted || 0;
     tavailable += availableQty(i);
     tloss += i.lostReturned || 0;
     const __cc = i.conditionCounts || {};
+    tgood += __cc.good || 0;
     tdamaged += __cc.poor || 0;
     tscrap += scrapQty(i);
   });
@@ -11087,13 +11144,15 @@ function renderAllocStock() {
         { label: "Update", attrs: `data-alloc-action="edit" data-id="${i.id}"` }
       ] : []),
       ...(canEditItem(i) && avail > 0 ? [
-        { label: "Mark Lost", cls: "act-dd-del", attrs: `data-alloc-action="loss" data-id="${i.id}"` }
+        { label: "Mark Lost", cls: "act-dd-del", attrs: `data-alloc-action="loss" data-id="${i.id}"` },
+        { label: "Mark Scrap", cls: "act-dd-del", attrs: `data-alloc-action="scrap" data-id="${esc(i.id)}"` }
       ] : [])
     ]);
-    return `<tr><td>${baseNo + idx + 1}</td><td class="item-name">${__ipLink(i)}</td>${unitCell}<td class="qty-strong">${i.quantity || 0}</td><td class="qty-strong" style="color:var(--green)">${availableQty(i)}</td><td class="qty-strong" style="color:var(--primary)">${i.allotted || 0}</td><td class="qty-strong" style="color:var(--red)">${i.lostReturned || 0}</td><td class="qty-strong" style="color:var(--amber)">${(i.conditionCounts || {}).poor || 0}</td><td class="qty-strong" style="color:var(--red)">${scrapQty(i)}</td><td><span class="status-badge ${st.cls}">${st.label}</span></td><td class="actions-cell">${acts}</td></tr>`;
+    return `<tr><td>${baseNo + idx + 1}</td><td class="item-name">${__ipLink(i)}</td>${unitCell}<td class="qty-strong">${i.quantity || 0}</td><td class="qty-strong" style="color:var(--green)">${availableQty(i)}</td><td class="qty-strong" style="color:var(--primary)">${i.allotted || 0}</td><td class="qty-strong" style="color:var(--red)">${i.lostReturned || 0}</td><td class="qty-strong" style="color:var(--green)">${(i.conditionCounts || {}).good || 0}</td><td class="qty-strong" style="color:var(--amber)">${(i.conditionCounts || {}).poor || 0}</td><td class="qty-strong" style="color:var(--red)">${scrapQty(i)}</td><td><span class="status-badge ${st.cls}">${st.label}</span></td><td class="actions-cell">${acts}</td></tr>`;
   }).join("") +
-    `<tr class="rpt-total-row"><td></td><td class="rpt-total-label">Total</td>${allMode ? "<td></td>" : ""}<td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavailable}</td><td class="qty-strong">${tallot}</td><td class="qty-strong">${tloss}</td><td class="qty-strong">${tdamaged}</td><td class="qty-strong">${tscrap}</td><td colspan="2"></td></tr>`;
+    `<tr class="rpt-total-row"><td></td><td class="rpt-total-label">Total</td>${allMode ? "<td></td>" : ""}<td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavailable}</td><td class="qty-strong">${tallot}</td><td class="qty-strong">${tloss}</td><td class="qty-strong">${tgood}</td><td class="qty-strong">${tdamaged}</td><td class="qty-strong">${tscrap}</td><td colspan="2"></td></tr>`;
   renderPager("allocStock", rows.length, renderAllocStock);
+  renderStockColumns();
 }
 
 let __invLossItemId = null;
@@ -12161,12 +12220,19 @@ function syncAdjustmentFields() {
   renderAdjustmentStockSummary();
 }
 
-function openAdjustStock(presetItemId) {
+function openInvScrap(itemId) {
+  const item = getItems().find(row => row.id === itemId && !row.isDeleted);
+  if (!item || !canEditItem(item)) return toast("You cannot mark this item's stock as scrap.", "error");
+  if (availableQty(item) <= 0) return toast("No available stock to mark as scrap.", "error");
+  openAdjustStock(itemId, "damage");
+}
+
+function openAdjustStock(presetItemId, adjustmentType = "correction") {
   const items = getItems().slice().sort((a, b) => a.name.localeCompare(b.name));
   const itemSel = $("#ajItem");
   itemSel.innerHTML = items.map(i => `<option value="${i.id}">${esc(i.name)} (Available: ${availableQty(i)})</option>`).join("");
   itemSel.value = presetItemId || "";
-  $("#ajType").value = "correction";
+  $("#ajType").value = adjustmentType;
   syncAdjustmentFields();
   $("#ajQty").value = 1;
   $("#ajTotal").value = "";
@@ -12335,20 +12401,21 @@ function __allocStockExportData() {
     const loc = i.locationId ? locations.find(l => l.id === i.locationId) : null;
     const st = allocStatusOfItem(i);
     if (allMode) {
-      return [i.name, loc ? loc.name : "", cat ? cat.name : "", i.quantity || 0, availableQty(i), i.allotted || 0, i.lostReturned || 0, ((i.conditionCounts || {}).poor || 0), scrapQty(i), st.label];
+      return [i.name, loc ? loc.name : "", cat ? cat.name : "", i.quantity || 0, availableQty(i), i.allotted || 0, i.lostReturned || 0, ((i.conditionCounts || {}).good || 0), ((i.conditionCounts || {}).poor || 0), scrapQty(i), st.label];
     }
-    return [i.name, cat ? cat.name : "", i.quantity || 0, availableQty(i), i.allotted || 0, i.lostReturned || 0, ((i.conditionCounts || {}).poor || 0), scrapQty(i), st.label];
+    return [i.name, cat ? cat.name : "", i.quantity || 0, availableQty(i), i.allotted || 0, i.lostReturned || 0, ((i.conditionCounts || {}).good || 0), ((i.conditionCounts || {}).poor || 0), scrapQty(i), st.label];
   });
   const ttotal = rows.reduce((a, r) => a + (r[allMode ? 3 : 2] || 0), 0);
   const tavail = rows.reduce((a, r) => a + (r[allMode ? 4 : 3] || 0), 0);
   const tallot = rows.reduce((a, r) => a + (r[allMode ? 5 : 4] || 0), 0);
   const tloss = rows.reduce((a, r) => a + (r[allMode ? 6 : 5] || 0), 0);
-  const tdamaged = rows.reduce((a, r) => a + (r[allMode ? 7 : 6] || 0), 0);
-  const tscrap = rows.reduce((sum, row) => sum + (row[allMode ? 8 : 7] || 0), 0);
-  rows.push(["Total", ...(allMode ? [""] : []), "", ttotal, tavail, tallot, tloss, tdamaged, tscrap, ""]);
+  const tgood = rows.reduce((sum, row) => sum + (row[allMode ? 7 : 6] || 0), 0);
+  const tdamaged = rows.reduce((a, r) => a + (r[allMode ? 8 : 7] || 0), 0);
+  const tscrap = rows.reduce((sum, row) => sum + (row[allMode ? 9 : 8] || 0), 0);
+  rows.push(["Total", ...(allMode ? [""] : []), "", ttotal, tavail, tallot, tloss, tgood, tdamaged, tscrap, ""]);
   const cols = allMode
-    ? ["Item Name", "Locations", "Category", "Total Qty", "Available", "Issued", "Loss", "Damaged", "Scrap", "Status"]
-    : ["Item Name", "Category", "Total Qty", "Available", "Issued", "Loss", "Damaged", "Scrap", "Status"];
+    ? ["Item Name", "Locations", "Category", "Total Qty", "Available", "Issued", "Loss", "Good", "Damaged", "Scrap", "Status"]
+    : ["Item Name", "Category", "Total Qty", "Available", "Issued", "Loss", "Good", "Damaged", "Scrap", "Status"];
   return { title: "Issued Items \u2014 Item Stock Report", subtitle: (dist ? dist.name + " \u00b7 " : "") + "Generated " + new Date().toLocaleString(), cols, rows, fileName: "allotment-item-stock" };
 }
 
@@ -14243,6 +14310,45 @@ if (e.target.closest("[data-ccat-edit]")) startEditConsCat(parseInt(e.target.clo
   window.__msStatus = bindMultiCombobox("allocStatusInput", "allocStatusMenu", "allocStatusFilter", renderAllottedList, { anyLabel: 'Any Status', allLabel: 'All Status', emptyLabel: 'No statuses', selectAllLabel: 'Select All', clearLabel: 'Deselect All' });
   document.querySelectorAll("[data-stock-filter]").forEach(b => b.addEventListener("click", () => setStockType(b.dataset.stockFilter)));
   $("#allocStockType")?.addEventListener("change", e => setStockType(e.target.value));
+  $("#stockColumnsBtn")?.addEventListener("click", () => {
+    const menu = $("#stockColumnsMenu");
+    const open = menu.classList.contains("hidden");
+    menu.classList.toggle("hidden", !open);
+    $("#stockColumnsBtn").setAttribute("aria-expanded", String(open));
+  });
+  $("#stockColumnsMenu")?.addEventListener("change", event => {
+    const checkbox = event.target.closest("[data-stock-column]");
+    if (!checkbox) return;
+    const hidden = hiddenStockColumns();
+    if (checkbox.checked) hidden.delete(checkbox.dataset.stockColumn);
+    else hidden.add(checkbox.dataset.stockColumn);
+    if (stockTableColumns().every(column => hidden.has(column.key))) {
+      checkbox.checked = true;
+      return toast("Select at least one column.", "error");
+    }
+    try { localStorage.setItem(stockColumnPreferencesKey(), JSON.stringify([...hidden])); }
+    catch { checkbox.checked = !checkbox.checked; return toast("Column selection could not be saved in this browser.", "error"); }
+    applyStockColumnVisibility();
+  });
+  document.addEventListener("click", event => {
+    if (!event.target.closest("#stockColumnsBtn") && !event.target.closest("#stockColumnsMenu")) {
+      $("#stockColumnsBtn")?.setAttribute("aria-expanded", "false");
+    }
+  });
+  $("#stockColumnsBtn")?.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      $("#stockColumnsMenu").classList.add("hidden");
+      $("#stockColumnsBtn").setAttribute("aria-expanded", "false");
+    }
+  });
+  $("#stockColumnsMenu")?.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      $("#stockColumnsMenu").classList.add("hidden");
+      $("#stockColumnsBtn").setAttribute("aria-expanded", "false");
+      $("#stockColumnsBtn").focus();
+    }
+  });
+
   $("#allocStockTable")?.addEventListener("click", e => {
     const th = e.target.closest(".sortable");
     if (th && th.dataset.sort) setStockSort(th.dataset.sort);
@@ -14300,6 +14406,7 @@ if (e.target.closest("[data-ccat-edit]")) startEditConsCat(parseInt(e.target.clo
     if (btn.dataset.allocAction === "view") openAllocItemDetail(btn.dataset.id);
     else if (btn.dataset.allocAction === "edit") { const it = getItems().find(i => i.id === btn.dataset.id); if (it) openItemModal(it); }
     else if (btn.dataset.allocAction === "loss") openInvLoss(btn.dataset.id);
+    else if (btn.dataset.allocAction === "scrap") openInvScrap(btn.dataset.id);
   });
   $("#invLossForm")?.addEventListener("submit", saveInvLoss);
   $("#allocBody")?.addEventListener("click", e => {
