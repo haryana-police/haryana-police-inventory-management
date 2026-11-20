@@ -863,7 +863,7 @@ body.lang-hi .nm-en, html[lang="hi"] .nm-en { display: none !important; }
 }
 .notif-panel {
   position: absolute; top: calc(100% + 10px); right: 0;
-  width: 370px; max-height: 440px; background: #ffffff !important;
+  width: 370px; max-height: 440px; background: #ffffff;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: 16px; box-shadow: var(--shadow-xl);
@@ -875,7 +875,7 @@ body.lang-hi .nm-en, html[lang="hi"] .nm-en { display: none !important; }
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 18px; border-bottom: 1px solid var(--border, #e2e8f0);
   font-weight: 800; font-size: .92rem; color: var(--primary, #1e3a5f);
-  background: #ffffff !important;
+  background: #ffffff;
 }
 .notif-list { max-height: 380px; overflow-y: auto; background: #ffffff; }
 .notif-item { display: flex; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border); cursor: default; transition: background .12s; position: relative; }
@@ -5162,3 +5162,174 @@ body.modal-open #appRoot {
 .stock-column-option { display: flex; align-items: center; gap: 10px; padding: 9px 14px; cursor: pointer; white-space: nowrap; color: #000; border-radius: 6px; }
 .stock-column-option:hover, .stock-column-option:focus-within { background: #f1f5f9; color: #000; }
 .stock-column-option input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex: none; }
+
+/* ==========================================================================
+   DARK THEME VISIBILITY & CONTRAST FIXES (Scoped strictly to [data-theme="dark"])
+   ========================================================================== */
+
+/* 1. NOTIFICATIONS POPUP & ALL-NOTIFICATIONS MODAL */
+[data-theme="dark"] .notif-panel,
+[data-theme="dark"] #notifPanel {
+  background: #111a2c !important;
+  border: 1px solid #2a3a55 !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .notif-panel-header {
+  background: #16233a !important;
+  border-bottom: 1px solid #223046 !important;
+  color: #93c5fd !important;
+}
+
+[data-theme="dark"] .notif-panel-header span,
+[data-theme="dark"] .notif-panel-header h3 {
+  color: #93c5fd !important;
+}
+
+[data-theme="dark"] .notif-list {
+  background: #111a2c !important;
+}
+
+[data-theme="dark"] .notif-item {
+  background: transparent !important;
+  border-bottom: 1px solid #1e2a3d !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .notif-item:hover {
+  background: rgba(59, 130, 246, 0.1) !important;
+}
+
+[data-theme="dark"] .notif-item.notif-unread {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.15), rgba(17, 26, 44, 0.5)) !important;
+}
+
+[data-theme="dark"] .notif-title {
+  color: #f8fafc !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .notif-msg {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .notif-time {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .notif-empty {
+  color: #94a3b8 !important;
+  background: transparent !important;
+}
+
+[data-theme="dark"] .notif-panel-actions .btn {
+  background: rgba(59, 130, 246, 0.16) !important;
+  border: 1px solid rgba(147, 197, 253, 0.35) !important;
+  color: #93c5fd !important;
+}
+
+[data-theme="dark"] .notif-panel-actions .btn:hover {
+  background: rgba(59, 130, 246, 0.35) !important;
+  border-color: #93c5fd !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .notif-list-all {
+  background: #111a2c !important;
+  color: #e2e8f0 !important;
+}
+
+/* 2. TABLE ITEM LINKS, ITEM NAMES & INTERACTIVE TEXT */
+[data-theme="dark"] .ip-item-link,
+[data-theme="dark"] a.ip-item-link,
+[data-theme="dark"] td.item-name a,
+[data-theme="dark"] .item-name a,
+[data-theme="dark"] .item-name .linklike,
+[data-theme="dark"] button.linklike,
+[data-theme="dark"] .linklike,
+[data-theme="dark"] .cit-name,
+[data-theme="dark"] td.item-name span.cit-name,
+[data-theme="dark"] .nm-en,
+[data-theme="dark"] .person-link,
+[data-theme="dark"] .pp-person-link,
+[data-theme="dark"] .demand-no,
+[data-theme="dark"] .alloc-item-link {
+  color: #93c5fd !important;
+}
+
+[data-theme="dark"] .ip-item-link:hover,
+[data-theme="dark"] a.ip-item-link:hover,
+[data-theme="dark"] td.item-name a:hover,
+[data-theme="dark"] .item-name a:hover,
+[data-theme="dark"] .item-name .linklike:hover,
+[data-theme="dark"] button.linklike:hover,
+[data-theme="dark"] .linklike:hover,
+[data-theme="dark"] .person-link:hover,
+[data-theme="dark"] .pp-person-link:hover,
+[data-theme="dark"] .demand-no:hover {
+  color: #bfdbfe !important;
+  border-bottom-color: #93c5fd !important;
+  text-decoration: underline !important;
+}
+
+[data-theme="dark"] td.item-name,
+[data-theme="dark"] td.item-name span,
+[data-theme="dark"] td.item-name button {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .nm-hi {
+  color: #94a3b8 !important;
+}
+
+/* 3. STOCK COLUMNS MENU ("Manage rows") */
+[data-theme="dark"] .stock-columns-menu {
+  background: #111a2c !important;
+  color: #e2e8f0 !important;
+  border-color: #2a3a55 !important;
+  color-scheme: dark !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7) !important;
+}
+
+[data-theme="dark"] .stock-column-option {
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .stock-column-option:hover,
+[data-theme="dark"] .stock-column-option:focus-within {
+  background: rgba(59, 130, 246, 0.16) !important;
+  color: #ffffff !important;
+}
+
+/* 4. MODAL TITLES & HIGHLIGHTS */
+[data-theme="dark"] .modal-header h2,
+[data-theme="dark"] .modal-sec-title,
+[data-theme="dark"] .ip-tl-date,
+[data-theme="dark"] .dd-history-action,
+[data-theme="dark"] .bal-total b,
+[data-theme="dark"] .bal-allot b,
+[data-theme="dark"] .ip-breadcrumb a {
+  color: #93c5fd !important;
+}
+
+/* Account Management Breadcrumbs & Password Toggles */
+.acc-breadcrumbs a {
+  color: var(--primary, #1d4ed8) !important;
+  transition: opacity 0.15s ease;
+}
+.acc-breadcrumbs a:hover {
+  text-decoration: underline !important;
+  opacity: 0.85;
+}
+.btn-pw-toggle:hover {
+  color: var(--text, #0f172a) !important;
+}
+[data-theme="dark"] .acc-breadcrumbs a {
+  color: #60a5fa !important;
+}
+[data-theme="dark"] .btn-pw-toggle:hover {
+  color: #f8fafc !important;
+}
+
+

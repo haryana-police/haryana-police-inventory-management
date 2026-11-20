@@ -1623,7 +1623,7 @@ function __stValidateUserPlacement(nextDistricts, nextLocMap, u, isAdd) {
         if (nextUsers.some(x => x && x.id !== u.id && String(x.username || "").trim().toLowerCase() === username.toLowerCase()))
           return __structDeny(400, "RBAC_USER_TAKEN", "Username already exists.");
         if (!String(u.name || "").trim()) return __structDeny(400, "RBAC_USER_DISPLAY", "Display name is required.");
-        if (!/^\d{10}$/.test(String(u.mobile || "").trim())) return __structDeny(400, "RBAC_USER_MOBILE", "Mobile number must be exactly 10 digits.");
+        if (!/^[6-9]\d{9}$/.test(String(u.mobile || "").trim())) return __structDeny(400, "RBAC_USER_MOBILE", "Mobile number must be a valid 10-digit number starting with 6, 7, 8 or 9.");
         const knownRoles = ["devadmin", "ig", "admin", "user", "mhc", "itstaff", "mtostaff", "unit", "role"];
         if (knownRoles.indexOf(String(u.role || "")) === -1) return __structDeny(400, "RBAC_USER_ROLE", "Invalid role.");
         if ((u.role === "admin" || u.role === "devadmin") && !isDev && !(user.role === "ig" && u.role === "admin")) return __structDeny(403, "RBAC_USER_ROLE_FORBIDDEN", "You cannot assign admin roles.");
@@ -1639,7 +1639,7 @@ function __stValidateUserPlacement(nextDistricts, nextLocMap, u, isAdd) {
         if (!username) return __structDeny(400, "RBAC_USER_NAME", "Username is required.");
         if (nextUsers.some(x => x && x.id !== u.id && String(x.username || "").trim().toLowerCase() === username.toLowerCase()))
           return __structDeny(400, "RBAC_USER_TAKEN", "Username already taken.");
-        if (u.mobile !== undefined && !/^\d{10}$/.test(String(u.mobile || "").trim())) return __structDeny(400, "RBAC_USER_MOBILE", "Mobile number must be exactly 10 digits.");
+        if (u.mobile !== undefined && !/^[6-9]\d{9}$/.test(String(u.mobile || "").trim())) return __structDeny(400, "RBAC_USER_MOBILE", "Mobile number must be a valid 10-digit number starting with 6, 7, 8 or 9.");
         if ((u.role === "admin" || u.role === "devadmin") && !isDev && !(user.role === "ig" && u.role === "admin")) return __structDeny(403, "RBAC_USER_ROLE_FORBIDDEN", "You cannot assign admin roles.");
         const place = __stValidateUserPlacement(nextDistricts, nextLocMap, u, false);
         if (place) return place;

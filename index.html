@@ -8,7 +8,7 @@
 <!-- Both stylesheets are versioned: without the query the browser keeps
      serving the old file from its own cache, so a CSS fix appears to do
      nothing until a hard refresh. Bump these when either file changes. -->
-<link rel="stylesheet" href="styles.css?v=2026.11.20.2">
+<link rel="stylesheet" href="styles.css?v=2026.11.20.3">
   <script>
     (function () {
       try { if (localStorage.getItem("hpi_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
@@ -749,9 +749,15 @@
       <div class="dev-topbar">
         <div class="dev-topbar-left">
           <button type="button" class="btn btn-outline btn-sm" id="devDistBack">&#8592; Back</button>
-          <h2 class="dev-page-title" id="devDistTitle">Manage Districts</h2>
+          <div>
+            <nav class="acc-breadcrumbs" style="font-size:12px;color:var(--text-muted,#64748b);margin-bottom:2px;"><a href="#" onclick="switchTab('account-management');return false;" style="color:var(--primary,#1d4ed8);text-decoration:none;">Account Management</a> &rsaquo; <span>Districts</span></nav>
+            <h2 class="dev-page-title" id="devDistTitle">Manage Districts</h2>
+          </div>
         </div>
-        <button type="button" class="btn btn-primary" id="devAddDistBtn">+ Add New District</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button type="button" class="btn btn-outline" id="exportDistrictsBtn" title="Export districts to Excel">&#128229; Export Excel</button>
+          <button type="button" class="btn btn-primary" id="devAddDistBtn">+ Add New District</button>
+        </div>
       </div>
       <div class="dev-toolbar" style="margin:14px 0 16px">
         <input type="text" id="devDistSearch" placeholder="Search by name, code or headquarters..." autocomplete="off">
@@ -767,9 +773,15 @@
       <div class="dev-topbar">
         <div class="dev-topbar-left">
           <button type="button" class="btn btn-outline btn-sm" id="devIgsBack">&#8592; Back</button>
-          <h2 class="dev-page-title">Manage IG Admins</h2>
+          <div>
+            <nav class="acc-breadcrumbs" style="font-size:12px;color:var(--text-muted,#64748b);margin-bottom:2px;"><a href="#" onclick="switchTab('account-management');return false;" style="color:var(--primary,#1d4ed8);text-decoration:none;">Account Management</a> &rsaquo; <span>IG Admins</span></nav>
+            <h2 class="dev-page-title">Manage IG Admins</h2>
+          </div>
         </div>
-        <button type="button" class="btn btn-primary" id="devAddIgBtn">+ Add New IG Admin</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button type="button" class="btn btn-outline" id="exportIgsBtn" title="Export IG Admins to Excel">&#128229; Export Excel</button>
+          <button type="button" class="btn btn-primary" id="devAddIgBtn">+ Add New IG Admin</button>
+        </div>
       </div>
       <div class="dev-toolbar" style="margin:14px 0 16px">
         <input type="text" id="devIgSearch" placeholder="Search by name, username or district..." autocomplete="off">
@@ -787,9 +799,15 @@
       <div class="dev-topbar">
         <div class="dev-topbar-left">
           <button type="button" class="btn btn-outline btn-sm" id="devUsersBack">&#8592; Back</button>
-          <h2 class="dev-page-title">Manage Users</h2>
+          <div>
+            <nav class="acc-breadcrumbs" style="font-size:12px;color:var(--text-muted,#64748b);margin-bottom:2px;"><a href="#" onclick="switchTab('account-management');return false;" style="color:var(--primary,#1d4ed8);text-decoration:none;">Account Management</a> &rsaquo; <span>Users</span></nav>
+            <h2 class="dev-page-title">Manage Users</h2>
+          </div>
         </div>
-        <button type="button" class="btn btn-primary" id="devAddUserBtn">+ Add New User</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button type="button" class="btn btn-outline" id="exportDevUsersBtn" title="Export users to Excel">&#128229; Export Excel</button>
+          <button type="button" class="btn btn-primary" id="devAddUserBtn">+ Add New User</button>
+        </div>
       </div>
       <div class="dev-toolbar">
         <input type="search" id="devUserSearch" placeholder="Search by username, name, role, district, location...">
@@ -797,15 +815,20 @@
           <option value="">Search by Type: All</option>
           <option value="admin">District Admin</option>
           <option value="devadmin">Developer Admin</option>
+          <option value="ig">IG Admin</option>
+          <option value="user">Office</option>
+          <option value="mhc">MHC</option>
+          <option value="itstaff">Computer/IT Staff</option>
+          <option value="mtostaff">MTO Staff</option>
         </select>
       </div>
       <div class="dev-section-h">District Admins <span class="cons-badge cons-b-blue" id="devDaCount">0</span></div>
       <div class="dev-table-wrap"><table class="dev-table"><thead><tr>
-        <th>Name</th><th>Username</th><th>District</th><th>Mobile</th><th>Users</th><th>Actions</th>
+        <th>Name</th><th>Username</th><th>District</th><th>Mobile</th><th>Users</th><th>Status</th><th>Actions</th>
       </tr></thead><tbody id="devDaBody"></tbody></table></div>
       <div class="dev-section-h">Developer Admins <span class="cons-badge cons-b-amber" id="devDevCount">0</span></div>
       <div class="dev-table-wrap"><table class="dev-table"><thead><tr>
-        <th>Name</th><th>Username</th><th>Mobile</th><th>Actions</th>
+        <th>Name</th><th>Username</th><th>Mobile</th><th>Status</th><th>Actions</th>
       </tr></thead><tbody id="devDevBody"></tbody></table></div>
     </section>
     <!-- ========== DEV ADMIN: USERS OF DISTRICT ADMIN VIEW ========== -->
@@ -813,7 +836,10 @@
       <div class="dev-topbar">
         <div class="dev-topbar-left">
           <button type="button" class="btn btn-outline btn-sm" id="devDauBack">&#8592; Back</button>
-          <h2 class="dev-page-title" id="devDauTitle">Users</h2>
+          <div>
+            <nav class="acc-breadcrumbs" style="font-size:12px;color:var(--text-muted,#64748b);margin-bottom:2px;"><a href="#" onclick="switchTab('account-management');return false;" style="color:var(--primary,#1d4ed8);text-decoration:none;">Account Management</a> &rsaquo; <a href="#" onclick="switchTab('manage-districts');return false;" style="color:var(--primary,#1d4ed8);text-decoration:none;">Districts</a> &rsaquo; <span>District Users</span></nav>
+            <h2 class="dev-page-title" id="devDauTitle">Users</h2>
+          </div>
         </div>
       </div>
       <div class="dev-toolbar">
@@ -822,10 +848,12 @@
           <option value="">Search by Type: All</option>
           <option value="user">Office</option>
           <option value="mhc">MHC</option>
+          <option value="itstaff">Computer/IT Staff</option>
+          <option value="mtostaff">MTO Staff</option>
         </select>
       </div>
       <div class="dev-table-wrap"><table class="dev-table"><thead><tr>
-        <th>Username</th><th>Display Name</th><th>Mobile</th><th>Role</th><th>District</th><th>Location</th><th>Actions</th>
+        <th>Username</th><th>Display Name</th><th>Mobile</th><th>Role</th><th>District</th><th>Location</th><th>Status</th><th>Actions</th>
       </tr></thead><tbody id="devDauBody"></tbody></table></div>
           <div class="dev-toolbar" style="margin-top:10px"><span id="devDauCount" class="dev-empty"></span></div>
     </section>
@@ -833,9 +861,15 @@
         <div class="dev-topbar">
           <div class="dev-topbar-left">
             <button type="button" class="btn btn-outline btn-sm" id="adminLocsBack">&#8592; Back</button>
-            <h2 class="dev-page-title">Manage Locations</h2>
+            <div>
+              <nav class="acc-breadcrumbs" style="font-size:12px;color:var(--text-muted,#64748b);margin-bottom:2px;"><a href="#" onclick="switchTab('account-management');return false;" style="color:var(--primary,#1d4ed8);text-decoration:none;">Account Management</a> &rsaquo; <span>Locations</span></nav>
+              <h2 class="dev-page-title">Manage Locations</h2>
+            </div>
           </div>
-          <button type="button" class="btn btn-primary" id="adminAddLocBtn">+ Add New Location</button>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button type="button" class="btn btn-outline" id="exportAdminLocsBtn" title="Export locations to Excel">&#128229; Export Excel</button>
+            <button type="button" class="btn btn-primary" id="adminAddLocBtn">+ Add New Location</button>
+          </div>
         </div>
         <div class="dev-toolbar"><input type="text" id="adminLocSearch" placeholder="Search by location name or type..." autocomplete="off"></div>
         <div class="dev-cards" id="adminLocList"></div>
@@ -844,12 +878,18 @@
         <div class="dev-topbar">
           <div class="dev-topbar-left">
             <button type="button" class="btn btn-outline btn-sm" id="adminUsersBack">&#8592; Back</button>
-            <h2 class="dev-page-title">Manage Users</h2>
+            <div>
+              <nav class="acc-breadcrumbs" style="font-size:12px;color:var(--text-muted,#64748b);margin-bottom:2px;"><a href="#" onclick="switchTab('account-management');return false;" style="color:var(--primary,#1d4ed8);text-decoration:none;">Account Management</a> &rsaquo; <span>Users</span></nav>
+              <h2 class="dev-page-title">Manage Users</h2>
+            </div>
           </div>
-          <button type="button" class="btn btn-primary" id="adminAddUserBtn">+ Add New User</button>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button type="button" class="btn btn-outline" id="exportAdminUsersBtn" title="Export users to Excel">&#128229; Export Excel</button>
+            <button type="button" class="btn btn-primary" id="adminAddUserBtn">+ Add New User</button>
+          </div>
         </div>
-        <div class="dev-toolbar"><input type="search" id="adminUserSearch" placeholder="Search by username, name, role, district, location..."><select id="adminUserType" class="dev-type-sel"><option value="">Search by Type: All</option><option value="admin">District Admin</option><option value="user">Office</option><option value="mhc">MHC</option></select></div>
-        <div class="dev-table-wrap"><table class="dev-table"><thead><tr><th>Username</th><th>Display Name</th><th>Mobile</th><th>Role</th><th>District</th><th>Location</th><th>Actions</th></tr></thead><tbody id="adminUsersBody"></tbody></table></div>
+        <div class="dev-toolbar"><input type="search" id="adminUserSearch" placeholder="Search by username, name, role, district, location..."><select id="adminUserType" class="dev-type-sel"><option value="">Search by Type: All</option><option value="admin">District Admin</option><option value="user">Office</option><option value="mhc">MHC</option><option value="itstaff">Computer/IT Staff</option><option value="mtostaff">MTO Staff</option></select></div>
+        <div class="dev-table-wrap"><table class="dev-table"><thead><tr><th>Username</th><th>Display Name</th><th>Mobile</th><th>Role</th><th>District</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead><tbody id="adminUsersBody"></tbody></table></div>
         <div class="dev-toolbar" style="margin-top:10px"><span id="adminUsersCount" class="dev-empty"></span></div>
       </section>
     <!-- ========== DEMANDS VIEW ========== -->
@@ -2861,28 +2901,40 @@
       <form id="igForm">
         <div class="form-row">
           <div class="form-group">
-            <label for="igfUsername">Username</label>
+            <label for="igfUsername">Username <span class="req">*</span></label>
             <input type="text" id="igfUsername" required minlength="3" autocomplete="off">
           </div>
           <div class="form-group">
-            <label for="igfPassword">Password</label>
-            <input type="text" id="igfPassword" placeholder="Leave blank to keep current" autocomplete="new-password">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="igfName">Display Name</label>
+            <label for="igfName">Display Name <span class="req">*</span></label>
             <input type="text" id="igfName" required>
           </div>
+        </div>
+        <div class="form-row">
           <div class="form-group">
-            <label for="igfMobile">Mobile</label>
-            <input type="tel" id="igfMobile" required>
+            <label for="igfPassword">Password <span class="req" id="igfPwReq">*</span></label>
+            <div style="position:relative;display:flex;align-items:center;">
+              <input type="password" id="igfPassword" placeholder="Minimum 6 characters" autocomplete="new-password" style="width:100%;padding-right:36px;">
+              <button type="button" class="btn-pw-toggle" data-pw-target="igfPassword" style="position:absolute;right:8px;background:none;border:none;cursor:pointer;color:var(--text-muted,#666);padding:4px;" title="Show/Hide Password" aria-label="Toggle password visibility">👁️</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="igfConfirmPassword">Confirm Password <span class="req" id="igfConfirmPwReq">*</span></label>
+            <div style="position:relative;display:flex;align-items:center;">
+              <input type="password" id="igfConfirmPassword" placeholder="Re-enter password" autocomplete="new-password" style="width:100%;padding-right:36px;">
+              <button type="button" class="btn-pw-toggle" data-pw-target="igfConfirmPassword" style="position:absolute;right:8px;background:none;border:none;cursor:pointer;color:var(--text-muted,#666);padding:4px;" title="Show/Hide Password" aria-label="Toggle password visibility">👁️</button>
+            </div>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="igfHqLoc">IG Range</label>
+            <label for="igfMobile">Mobile <span class="req">*</span></label>
+            <input type="tel" id="igfMobile" placeholder="10-digit mobile number" maxlength="10" required>
+          </div>
+          <div class="form-group">
+            <label for="igfHqLoc">IG Range <span class="req">*</span></label>
             <select id="igfHqLoc"></select>
+          </div>
+        </div>
           </div>
           <div class="form-group">
             <label>State</label>
@@ -3787,8 +3839,27 @@
           <input type="text" id="duUsername" placeholder="e.g. ps_sector4" autocomplete="off">
         </div>
         <div class="form-group">
-          <label for="duPassword">Password <span class="req">*</span></label>
-          <input type="password" id="duPassword" placeholder="Minimum 6 characters" autocomplete="new-password">
+          <label for="duActive">Account Status <span class="req">*</span></label>
+          <select id="duActive">
+            <option value="true">Active (Can log in)</option>
+            <option value="false">Inactive / Suspended (Login disabled)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row" id="duPasswordRow">
+        <div class="form-group">
+          <label for="duPassword">Password <span class="req" id="duPwReq">*</span></label>
+          <div style="position:relative;display:flex;align-items:center;">
+            <input type="password" id="duPassword" placeholder="Minimum 6 characters" autocomplete="new-password" style="width:100%;padding-right:36px;">
+            <button type="button" class="btn-pw-toggle" data-pw-target="duPassword" style="position:absolute;right:8px;background:none;border:none;cursor:pointer;color:var(--text-muted,#666);padding:4px;" title="Show/Hide Password" aria-label="Toggle password visibility">👁️</button>
+          </div>
+        </div>
+        <div class="form-group" id="duConfirmPasswordGroup">
+          <label for="duConfirmPassword">Confirm Password <span class="req" id="duConfirmPwReq">*</span></label>
+          <div style="position:relative;display:flex;align-items:center;">
+            <input type="password" id="duConfirmPassword" placeholder="Re-enter password" autocomplete="new-password" style="width:100%;padding-right:36px;">
+            <button type="button" class="btn-pw-toggle" data-pw-target="duConfirmPassword" style="position:absolute;right:8px;background:none;border:none;cursor:pointer;color:var(--text-muted,#666);padding:4px;" title="Show/Hide Password" aria-label="Toggle password visibility">👁️</button>
+          </div>
         </div>
       </div>
       <div class="form-row">

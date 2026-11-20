@@ -14650,7 +14650,7 @@ if (e.target.closest("[data-ccat-edit]")) startEditConsCat(parseInt(e.target.clo
     if (!b) return;
     const act = b.getAttribute("data-maction");
     if (act === "districts") { if (isIg()) openIgDistricts(); else openDevDistricts(); }
-    else if (act === "users") { if (isDevAdmin()) openDevUsers(); else if (isAdmin()) openAdminUsers(); else openUsersModal(); }
+    else if (act === "users") { if (isDevAdmin()) openDevUsers(); else if (isIg()) openAdminUsers(); else if (isAdmin()) openAdminUsers(); else openUsersModal(); }
     else if (act === "igs") openDevIgs();
     else if (act === "locations") openAdminLocs();
   });
@@ -19197,6 +19197,11 @@ function openIgForm(editId, presetRangeId) {
   $("#igfEditId").value = u ? u.id : "";
   $("#igfUsername").value = u ? u.username : "";
   $("#igfPassword").value = "";
+  if ($("#igfConfirmPassword")) $("#igfConfirmPassword").value = "";
+  if ($("#igfPwReq")) $("#igfPwReq").style.display = u ? "none" : "";
+  if ($("#igfConfirmPwReq")) $("#igfConfirmPwReq").style.display = u ? "none" : "";
+  if ($("#igfPassword")) $("#igfPassword").placeholder = u ? "Leave blank to keep current password" : "Minimum 6 characters";
+  if ($("#igfConfirmPassword")) $("#igfConfirmPassword").placeholder = u ? "Leave blank to keep current password" : "Re-enter password";
   $("#igfName").value = u ? u.name : "";
   $("#igfMobile").value = u ? u.mobile : "";
   const ranges = getIgRanges();
@@ -19224,11 +19229,15 @@ function submitIgForm(e) {
   const editId = $("#igfEditId").value;
   const username = $("#igfUsername").value.trim();
   const password = $("#igfPassword").value;
+  const confirmPassword = $("#igfConfirmPassword") ? $("#igfConfirmPassword").value : "";
   const name = $("#igfName").value.trim();
   const mobile = $("#igfMobile").value.trim();
   const rangeId = $("#igfHqLoc").value;
   if (!username || !name || !mobile) return toast("Fill all required fields.", "error");
-  if (!/^\d{10}$/.test(mobile)) return toast("Mobile number must be exactly 10 digits.", "error");
+  if (!/^[6-9]\d{9}$/.test(mobile)) return toast("Mobile number must be a valid 10-digit number starting with 6, 7, 8 or 9.", "error");
+  if (!editId && !password) return toast("Password is required for a new IG Admin.", "error");
+  if (password && password.length < 6) return toast("Password must be at least 6 characters.", "error");
+  if (password && password !== confirmPassword) return toast("Passwords do not match.", "error");
   if (!rangeId) return toast("Choose the IG Range this Inspector General will hold.", "error");
 
   const selectedDistIds = readIgFormDistricts();
@@ -19646,7 +19655,7 @@ function renderDevLocList() {
   const distId = $('#devLocModal').dataset.distId;
   const locs = getLocationsForDistrict(distId);
   if (!locs.length) { box.innerHTML = '<div class="dev-empty dev-empty-sm"><p>No locations yet.</p><p class="dev-empty-sub">Click "+ Add Location" to add the first one.</p></div>'; return; }
-  box.innerHTML = locs.map(l => { const t = __devLocLabel(l.type); const isHQ = l.type === 'district'; const del = isHQ ? '' : '<button type="button" class="btn btn-sm btn-red" data-devloc-del=\'' + l.id + '\'>Delete</button>'; return '<div class="dev-loc-row"><div class="dlr-info"><span class="dlr-name">' + esc(l.name) + '</span><span class="cons-badge ' + (isHQ ? "cons-b-blue" : l.type === "mhc" ? "cons-b-amber" : "cons-b-gray") + '">>' + esc(t) + '</span></div><div class="dlr-actions"><button type="button" class="btn btn-sm btn-loc" data-devloc-edit=\'' + l.id + '\'>Edit</button>' + del + '</div></div>'; }).join('');
+  box.innerHTML = locs.map(l => { const t = __devLocLabel(l.type); const isHQ = l.type === 'district'; const del = isHQ ? '' : '<button type="button" class="btn btn-sm btn-red" data-devloc-del=\'' + l.id + '\'>Delete</button>'; return '<div class="dev-loc-row"><div class="dlr-info"><span class="dlr-name">' + esc(l.name) + '</span><span class="cons-badge ' + (isHQ ? "cons-b-blue" : l.type === "mhc" ? "cons-b-amber" : "cons-b-gray") + '">' + esc(t) + '</span></div><div class="dlr-actions"><button type="button" class="btn btn-sm btn-loc" data-devloc-edit=\'' + l.id + '\'>Edit</button>' + del + '</div></div>'; }).join('');
 }
 function openDevLocAdd() {
   const distId = ($("#devLocModal") && $("#devLocModal").dataset.distId) || (currentUser && currentUser.districtId);
@@ -19771,17 +19780,19 @@ function renderDevUsers() {
   const devs = users.filter(u => u.role === "devadmin").filter(u => __devUserMatches(u, q)).filter(u => !type || type === "devadmin");
   $("#devDaCount").textContent = das.length;
   $("#devDevCount").textContent = devs.length;
-  if (!das.length) tbody.innerHTML = '<tr><td colspan="6" class="dev-empty-cell">No District Admins found.</td></tr>';
+  if (!das.length) tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">No District Admins found.</td></tr>';
   else tbody.innerHTML = das.map(u => {
     const n = __devDistUsers(u.districtId).length;
     const delDisabled = n > 0;
     const msg = "This District Admin cannot be deleted because users are still assigned to this account.";
+    const statusBadge = '<span class="cons-badge ' + (u.active === false ? 'cons-b-red' : 'cons-b-green') + '">' + (u.active === false ? 'Inactive' : 'Active') + '</span>';
     return '<tr data-devda-id="' + u.id + '">' +
       '<td data-th="Name"><span class="dev-u-name">' + esc(u.name) + '</span></td>' +
       '<td data-th="Username"><span class="dev-u-user">' + esc(u.username) + '</span></td>' +
       '<td data-th="District">' + esc(__devDistName(u.districtId)) + '</td>' +
       '<td data-th="Mobile">' + esc(u.mobile || "—") + '</td>' +
       '<td data-th="Users"><span class="cons-badge cons-b-blue">' + n + ' user' + (n === 1 ? "" : "s") + '</span></td>' +
+      '<td data-th="Status">' + statusBadge + '</td>' +
       '<td data-th="Actions" class="cell-actions">' +
       '<button type="button" class="btn btn-sm btn-dark" data-devda-users="' + u.id + '">Users</button>' +
       '<button type="button" class="btn btn-sm btn-dark" data-devda-edit="' + u.id + '">Edit</button>' +
@@ -19790,7 +19801,7 @@ function renderDevUsers() {
         : '<button type="button" class="btn btn-sm btn-red" data-devda-del="' + u.id + '">Delete</button>') +
       '</td></tr>';
   }).join("");
-  if (!devs.length) $("#devDevBody").innerHTML = '<tr><td colspan="4" class="dev-empty-cell">No Developer Admins found.</td></tr>';
+  if (!devs.length) $("#devDevBody").innerHTML = '<tr><td colspan="5" class="dev-empty-cell">No Developer Admins found.</td></tr>';
   else {
     // The count is taken from every Developer Admin, not the filtered list, so
     // the buttons do not appear and disappear as the search box is typed in.
@@ -19798,6 +19809,7 @@ function renderDevUsers() {
     const meId = currentUser ? currentUser.id : "";
     $("#devDevBody").innerHTML = devs.map(u => {
       const isMe = u.id === meId;
+      const statusBadge = '<span class="cons-badge ' + (u.active === false ? 'cons-b-red' : 'cons-b-green') + '">' + (u.active === false ? 'Inactive' : 'Active') + '</span>';
       // Your own row shows Edit and nothing else - no greyed-out Delete that
       // invites a click that cannot work. Another Developer Admin gets the full
       // pair, because there is a real second admin to fall back on.
@@ -19810,6 +19822,7 @@ function renderDevUsers() {
         '<td data-th="Name"><span class="dev-u-name">' + esc(u.name) + (isMe ? '<span class="dev-self-tag">You</span>' : '') + '</span></td>' +
         '<td data-th="Username"><span class="dev-u-user">' + esc(u.username) + '</span></td>' +
         '<td data-th="Mobile">' + esc(u.mobile || "—") + '</td>' +
+        '<td data-th="Status">' + statusBadge + '</td>' +
         '<td data-th="Actions" class="cell-actions">' +
         '<button type="button" class="btn btn-sm btn-outline" data-devda-edit="' + u.id + '">Edit</button>' +
         delNote +
@@ -19842,7 +19855,20 @@ function devDeleteUser(id) {
       return toast("You cannot delete your own account. Edit it instead.", "error");
     }
   }
-  __devConfirm("Delete User?", "Are you sure you want to delete <b>" + esc(user.username) + "</b> (" + esc(user.name) + ")?", "Delete User", () => {
+  let confirmHtml = "Are you sure you want to delete <b>" + esc(user.username) + "</b> (" + esc(user.name) + ")? This permanently removes their login credentials.";
+  let hasHistory = false;
+  try {
+    const dList = typeof getDemands === "function" ? getDemands() : [];
+    const gList = typeof getGrievances === "function" ? getGrievances() : [];
+    const mList = typeof getMaintenanceRequests === "function" ? getMaintenanceRequests() : [];
+    hasHistory = dList.some(d => d.requestedByUserId === id || d.requestedToUserId === id) ||
+                 gList.some(g => g.assignedTo === id || g.complainantId === id) ||
+                 mList.some(m => m.requestToUserId === id || m.createdBy === id);
+  } catch (e) {}
+  if (hasHistory) {
+    confirmHtml += '<p style="margin-top:12px;padding:8px 12px;background:rgba(245,158,11,0.12);border-left:3px solid #f59e0b;color:#d97706;font-size:0.86rem;border-radius:4px;line-height:1.45;"><b>Notice:</b> This user has past demands, grievances, or maintenance requests linked to them. Instead of permanently deleting, you can <b>Edit</b> the account and set <b>Account Status: Inactive / Suspended</b> to safely block logins while preserving historical records.</p>';
+  }
+  __devConfirm("Delete User?", confirmHtml, "Delete Permanently", () => {
     saveUsers(getUsers().filter(u => u.id !== id));
     toast("User deleted.", "success");
     __audit("User Deleted", user.name + " (" + (ROLE_LABELS[user.role] || user.role) + ")", { entity: "User" });
@@ -19985,10 +20011,25 @@ function openDevUserModal(editId, presetDistrictId) {
     }, 30);
     $("#duPassword").value = "";
     $("#duPassword").placeholder = "Leave blank to keep current password";
+    if ($("#duConfirmPassword")) {
+      $("#duConfirmPassword").value = "";
+      $("#duConfirmPassword").placeholder = "Leave blank to keep current password";
+    }
+    if ($("#duPwReq")) $("#duPwReq").style.display = "none";
+    if ($("#duConfirmPwReq")) $("#duConfirmPwReq").style.display = "none";
+    if ($("#duActive")) $("#duActive").value = user.active === false ? "false" : "true";
   } else {
     $("#devUserTitle").textContent = "Add New User";
     $("#devUserSubmit").textContent = "Add User";
+    $("#duPassword").value = "";
     $("#duPassword").placeholder = "Minimum 6 characters";
+    if ($("#duConfirmPassword")) {
+      $("#duConfirmPassword").value = "";
+      $("#duConfirmPassword").placeholder = "Re-enter password";
+    }
+    if ($("#duPwReq")) $("#duPwReq").style.display = "";
+    if ($("#duConfirmPwReq")) $("#duConfirmPwReq").style.display = "";
+    if ($("#duActive")) $("#duActive").value = "true";
     if (presetDistrictId) {
       const d = getDistricts().find(x => x.id === presetDistrictId);
       if (d && d.rangeId) { const rs = $("#duRange"); if (rs) rs.value = d.rangeId; }
@@ -20004,7 +20045,10 @@ function openDevUserModal(editId, presetDistrictId) {
 /* ==================== DISTRICT ADMIN: LOCATIONS & USERS (v2026.09.136) ==================== */
 function openAdminLocs(distId) {
   if (!isAdmin() && !isDevAdmin()) return toast('Only District or Developer Admin can manage locations.', 'error');
-  const targetId = distId || (currentUser && currentUser.districtId) || activeDistrictId || (getDistricts()[0] || {}).id;
+  const igDists = isIg() ? igLoggedInDistricts() : [];
+  const targetId = distId || (__devPg.adminLocs && __devPg.adminLocs.distId) ||
+    (isIg() ? ((activeDistrictId && igDists.some(d => d.id === activeDistrictId)) ? activeDistrictId : (igDists[0] || {}).id) : currentUser.districtId) ||
+    activeDistrictId || (getDistricts()[0] || {}).id;
   const d = getDistricts().find(x => x.id === targetId);
   if (!d) return toast('District not found.', 'error');
   $('#devLocModal').dataset.distId = d.id;
@@ -20017,9 +20061,11 @@ function openAdminLocs(distId) {
 }
 function renderAdminLocs() {
   const box = $('#adminLocList'); if (!box) return;
-  const distId = (__devPg.adminLocs && __devPg.adminLocs.distId) || ($('#devLocModal') && $('#devLocModal').dataset.distId) || (currentUser && currentUser.districtId) || activeDistrictId || (getDistricts()[0] || {}).id;
+  const igDists = isIg() ? igLoggedInDistricts() : [];
+  const distId = (__devPg.adminLocs && __devPg.adminLocs.distId) || ($('#devLocModal') && $('#devLocModal').dataset.distId) ||
+    (isIg() ? (igDists[0] || {}).id : currentUser.districtId) || activeDistrictId || (getDistricts()[0] || {}).id;
   let distSel = document.getElementById("adminLocDistSel");
-  if (isDevAdmin()) {
+  if (isDevAdmin() || isIg()) {
     if (!distSel) {
       const tb = document.querySelector("#view-admin-locs .dev-toolbar");
       if (tb) {
@@ -20034,7 +20080,8 @@ function renderAdminLocs() {
       }
     }
     if (distSel) {
-      distSel.innerHTML = getDistricts().map(d => '<option value="' + esc(d.id) + '"' + (d.id === distId ? ' selected' : '') + '>' + esc(d.name) + '</option>').join("");
+      const allowedDists = isDevAdmin() ? getDistricts() : igDists;
+      distSel.innerHTML = allowedDists.map(d => '<option value="' + esc(d.id) + '"' + (d.id === distId ? ' selected' : '') + '>' + esc(d.name) + '</option>').join("");
       distSel.style.display = "";
     }
   } else if (distSel) {
@@ -20044,11 +20091,14 @@ function renderAdminLocs() {
   const aq = (__devPg.adminLocs && __devPg.adminLocs.q || '').trim().toLowerCase();
   const filtered = aq ? locs.filter(l => (l.name || '').toLowerCase().indexOf(aq) !== -1 || __devLocLabel(l.type || '').toLowerCase().indexOf(aq) !== -1) : locs;
   if (!filtered.length) { box.innerHTML = '<div class="dev-empty dev-empty-sm"><p>' + (aq ? 'No locations match your search.' : 'No locations yet.') + '</p><p class="dev-empty-sub">Click "+ Add New Location" to add the first one.</p></div>'; return; }
-  box.innerHTML = '<div class="dev-table-wrap"><table class="dev-table"><thead><tr><th>Location Name</th><th>Type</th><th>Actions</th></tr></thead><tbody>' + filtered.map(l => { const t = __devLocLabel(l.type); const isHQ = l.type === "district"; const acts = '<button type="button" class="btn btn-sm btn-loc" data-devloc-edit="' + l.id + '">Edit</button>' + (isHQ ? '' : '<button type="button" class="btn btn-sm btn-red" data-devloc-del="' + l.id + '">Delete</button>'); return '<tr><td>' + esc(l.name) + '</td><td><span class="cons-badge ' + (isHQ ? "cons-b-blue" : l.type === "mhc" ? "cons-b-amber" : "cons-b-gray") + '">>' + esc(t) + '</span></td><td class="cell-actions">' + acts + '</td></tr>'; }).join('') + '</tbody></table></div>';
+  box.innerHTML = '<div class="dev-table-wrap"><table class="dev-table"><thead><tr><th>Location Name</th><th>Type</th><th>Actions</th></tr></thead><tbody>' + filtered.map(l => { const t = __devLocLabel(l.type); const isHQ = l.type === "district"; const acts = '<button type="button" class="btn btn-sm btn-loc" data-devloc-edit="' + l.id + '">Edit</button>' + (isHQ ? '' : '<button type="button" class="btn btn-sm btn-red" data-devloc-del="' + l.id + '">Delete</button>'); return '<tr><td>' + esc(l.name) + '</td><td><span class="cons-badge ' + (isHQ ? "cons-b-blue" : l.type === "mhc" ? "cons-b-amber" : "cons-b-gray") + '">' + esc(t) + '</span></td><td class="cell-actions">' + acts + '</td></tr>'; }).join('') + '</tbody></table></div>';
 }
-function openAdminUsers() {
+function openAdminUsers(targetDistId) {
   if (!isAdmin()) return toast('Only District or Developer Admin can manage users.', 'error');
-  __devPg.adminUsers = { q: '', type: '' };
+  const igDists = isIg() ? igLoggedInDistricts() : [];
+  const defaultDist = targetDistId || (__devPg.adminUsers && __devPg.adminUsers.distId) ||
+    (isIg() ? ((activeDistrictId && igDists.some(d => d.id === activeDistrictId)) ? activeDistrictId : (igDists[0] || {}).id) : currentUser.districtId);
+  __devPg.adminUsers = { q: '', type: '', distId: defaultDist };
   const s = $('#adminUserSearch'); if (s) s.value = '';
   const t = $('#adminUserType'); if (t) t.value = '';
   renderAdminUsers();
@@ -20059,13 +20109,48 @@ function renderAdminUsers() {
   const tbody = $('#adminUsersBody'); if (!tbody) return;
   const aq = (__devPg.adminUsers && __devPg.adminUsers.q || '').trim();
   const type = __devPg.adminUsers.type || '';
-  let users = getUsers().filter(u => u.districtId === currentUser.districtId && u.role !== 'ig' && u.role !== 'devadmin');
-  const displayRole = u => ["itstaff", "mtostaff"].includes(u.role) ? "user" : u.role;
-  users = users.filter(u => (__devUserMatches(u, aq) || ROLE_LABELS[displayRole(u)]?.toLowerCase().includes(aq.toLowerCase())) && (!type || displayRole(u) === type));
+  const igDists = isIg() ? igLoggedInDistricts() : [];
+  let distId = (__devPg.adminUsers && __devPg.adminUsers.distId) || (isIg() ? (igDists[0] || {}).id : currentUser.districtId);
+
+  let distSel = document.getElementById("adminUserDistSel");
+  if (isDevAdmin() || isIg()) {
+    if (!distSel) {
+      const tb = document.querySelector("#view-admin-users .dev-toolbar");
+      if (tb) {
+        distSel = document.createElement("select");
+        distSel.id = "adminUserDistSel";
+        distSel.className = "dev-type-sel";
+        distSel.style.maxWidth = "240px";
+        tb.appendChild(distSel);
+        distSel.addEventListener("change", function() {
+          openAdminUsers(distSel.value);
+        });
+      }
+    }
+    if (distSel) {
+      const allowedDists = isDevAdmin() ? getDistricts() : igDists;
+      distSel.innerHTML = allowedDists.map(d => '<option value="' + esc(d.id) + '"' + (d.id === distId ? ' selected' : '') + '>' + esc(d.name) + '</option>').join("");
+      distSel.style.display = "";
+    }
+  } else if (distSel) {
+    distSel.style.display = "none";
+  }
+
+  let users = getUsers().filter(u => u.districtId === distId && u.role !== 'ig' && u.role !== 'devadmin');
+  users = users.filter(u => {
+    const matchesSearch = __devUserMatches(u, aq) || (ROLE_LABELS[u.role] || u.role).toLowerCase().includes(aq.toLowerCase());
+    const matchesType = !type || u.role === type;
+    return matchesSearch && matchesType;
+  });
   const cnt = $('#adminUsersCount'); if (cnt) cnt.textContent = users.length + ' user' + (users.length === 1 ? '' : 's');
-  const dist = getDistricts().find(d => d.id === currentUser.districtId);
-  tbody.innerHTML = users.map(u => { const loc = (getLocationsForDistrict(currentUser.districtId) || []).find(l => l.id === u.locationId); return '<tr data-devu-id="' + u.id + '"><td>' + esc(u.username) + '</td><td>' + esc(u.name) + '</td><td>' + esc(u.mobile || '-') + '</td><td>' + esc(ROLE_LABELS[u.role] || u.role) + '</td><td>' + esc(dist ? dist.name : '-') + '</td><td>' + esc(loc ? loc.name : '-') + '</td><td class="cell-actions"><button type="button" class="btn btn-sm btn-dark" data-devu-edit="' + u.id + '">Edit</button>' + (u.id === currentUser.id ? '' : '<button type="button" class="btn btn-sm btn-red" data-devu-del="' + u.id + '">Delete</button>') + '</td></tr>'; }).join('');
-  if (!users.length) tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">No users found.</td></tr>';
+  const dist = getDistricts().find(d => d.id === distId);
+  tbody.innerHTML = users.map(u => {
+    const loc = (getLocationsForDistrict(distId) || []).find(l => l.id === u.locationId);
+    const isSelf = u.id === (currentUser ? currentUser.id : "");
+    const statusBadge = '<span class="cons-badge ' + (u.active === false ? 'cons-b-red' : 'cons-b-green') + '">' + (u.active === false ? 'Inactive' : 'Active') + '</span>';
+    return '<tr data-devu-id="' + u.id + '"><td>' + esc(u.username) + '</td><td>' + esc(u.name) + '</td><td>' + esc(u.mobile || '-') + '</td><td>' + esc(ROLE_LABELS[u.role] || u.role) + '</td><td>' + esc(dist ? dist.name : '-') + '</td><td>' + esc(loc ? loc.name : '-') + '</td><td>' + statusBadge + '</td><td class="cell-actions"><button type="button" class="btn btn-sm btn-dark" data-devu-edit="' + u.id + '">Edit</button>' + (isSelf ? '' : '<button type="button" class="btn btn-sm btn-red" data-devu-del="' + u.id + '">Delete</button>') + '</td></tr>';
+  }).join('');
+  if (!users.length) tbody.innerHTML = '<tr><td colspan="8" class="dev-empty-cell">No users found.</td></tr>';
 }
 function openAdminUserModal(editId) {
   if (!isAdmin()) return toast('Only District or Developer Admin can manage users.', 'error');
@@ -20073,9 +20158,10 @@ function openAdminUserModal(editId) {
     const target = getUsers().find(u => u.id === editId);
     if (target && (target.role === 'ig' || target.role === 'devadmin')) return toast('You cannot manage higher authority accounts.', 'error');
   }
-  openDevUserModal(editId || null);
+  const curDist = (__devPg.adminUsers && __devPg.adminUsers.distId) || currentUser.districtId;
+  openDevUserModal(editId || null, curDist);
   if (!isDevAdmin()) {
-    $('#duDistrict').value = currentUser.districtId;
+    $('#duDistrict').value = curDist;
     __fillDevUserLocations();
     const rSel = $('#duRole');
     if (rSel) {
@@ -20098,9 +20184,11 @@ function saveDevUser(e) {
   const editId = $("#duEditId").value;
   const username = $("#duUsername").value.trim();
   const password = $("#duPassword").value;
+  const confirmPassword = $("#duConfirmPassword") ? $("#duConfirmPassword").value : "";
   const name = $("#duName").value.trim();
   const mobile = $("#duMobile").value.trim();
   const role = $("#duRole").value;
+  const isActive = $("#duActive") ? $("#duActive").value === "true" : true;
   const errEl = $("#devUserErr");
   if (!isDevAdmin() && !(currentUser && currentUser.role === "ig" && role === "admin") && (role === "admin" || role === "devadmin" || role === "ig")) { errEl.textContent = "You cannot assign admin roles."; return; }
   errEl.textContent = "";
@@ -20108,10 +20196,20 @@ function saveDevUser(e) {
   const users = getUsers();
   if (users.some(u => u.id !== editId && u.username.trim().toLowerCase() === username.toLowerCase())) { errEl.textContent = "Username already exists."; return; }
   if (!name) { errEl.textContent = "Display name is required."; return; }
-  if (!/^\d{10}$/.test(mobile)) { errEl.textContent = "Mobile number must be exactly 10 digits."; return; }
+  if (!/^[6-9]\d{9}$/.test(mobile)) { errEl.textContent = "Mobile number must be a valid 10-digit number starting with 6, 7, 8 or 9."; return; }
   if (!editId && !password) { errEl.textContent = "Password is required for a new user."; return; }
   if (password && password.length < 6) { errEl.textContent = "Password must be at least 6 characters."; return; }
+  if (password && password !== confirmPassword) { errEl.textContent = "Passwords do not match."; return; }
   if (!role) { errEl.textContent = "Please select a role."; return; }
+
+  // Prevent District Admin self-demotion or self-transfer
+  if (currentUser && currentUser.id === editId) {
+    if (currentUser.role === "admin" && role !== "admin") {
+      errEl.textContent = "You cannot change your own administrative role. Ask a Developer Admin.";
+      return;
+    }
+  }
+
   // the role decides the placement, so read whichever row it is showing
   const hqType = roleHomeType(role);
   let districtId = "", locationId = "", rangeId = "", districtIds = null;
@@ -20132,9 +20230,16 @@ function saveDevUser(e) {
     locationId = lSel ? lSel.value : "";
     rangeId = rSel ? rSel.value : "";
     if (!districtId) { errEl.textContent = "Please select a district."; return; }
-    if (!isDevAdmin() && districtId !== currentUser.districtId) { errEl.textContent = "You can only manage users in your own district."; return; }
+    if (!isDevAdmin() && !isIg() && districtId !== currentUser.districtId) { errEl.textContent = "You can only manage users in your own district."; return; }
+    if (isIg() && !inDistrictScope(districtId)) { errEl.textContent = "That district is not in your IG Range."; return; }
     if (!locationId) { errEl.textContent = "Please select a location."; return; }
   }
+
+  if (currentUser && currentUser.id === editId && currentUser.districtId && districtId !== currentUser.districtId && !isDevAdmin()) {
+    errEl.textContent = "You cannot change your own district.";
+    return;
+  }
+
   const btn = $("#devUserSubmit");
   __devBtnLoading(btn, true);
   setTimeout(() => {
@@ -20143,6 +20248,7 @@ function saveDevUser(e) {
       const place = function (user) {
         user.districtId = districtId;
         user.locationId = locationId;
+        user.active = isActive;
         if (hqType) { user.state = STATE_NAME; user.locationType = hqType; }
         else { delete user.state; delete user.locationType; }
         if (rangeId) user.rangeId = rangeId; else delete user.rangeId;
@@ -20172,6 +20278,7 @@ function saveDevUser(e) {
       renderDevUsers();
       renderDevDaUsers();
       renderUsers();
+      if (typeof renderAdminUsers === "function") renderAdminUsers();
     } finally {
       __devBtnLoading(btn, false);
     }
@@ -20183,25 +20290,20 @@ function renderDevDaUsers() {
   const tbody = $("#devDauBody");
   if (!tbody) return;
   const pg = __devPg.dausers || {};
-  // Two ways in to this one page. Opened from a District Admin row it lists that
-  // admin's district; opened from a district row (a District Admin's own page
-  // and an IG Admin's, which is where the Users button now sits) it lists that
-  // district. Both produce the same table, so the page does not need to know
-  // which door it came through.
   let distId = "";
   let ownerLabel = "";
   if (pg.daId) {
     const da = getUsers().find(u => u.id === pg.daId);
-    if (!da) { tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">District Admin not found.</td></tr>'; return; }
+    if (!da) { tbody.innerHTML = '<tr><td colspan="8" class="dev-empty-cell">District Admin not found.</td></tr>'; return; }
     distId = da.districtId;
     ownerLabel = da.name;
   } else if (pg.districtId) {
     const d = getDistricts().find(x => x.id === pg.districtId);
-    if (!d) { tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">District not found.</td></tr>'; return; }
+    if (!d) { tbody.innerHTML = '<tr><td colspan="8" class="dev-empty-cell">District not found.</td></tr>'; return; }
     distId = d.id;
     ownerLabel = d.name;
   } else {
-    tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">Nothing selected.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="dev-empty-cell">Nothing selected.</td></tr>';
     return;
   }
   const title = $("#devDauTitle");
@@ -20212,19 +20314,22 @@ function renderDevDaUsers() {
     .filter(u => __devUserMatches(u, q))
     .filter(u => !type || u.role === type);
   $("#devDauCount").textContent = users.length;
-  if (!users.length) { tbody.innerHTML = '<tr><td colspan="7" class="dev-empty-cell">No users found for this district.</td></tr>'; return; }
-  tbody.innerHTML = users.map(u =>
-    '<tr data-devu-id="' + u.id + '">' +
-    '<td data-th="Username"><span class="dev-u-user">' + esc(u.username) + '</span></td>' +
-    '<td data-th="Display Name">' + esc(u.name) + '</td>' +
-    '<td data-th="Mobile">' + esc(u.mobile || "—") + '</td>' +
-    '<td data-th="Role"><span class="cons-badge cons-b-gray">' + esc(ROLE_LABELS[u.role] || u.role) + '</span></td>' +
-    '<td data-th="District">' + esc(__devDistName(u.districtId)) + '</td>' +
-    '<td data-th="Location">' + esc(__devLocName(u.districtId, u.locationId)) + '</td>' +
-    '<td data-th="Actions" class="cell-actions">' +
-    '<button type="button" class="btn btn-sm btn-outline" data-devu-edit="' + u.id + '">Edit</button>' +
-    '<button type="button" class="btn btn-sm btn-red" data-devu-del="' + u.id + '">Delete</button>' +
-    '</td></tr>').join("");
+  if (!users.length) { tbody.innerHTML = '<tr><td colspan="8" class="dev-empty-cell">No users found for this district.</td></tr>'; return; }
+  tbody.innerHTML = users.map(u => {
+    const statusBadge = '<span class="cons-badge ' + (u.active === false ? 'cons-b-red' : 'cons-b-green') + '">' + (u.active === false ? 'Inactive' : 'Active') + '</span>';
+    return '<tr data-devu-id="' + u.id + '">' +
+      '<td data-th="Username"><span class="dev-u-user">' + esc(u.username) + '</span></td>' +
+      '<td data-th="Display Name">' + esc(u.name) + '</td>' +
+      '<td data-th="Mobile">' + esc(u.mobile || "—") + '</td>' +
+      '<td data-th="Role"><span class="cons-badge cons-b-gray">' + esc(ROLE_LABELS[u.role] || u.role) + '</span></td>' +
+      '<td data-th="District">' + esc(__devDistName(u.districtId)) + '</td>' +
+      '<td data-th="Location">' + esc(__devLocName(u.districtId, u.locationId)) + '</td>' +
+      '<td data-th="Status">' + statusBadge + '</td>' +
+      '<td data-th="Actions" class="cell-actions">' +
+      '<button type="button" class="btn btn-sm btn-outline" data-devu-edit="' + u.id + '">Edit</button>' +
+      '<button type="button" class="btn btn-sm btn-red" data-devu-del="' + u.id + '">Delete</button>' +
+      '</td></tr>';
+  }).join("");
 }
 
 /* ==================== CONFIRM DIALOG ==================== */
@@ -20485,11 +20590,117 @@ function bindDevAccountView() {
   });
 }
 
+function exportDistrictsExcel() {
+  if (!window.XLSX) return toast("Excel export library is loading, please try again.", "error");
+  const districts = getDistricts();
+  const allLocs = getAllLocations();
+  const allUsers = getUsers();
+  const allItems = getAllItems();
+  const rows = districts.map(d => [
+    d.name || "",
+    d.code || "",
+    d.headquarters || "",
+    d.rangeId ? (rangeNameOf(d.rangeId) || d.rangeId) : "-",
+    (allLocs[d.id] || []).length,
+    allUsers.filter(u => u.districtId === d.id).length,
+    (allItems[d.id] || []).length
+  ]);
+  const cols = ["District", "Code", "Headquarters", "IG Range", "Locations", "Users", "Items"];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([cols, ...rows]), "Districts");
+  XLSX.writeFile(wb, "Districts-Export-" + new Date().toISOString().slice(0, 10) + ".xlsx");
+  toast("Districts exported to Excel.", "success");
+}
+
+function exportIgsExcel() {
+  if (!window.XLSX) return toast("Excel export library is loading, please try again.", "error");
+  const dists = getDistricts();
+  const nameOf = id => { const d = dists.find(x => x.id === id); return d ? d.name : id; };
+  const allUsers = getUsers();
+  const allItems = getAllItems();
+  const igs = allUsers.filter(u => u.role === "ig");
+  const rows = igs.map(u => {
+    const dIds = igDistrictsOf(u);
+    return [
+      u.name || "",
+      u.username || "",
+      u.rangeId ? (rangeNameOf(u.rangeId) || u.rangeId) : "-",
+      dIds.map(nameOf).join(", ") || "-",
+      dIds.reduce((n, d) => n + allUsers.filter(x => x.districtId === d).length, 0),
+      dIds.reduce((n, d) => n + ((allItems[d] || []).length), 0),
+      u.mobile || "",
+      u.active === false ? "Inactive" : "Active"
+    ];
+  });
+  const cols = ["Name", "Username", "IG Range", "Assigned Districts", "Total Users", "Total Items", "Mobile", "Status"];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([cols, ...rows]), "IG-Admins");
+  XLSX.writeFile(wb, "IG-Admins-Export-" + new Date().toISOString().slice(0, 10) + ".xlsx");
+  toast("IG Admins exported to Excel.", "success");
+}
+
+function exportUsersExcel(scope) {
+  if (!window.XLSX) return toast("Excel export library is loading, please try again.", "error");
+  let users = getUsers();
+  if (scope === "admin") {
+    const distId = (__devPg.adminUsers && __devPg.adminUsers.distId) || currentUser.districtId;
+    users = users.filter(u => u.districtId === distId && u.role !== "ig" && u.role !== "devadmin");
+  }
+  const rows = users.map(u => [
+    u.username || "",
+    u.name || "",
+    u.mobile || "",
+    ROLE_LABELS[u.role] || u.role,
+    __devDistName(u.districtId) || "-",
+    __devLocName(u.districtId, u.locationId) || "-",
+    u.active === false ? "Inactive" : "Active"
+  ]);
+  const cols = ["Username", "Display Name", "Mobile", "Role", "District", "Location", "Status"];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([cols, ...rows]), "Users");
+  XLSX.writeFile(wb, (scope === "admin" ? "District-Users-" : "All-Users-") + new Date().toISOString().slice(0, 10) + ".xlsx");
+  toast("Users exported to Excel.", "success");
+}
+
+function exportLocationsExcel() {
+  if (!window.XLSX) return toast("Excel export library is loading, please try again.", "error");
+  const distId = (__devPg.adminLocs && __devPg.adminLocs.distId) || (currentUser && currentUser.districtId) || activeDistrictId;
+  const locs = getLocationsForDistrict(distId);
+  const dist = getDistricts().find(d => d.id === distId);
+  const rows = locs.map(l => [
+    l.name || "",
+    __devLocLabel(l.type) || l.type || "",
+    dist ? dist.name : (distId || "-")
+  ]);
+  const cols = ["Location Name", "Type", "District"];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([cols, ...rows]), "Locations");
+  XLSX.writeFile(wb, "Locations-Export-" + new Date().toISOString().slice(0, 10) + ".xlsx");
+  toast("Locations exported to Excel.", "success");
+}
+
 function bindDevAdmin() {
   bindDevAccountView();
   if (__devBound) return;
   __devBound = true;
   const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
+  on("exportDistrictsBtn", "click", exportDistrictsExcel);
+  on("exportIgsBtn", "click", exportIgsExcel);
+  on("exportDevUsersBtn", "click", () => exportUsersExcel("all"));
+  on("exportAdminUsersBtn", "click", () => exportUsersExcel("admin"));
+  on("exportAdminLocsBtn", "click", exportLocationsExcel);
+
+  document.addEventListener("click", function(e) {
+    const btn = e.target.closest(".btn-pw-toggle");
+    if (!btn) return;
+    const targetId = btn.getAttribute("data-pw-target");
+    const input = document.getElementById(targetId);
+    if (!input) return;
+    const isPw = input.type === "password";
+    input.type = isPw ? "text" : "password";
+    btn.textContent = isPw ? "🔒" : "👁️";
+    btn.title = isPw ? "Hide Password" : "Show Password";
+  });
   on("devAddDistBtn", "click", () => openDevDistModal());
   on("devDistForm", "submit", saveDevDistrict);
   on("devDistCancel", "click", closeModals);
