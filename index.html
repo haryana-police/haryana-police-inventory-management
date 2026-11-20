@@ -1000,6 +1000,9 @@
           <option value="pending">Pending</option>
           <option value="overdue">Overdue</option>
         </select>
+        <select id="inspLocationFilter" aria-label="Inspection location"><option value="">All Locations</option></select>
+        <input type="date" id="inspDateFrom" aria-label="Inspection date from" title="From Date">
+        <input type="date" id="inspDateTo" aria-label="Inspection date to" title="To Date">
         <div class="stat-export-dd">
           <button class="btn btn-sm btn-outline" id="inspExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
           <div class="stat-export-menu hidden" id="inspExportMenu">
@@ -1011,6 +1014,7 @@
         </div>
       </div>
 
+      <p id="inspRangeError" class="hidden" role="alert" style="color:var(--red)">From Date must be on or before To Date.</p>
       <div class="card">
         <div class="table-wrap">
           <table>
@@ -1980,6 +1984,8 @@
     <form id="inspectionForm">
       <div class="form-row">
         <div class="form-group">
+          <label for="fiAssetId">Inventory item</label>
+          <select id="fiAssetId"><option value="">Manual item / asset name</option></select>
           <label for="fiItem">Item / Asset Inspected</label>
           <input type="text" id="fiItem" required placeholder="e.g. 9mm Pistol, Patrol Car, Uniform Stock">
         </div>
@@ -2009,11 +2015,15 @@
         </div>
         <div class="form-group">
           <label for="fiStatus">Status</label>
-          <select id="fiStatus">
-            <option value="completed">Completed</option>
+          <select id="fiStatus" required>
             <option value="pending">Pending</option>
-            <option value="overdue">Overdue</option>
+            <option value="completed">Completed</option>
           </select>
+        </div>
+        <div class="form-group">
+          <label for="fiDueDate">Follow-up Due Date</label>
+          <input type="date" id="fiDueDate" data-allow-future aria-describedby="fiDueDateHelp">
+          <small id="fiDueDateHelp">Required for a pending inspection.</small>
         </div>
       </div>
       <div class="form-group">
@@ -2034,7 +2044,7 @@
           <button type="button" class="att-btn att-btn-cam" data-att-cam="inspect"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Camera</button>
         </div>
         <div class="att-grid" id="attPreview_inspect"></div>
-      </div>      <input type="hidden" id="fiInspectionId" value="">
+      </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline" data-close>Cancel</button>
         <button type="submit" class="btn btn-primary" id="inspectionSaveBtn">Save Inspection</button>
@@ -2054,7 +2064,7 @@
       <div class="demand-detail-grid" id="inspViewBody"></div>
     </div>
     <div class="modal-footer" style="flex-wrap:wrap;gap:8px">
-      <button type="button" class="btn btn-outline" id="inspViewPdf">&#128424; Print / PDF</button>
+      <button type="button" class="btn btn-outline" id="inspViewPdf">&#128196; Download PDF</button>
       <button type="button" class="btn btn-outline" id="inspViewExcel">&#128202; Excel</button>
       <button type="button" class="btn btn-outline" id="inspViewWord">&#128209; Word</button>
       <span style="flex:1"></span>
@@ -3364,7 +3374,7 @@
   <script src="cat-multiselect.js?v=2026.09.253"></script>
   <script src="consumable-ledger.js?v=1"></script>
   <script src="distribution-ledger.js?v=2"></script>
-  <script src="app.js?v=2026.11.20.8"></script>
+  <script src="app.js?v=2026.11.20.9"></script>
   <script src="grievances.js" defer></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
 <script src="item-profile.js?v=2026.11.20.1"></script>

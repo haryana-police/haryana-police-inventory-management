@@ -19,7 +19,7 @@
 const { Pool } = require('./_filepool');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { guardShramDaanWrites, projectStateFor, restoreScopeFor, ITEM_STORE_KEY, diffItemWrites, authorizeItemWrites, authorizeUserCollectionWrite, diffConsumableWrites, authorizeConsumableWrites, diffStructureWrites, authorizeStructureWrites, diffMaintenanceWrites, authorizeMaintenanceWrites, finalizeMaintenanceState, MAINT_KEY_PREFIX } = require('./_rbac');
+const { guardInspectionWrites, canAccessInspectionUnit, inspectionAttachmentScopes, guardShramDaanWrites, projectStateFor, restoreScopeFor, ITEM_STORE_KEY, diffItemWrites, authorizeItemWrites, authorizeUserCollectionWrite, diffConsumableWrites, authorizeConsumableWrites, diffStructureWrites, authorizeStructureWrites, diffMaintenanceWrites, authorizeMaintenanceWrites, finalizeMaintenanceState, MAINT_KEY_PREFIX } = require('./_rbac');
 const pool = new Pool();
 const Distribution = require('./_distribution');
 
@@ -982,6 +982,8 @@ function validateAllocState(state, previousState = {}) {
       return res.status(409).json({ error: 'Refresh this page to use the current stock save workflow.' });
     }
     let incoming = restoreScopeFor(writeUser, current, body.state);
+    const inspectionVerdict = guardInspectionWrites(writeUser, current, incoming);
+    if (inspectionVerdict) return res.status(inspectionVerdict.status).json({ error: inspectionVerdict.error });
     const shramVerdict = guardShramDaanWrites(writeUser, current, incoming);
     if (shramVerdict) return res.status(shramVerdict.status).json({ error: shramVerdict.error });
     const distributionVerdict = Distribution.guardStateWrites(writeUser, current, incoming);
@@ -1161,7 +1163,11 @@ function validateAllocState(state, previousState = {}) {
 
   // ---------- SAVE A SINGLE KEY (incremental) ----------
   if (p0 === 'key' && req.method === 'POST') {
-    if (!body.key || !body.value) return res.status(400).json({ error: 'key and value required' });
+    if (typeof body.key !== "string" || !body.key || !body.value) return res.status(400).json({ error: 'key and value required' });
+    if (body.key.startsWith('hp_inventory.inspections_') || body.key.startsWith(SCAN_FILES_PREFIX)) {
+      const { user } = await authFromRequest(req);
+      return res.status(user ? 403 : 401).json({ error: 'Use the authorised inspection or attachment workflow.' });
+    }
     if (body.key.startsWith('hp_inventory.distributions_') || body.key === 'hp_inventory.distribution_receipts') {
       const { user } = await authFromRequest(req);
       return res.status(user ? 403 : 401).json({ error: 'Use the authorised distribution workflow.' });
@@ -1275,7 +1281,29 @@ function validateAllocState(state, previousState = {}) {
         return res.status(413).json({ error: 'File too large (max ~8MB)' });
       }
       const state = await getState();
-      state[SCAN_FILES_PREFIX + body.id] = { savedAt: Date.now(), dataUrl: body.dataUrl, length: body.dataUrl.length };
+      const key = SCAN_FILES_PREFIX + body.id;
+      const existing = state[key];
+      const protectedScopes = inspectionAttachmentScopes(state, body.id);
+      if (existing?.inspectionScope) protectedScopes.push(existing.inspectionScope);
+      const inspectionScope = body.inspectionScope;
+      if (inspectionScope || protectedScopes.length) {
+        const { user } = await authFromRequest(req);
+        const allowed = scope => canAccessInspectionUnit(user, scope.districtId, scope.locationId);
+        if (!user) return res.status(401).json({ error: 'Sign in to access inspection attachments.' });
+        if ((inspectionScope && !allowed(inspectionScope)) || protectedScopes.some(scope => !allowed(scope))) {
+          return res.status(403).json({ error: 'Inspection attachment is outside your assigned scope.' });
+        }
+        if (existing) {
+          if (existing.dataUrl !== body.dataUrl) return res.status(409).json({ error: 'This attachment already exists.' });
+          return res.json({ ok: true });
+        }
+        const locations = state['hp_inventory.locations']?.[inspectionScope?.districtId];
+        if (!Array.isArray(locations) || !locations.some(location => location?.id === inspectionScope.locationId)) {
+          return res.status(400).json({ error: 'Select a valid inspection attachment location.' });
+        }
+      }
+      state[key] = { savedAt: Date.now(), dataUrl: body.dataUrl, length: body.dataUrl.length,
+        ...(inspectionScope ? { inspectionScope: { districtId: inspectionScope.districtId, locationId: inspectionScope.locationId } } : {}) };
       await setState(state);
       return res.json({ ok: true });
     }
@@ -1285,6 +1313,15 @@ function validateAllocState(state, previousState = {}) {
       const state = await getState();
       const rec = state[SCAN_FILES_PREFIX + id];
       if (!rec) return res.status(404).json({ error: 'File not found' });
+      const scopes = inspectionAttachmentScopes(state, id);
+      if (!scopes.length && rec.inspectionScope) scopes.push(rec.inspectionScope);
+      if (scopes.length) {
+        const { user } = await authFromRequest(req);
+        if (!user) return res.status(401).json({ error: 'Sign in to access inspection attachments.' });
+        if (!scopes.some(scope => canAccessInspectionUnit(user, scope.districtId, scope.locationId))) {
+          return res.status(403).json({ error: 'Inspection attachment is outside your assigned scope.' });
+        }
+      }
       return res.json({ ok: true, savedAt: rec.savedAt, length: rec.length, dataUrl: rec.dataUrl });
     }
     return res.status(404).json({ error: 'Not found' });

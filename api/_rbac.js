@@ -536,7 +536,7 @@ function sanitizeMaintenanceRecord(record) {
   return r;
 }
 
-module.exports = { guardShramDaanWrites, projectStateFor, restoreScopeFor, diffStructureWrites, authorizeStructureWrites, diffConsumableWrites, authorizeConsumableWrites, diffMaintenanceWrites, finalizeMaintenanceState, MAINT_KEY_PREFIX, SHRAMDAAN_KEY_PREFIX, ITEM_STORE_KEY, DISTRIBUTION_KEY_PREFIX, CONTENT_FIELDS, stableStringify, itemFingerprint, diffItemWrites, distributionExemptKeys, authorizeItemWrites, authorizeUserCollectionWrite, authorizeMaintenanceWrites, finishMaintenanceRecord, sanitizeMaintenanceRecord };
+module.exports = { guardInspectionWrites, canAccessInspectionUnit, inspectionAttachmentScopes, guardShramDaanWrites, projectStateFor, restoreScopeFor, diffStructureWrites, authorizeStructureWrites, diffConsumableWrites, authorizeConsumableWrites, diffMaintenanceWrites, finalizeMaintenanceState, MAINT_KEY_PREFIX, SHRAMDAAN_KEY_PREFIX, ITEM_STORE_KEY, DISTRIBUTION_KEY_PREFIX, CONTENT_FIELDS, stableStringify, itemFingerprint, diffItemWrites, distributionExemptKeys, authorizeItemWrites, authorizeUserCollectionWrite, authorizeMaintenanceWrites, finishMaintenanceRecord, sanitizeMaintenanceRecord };
 
 
 // ============================================================
@@ -645,6 +645,92 @@ function dPhotoOwnerIn(key, record, state) {
 }
 
 // The read. Returns a copy; nothing the caller holds is touched.
+function canAccessInspectionUnit(user, districtId, locationId) {
+  return Boolean(user && inDistrictScope(user, districtId) &&
+    (user.role === "devadmin" || isDistrictWideRole(user) || (user.locationId && user.locationId === locationId)));
+}
+
+function inspectionAttachmentScopes(state, id) {
+  const scopes = [];
+  for (const key of Object.keys(state)) {
+    if (!key.startsWith(INSPECTION_KEY_PREFIX)) continue;
+    for (const record of dArr(state[key])) {
+      if (dArr(record?.attachments).some(file => (file?.id || file?.fileId) === id)) {
+        scopes.push({ districtId: key.slice(INSPECTION_KEY_PREFIX.length), locationId: record.locationId });
+      }
+    }
+  }
+  return scopes;
+}
+
+function guardInspectionWrites(user, before, after) {
+  const deny = error => ({ status: user ? 403 : 401, error });
+  const invalid = error => ({ status: 400, error });
+  const validDate = value => {
+    if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  };
+  for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    if (!key.startsWith(INSPECTION_KEY_PREFIX) ||
+      stableStringify(before[key] ?? null) === stableStringify(after[key] ?? null)) continue;
+    const districtId = key.slice(INSPECTION_KEY_PREFIX.length);
+    if (!user || !inDistrictScope(user, districtId)) return deny("You cannot change inspections outside your assigned district.");
+    const previous = dArr(before[key]);
+    const next = after[key] === undefined ? [] : after[key];
+    if (!Array.isArray(next) || next.some(row => typeof row?.id !== "string" || !row.id) ||
+      new Set(next.map(row => row.id)).size !== next.length) return invalid("Invalid inspection record list.");
+    const originals = new Map(previous.filter(Boolean).map(row => [row.id, row]));
+    const ids = new Set(next.map(row => row.id));
+    if (user.role !== "devadmin" && [...originals.keys()].some(id => !ids.has(id))) {
+      return deny("Only Developer Admin can delete inspections.");
+    }
+    const today = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit"
+    }).format(new Date());
+    const locations = dArr(after["hp_inventory.locations"]?.[districtId]);
+    const items = dArr(after["hp_inventory.items"]?.[districtId]);
+    for (const row of next) {
+      const original = originals.get(row.id);
+      if (original && stableStringify(original) === stableStringify(row)) continue;
+      if (!canAccessInspectionUnit(user, districtId, row.locationId)) return deny("This inspection is outside your assigned unit.");
+      if (!original && row.createdBy !== user.id) return deny("Record the inspection under your own account.");
+      if (original && user.role !== "devadmin" &&
+        (original.createdBy !== user.id || !["pending", "overdue"].includes(original.status) || row.locationId !== original.locationId)) {
+        return deny("You may follow up only on your own pending inspection in its original unit.");
+      }
+      if (original && (original.createdBy !== row.createdBy || original.createdAt !== row.createdAt)) {
+        return deny("The original inspection author and creation time cannot change.");
+      }
+      if (!locations.some(loc => loc?.id === row.locationId) ||
+        typeof row.itemName !== "string" || !row.itemName.trim() ||
+        typeof row.inspectedBy !== "string" || !row.inspectedBy.trim() ||
+        !["routine", "special", "annual"].includes(row.type) || !["pending", "completed"].includes(row.status) ||
+        !validDate(row.date) || row.date > today ||
+        (row.dueDate ? !validDate(row.dueDate) || row.dueDate < row.date : row.status === "pending") ||
+        (row.status === "completed" && (typeof row.findings !== "string" || !row.findings.trim()))) {
+        return invalid("Complete the inspection details, findings, and applicable due date.");
+      }
+      if (row.itemId && (row.itemId !== original?.itemId || row.locationId !== original?.locationId) &&
+        !items.some(item => item?.id === row.itemId && item.locationId === row.locationId && !item.isDeleted && item.name === row.itemName)) {
+        return invalid("Select a valid inventory item for this location.");
+      }
+      if (row.attachments !== undefined && !Array.isArray(row.attachments)) return invalid("Invalid inspection attachments.");
+      const previousFiles = new Set(dArr(original?.attachments).map(file => file?.id || file?.fileId));
+      for (const attachment of dArr(row.attachments)) {
+        const fileId = attachment?.id || attachment?.fileId;
+        if (fileId && previousFiles.has(fileId)) continue;
+        if (typeof fileId !== "string" || !fileId) return invalid("Invalid inspection attachment.");
+        const scope = before["hp_inventory.scan_files." + fileId]?.inspectionScope;
+        if (!scope || scope.districtId !== districtId || scope.locationId !== row.locationId) {
+          return invalid("Upload inspection attachments for the selected location before saving.");
+        }
+      }
+    }
+  }
+  return null;
+}
+
 function canSeeShramDaanUnit(user, record) {
   return ["devadmin", "admin", "ig"].includes(user?.role) ||
     Boolean(user?.locationId && record?.locationId === user.locationId);
@@ -802,15 +888,19 @@ function projectStateFor(user, state) {
       }
       continue;
     }
+    if (key.startsWith(INSPECTION_KEY_PREFIX)) {
+      const districtId = key.slice(INSPECTION_KEY_PREFIX.length);
+      if (inScope(districtId)) out[key] = dArr(value).filter(record => record && canAccessInspectionUnit(user, districtId, record.locationId));
+      continue;
+    }
     if (
-      key.indexOf(INSPECTION_KEY_PREFIX) === 0 ||
       key.indexOf(NOTIFICATION_KEY_PREFIX) === 0 ||
       key.indexOf(AUDIT_KEY_PREFIX) === 0 ||
       key.indexOf(DOCUMENTS_KEY_PREFIX) === 0 ||
       key.indexOf(TRANSACTIONS_KEY_PREFIX) === 0
     ) {
       const prefix = [
-        INSPECTION_KEY_PREFIX, NOTIFICATION_KEY_PREFIX, AUDIT_KEY_PREFIX,
+        NOTIFICATION_KEY_PREFIX, AUDIT_KEY_PREFIX,
         DOCUMENTS_KEY_PREFIX, TRANSACTIONS_KEY_PREFIX
       ].find((p) => key.indexOf(p) === 0);
       if (inScope(key.slice(prefix.length))) out[key] = value;
@@ -991,12 +1081,14 @@ function restoreScopeFor(user, current, incoming) {
       out[key] = merged;
       continue;
     }
-    if (key.indexOf(SHRAMDAAN_KEY_PREFIX) === 0) {
-      const shramDistId = key.slice(SHRAMDAAN_KEY_PREFIX.length);
-      if (!inScope(shramDistId) || !Object.prototype.hasOwnProperty.call(out, key)) {
+    if (key.startsWith(SHRAMDAAN_KEY_PREFIX) || key.startsWith(INSPECTION_KEY_PREFIX)) {
+      const inspection = key.startsWith(INSPECTION_KEY_PREFIX);
+      const districtId = key.slice((inspection ? INSPECTION_KEY_PREFIX : SHRAMDAAN_KEY_PREFIX).length);
+      if (!inScope(districtId) || !Object.prototype.hasOwnProperty.call(out, key)) {
         out[key] = cur;
       } else if (Array.isArray(out[key])) {
-        const hidden = dArr(cur).filter(record => record && !canSeeShramDaanUnit(user, record));
+        const hidden = dArr(cur).filter(record => record && !(inspection
+          ? canAccessInspectionUnit(user, districtId, record.locationId) : canSeeShramDaanUnit(user, record)));
         if (hidden.length && new Set(out[key].map(record => record?.id)).size === out[key].length) {
           const hiddenIds = new Set(hidden.map(record => record.id));
           const submitted = new Map(out[key].filter(record => !hiddenIds.has(record?.id)).map(record => [record?.id, record]));
@@ -1014,14 +1106,13 @@ function restoreScopeFor(user, current, incoming) {
       continue;
     }
     if (
-      key.indexOf(INSPECTION_KEY_PREFIX) === 0 ||
       key.indexOf(NOTIFICATION_KEY_PREFIX) === 0 ||
       key.indexOf(AUDIT_KEY_PREFIX) === 0 ||
       key.indexOf(DOCUMENTS_KEY_PREFIX) === 0 ||
       key.indexOf(TRANSACTIONS_KEY_PREFIX) === 0
     ) {
       const prefix = [
-        INSPECTION_KEY_PREFIX, NOTIFICATION_KEY_PREFIX, AUDIT_KEY_PREFIX,
+        NOTIFICATION_KEY_PREFIX, AUDIT_KEY_PREFIX,
         DOCUMENTS_KEY_PREFIX, TRANSACTIONS_KEY_PREFIX
       ].find((p) => key.indexOf(p) === 0);
       if (inScope(key.slice(prefix.length))) continue;

@@ -691,8 +691,6 @@ function seedAll() {
 
   const districts = getDistricts();
   districts.forEach(d => {
-    const inspKey = `inspections_${d.id}`;
-    if (!loadData(inspKey)) seedInspections(d.id);
     const demKey = `demands_${d.id}`;
     if (!loadData(demKey)) seedDemands(d.id);
     const distKey = `distributions_${d.id}`;
@@ -1782,6 +1780,7 @@ function __enforceDateInputsMax(container) {
     const today = todayStr();
     const dateInputs = root.querySelectorAll('input[type="date"]');
     dateInputs.forEach(inp => {
+      if (inp.hasAttribute("data-allow-future")) return;
       inp.max = today;
       const id = (inp.id || "").toLowerCase();
       const isFilter = id.includes("from") || id.includes("to") || id.includes("filter");
@@ -4598,9 +4597,9 @@ async function commitAddStock(e) {
 /* ---- Stock photo storage + viewer (separate from item data) ---- */
 function __scanStoreLoad() { try { return loadData("scanfiles") || []; } catch (e) { return []; } }
 function __scanStoreSave(arr) { try { saveData("scanfiles", arr); } catch (e) {} }
-async function __stockUploadPhoto(p) {
+async function __stockUploadPhoto(p, inspectionScope) {
   if (window.CONFIG && window.CONFIG.useRemote) {
-    await __api("POST", "scanfile", { id: p.id, dataUrl: p.dataUrl });
+    await __api("POST", "scanfile", { id: p.id, dataUrl: p.dataUrl, inspectionScope });
     return { id: p.id, fileName: p.name, mimeType: p.mime, fileSize: p.size };
   }
   const arr = __scanStoreLoad();
@@ -5218,147 +5217,123 @@ function deleteUser(id) {
 }
 
 /* ==================== INSPECTIONS ==================== */
-function getInspections() {
-  if (!activeDistrictId) return [];
-  return loadData(`inspections_${activeDistrictId}`) || [];
+function getInspections(districtId = activeDistrictId) {
+  if (!districtId) return [];
+  const rows = loadData(`inspections_${districtId}`);
+  return Array.isArray(rows) ? rows : [];
 }
 
-function saveInspections(list) {
-  if (!activeDistrictId) return;
-  saveData(`inspections_${activeDistrictId}`, list);
+function saveInspections(list, districtId = activeDistrictId) {
+  if (districtId) saveData(`inspections_${districtId}`, list);
 }
 
-function seedInspections(districtId) {
-  const items = getItemsForDistrict(districtId);
-  const locs = getLocationsForDistrict(districtId);
-  const users = getUsers().filter(u => u.districtId === districtId);
-  const inspectors = ["Inspector Rajesh Kumar", "SI Pooja Sharma", "Inspector Vikram Singh", "ASI Mohan Lal", "Inspector Neelam Devi"];
-  const findingsSamples = [
-    "All items accounted for in good condition. Minor wear on some equipment.",
-    "Found 2 items missing from inventory. Investigation recommended.",
-    "Stock levels adequate. Some items need replacement due to wear.",
-    "Complete audit done. Everything matches the records.",
-    "Found damaged items that need immediate replacement.",
-    "Routine check completed. No issues found.",
-    "Inventory partially updated. Some records need correction.",
-    "Equipment in good working condition. Regular maintenance required."
-  ];
-  const recoSamples = [
-    "Replace worn-out items within 2 weeks.",
-    "Conduct surprise audit next month.",
-    "Update inventory records immediately.",
-    "Request new stock for low-quantity items.",
-    "No action required at this time.",
-    "Schedule maintenance for vehicle fleet.",
-    "Train staff on proper inventory handling.",
-    "Report discrepancy to senior officer."
-  ];
-  const types = ["routine", "special", "annual"];
-  const statuses = ["completed", "completed", "completed", "pending", "overdue"];
-  const txns = [];
-  for (let i = 0; i < 8; i++) {
-    const item = items[Math.floor(Math.random() * items.length)];
-    const loc = locs[Math.floor(Math.random() * locs.length)];
-    const inspector = inspectors[Math.floor(Math.random() * inspectors.length)];
-    const daysAgo = Math.floor(Math.random() * 90);
-    txns.push({
-      id: uid(),
-      itemName: item ? item.name : "General Stock",
-      inspectedBy: inspector,
-      type: types[Math.floor(Math.random() * types.length)],
-      date: new Date(Date.now() - daysAgo * 86400000).toISOString().slice(0, 10),
-      locationId: loc ? loc.id : (locs[0] || {}).id || "",
-      findings: findingsSamples[Math.floor(Math.random() * findingsSamples.length)],
-      recommendations: recoSamples[Math.floor(Math.random() * recoSamples.length)],
-      status: statuses[Math.floor(Math.random() * statuses.length)],
-      createdAt: Date.now() - daysAgo * 86400000,
-    });
-  }
-  saveData(`inspections_${districtId}`, txns);
+function __inspectionStatus(record) {
+  return record.status === "pending" && record.dueDate && record.dueDate < todayStr() ? "overdue" : record.status;
+}
+
+function __canEditInspection(record) {
+  return isDevAdmin() || (record.createdBy === signedInUser()?.id && currentUser &&
+    (isAdmin() || record.locationId === currentUser.locationId) &&
+    (record.status === "pending" || record.status === "overdue"));
 }
 
 function __visibleInspections() {
-  if (!activeDistrictId) return [];
-  if (isDevAdmin()) {
-    const out = [];
-    getDistricts().forEach(d => { (loadData(`inspections_${d.id}`) || []).forEach(i => out.push(i)); });
-    return out.sort((a, b) => new Date(b.date) - new Date(a.date));
-  }
-  const list = getInspections();
-  const locId = getVisibleLocationId();
-  if (!locId) return list;
-  return list.filter(i => i.locationId === locId);
+  if (!activeDistrictId || !currentUser) return [];
+  const districts = isDevAdmin() ? getDistricts().map(d => d.id) : [activeDistrictId];
+  return districts.flatMap(districtId => getInspections(districtId)
+    .filter(record => isAdmin() || record.locationId === currentUser.locationId)
+    .map(record => ({ ...record, inspectionDistrictId: districtId })));
 }
 
-function __inspFiltered() {
-  const q = ($("#inspSearch") || {}).value || "";
-  const typeFilter = ($("#inspTypeFilter") || {}).value || "";
-  const statusFilter = ($("#inspStatusFilter") || {}).value || "";
+function __findVisibleInspection(id, districtId) {
+  return __visibleInspections().find(record => record.id === id && record.inspectionDistrictId === districtId);
+}
+
+function __inspDateRangeInvalid() {
+  const from = $("#inspDateFrom")?.value;
+  const to = $("#inspDateTo")?.value;
+  return Boolean(from && to && from > to);
+}
+
+function __inspLocationName(ins) {
+  return getLocationsForDistrict(ins.inspectionDistrictId).find(l => l.id === ins.locationId)?.name || ins.locationName || ins.locationId || "—";
+}
+
+function __inspFiltered(statusOverride) {
+  if (__inspDateRangeInvalid()) return [];
+  const query = ($("#inspSearch")?.value || "").trim().toLowerCase();
+  const type = $("#inspTypeFilter")?.value;
+  const status = statusOverride ?? $("#inspStatusFilter")?.value;
+  const location = $("#inspLocationFilter")?.value;
+  const from = $("#inspDateFrom")?.value;
+  const to = $("#inspDateTo")?.value;
   return __visibleInspections().filter(ins => {
-    if (typeFilter && ins.type !== typeFilter) return false;
-    if (statusFilter && ins.status !== statusFilter) return false;
-    if (q && !ins.itemName.toLowerCase().includes(q.toLowerCase()) && !ins.inspectedBy.toLowerCase().includes(q.toLowerCase())) return false;
-    return true;
-  }).sort((a, b) => new Date(b.date) - new Date(a.date));
+    if (type && ins.type !== type) return false;
+    if (status && __inspectionStatus(ins) !== status) return false;
+    if (location && location !== ins.inspectionDistrictId + ":" + ins.locationId) return false;
+    if ((from && ins.date < from) || (to && ins.date > to)) return false;
+    const text = [ins.itemName, ins.inspectedBy, __inspLocationName(ins), ins.findings, ins.recommendations];
+    return !query || text.join(" ").toLowerCase().includes(query);
+  }).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+}
+
+function __inspScopeLabel() {
+  return isDevAdmin() ? "All districts" : (getDistricts().find(d => d.id === activeDistrictId)?.name || "");
 }
 
 function __inspExportData() {
-  const locs = getAllLocationsFlat();
-  const rows = __inspFiltered().map(ins => {
-    const loc = locs.find(l => l.id === ins.locationId);
-    const typeLabel = ins.type ? ins.type.charAt(0).toUpperCase() + ins.type.slice(1) : "Unknown";
-    const statusLabel = ins.status ? ins.status.charAt(0).toUpperCase() + ins.status.slice(1) : "Unknown";
-    return [ins.date, ins.itemName, ins.inspectedBy, typeLabel, loc ? loc.name : "\u2014", ins.findings || "\u2014", ins.recommendations || "\u2014", statusLabel];
-  });
-  const dist = getDistricts().find(d => d.id === activeDistrictId);
+  const rows = __inspRows(__inspFiltered());
   return {
     title: "Inspections Report",
-    subtitle: (dist ? dist.name + " \u00b7 " : "") + "Generated " + new Date().toLocaleString() + " (" + rows.length + " inspection" + (rows.length === 1 ? "" : "s") + ")",
-    cols: ["Date", "Item / Asset", "Inspected By", "Type", "Location", "Findings", "Recommendations", "Status"],
-    rows,
-    fileName: "inspections-report"
+    subtitle: __inspScopeLabel() + " · " + rows.length + " inspections",
+    cols: __INSP_COLS, rows, fileName: "inspections-report"
   };
 }
 
 function printInspReport() { printReport(__inspExportData()); }
-function exportInspExcel() { excelReport(__inspExportData()); toast("Excel exported.", "success"); }
-function exportInspWord() { wordReport(__inspExportData()); toast("Word document exported.", "success"); }
+function exportInspExcel() {
+  if (!window.XLSX) return toast("Excel library not loaded.", "error");
+  const report = __inspExportData();
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([report.cols, ...report.rows]), "Inspections");
+  XLSX.writeFile(workbook, report.fileName + ".xlsx");
+}
+function exportInspWord() { wordReport(__inspExportData()); }
 function exportInspPDF() { pdfReport(__inspExportData()); }
 
-const __INSP_COLS = ["Date", "Item / Asset", "Inspected By", "Type", "Location", "Findings", "Recommendations", "Status"];
+const __INSP_COLS = ["Date", "Due Date", "Item / Asset", "Inspected By", "Type", "District", "Location", "Findings", "Recommendations", "Status"];
 
-function __inspRows(list) {
-  const locs = getAllLocationsFlat();
-  return list.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).map(ins => {
-    const loc = locs.find(l => l.id === ins.locationId);
-    const typeLabel = ins.type ? ins.type.charAt(0).toUpperCase() + ins.type.slice(1) : "Unknown";
-    const statusLabel = ins.status ? ins.status.charAt(0).toUpperCase() + ins.status.slice(1) : "Unknown";
-    return [ins.date, ins.itemName, ins.inspectedBy, typeLabel, loc ? loc.name : "", ins.findings || "\u2014", ins.recommendations || "\u2014", statusLabel];
-  });
+function __inspLabel(value) {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : "Unknown";
 }
 
-const __INSP_STAT_BUILDERS = {
-  total: () => ({ title: "Total Inspections", cols: __INSP_COLS, rows: __inspRows(__visibleInspections()) }),
-  completed: () => ({ title: "Completed Inspections", cols: __INSP_COLS, rows: __inspRows(__visibleInspections().filter(i => i.status === "completed")) }),
-  pending: () => ({ title: "Pending Inspections", cols: __INSP_COLS, rows: __inspRows(__visibleInspections().filter(i => i.status === "pending")) }),
-  overdue: () => ({ title: "Overdue Inspections", cols: __INSP_COLS, rows: __inspRows(__visibleInspections().filter(i => i.status === "overdue")) })
-};
+function __inspRows(list) {
+  const districts = getDistricts();
+  return list.map(ins => [ins.date, ins.dueDate || "—", ins.itemName, ins.inspectedBy,
+    __inspLabel(ins.type), districts.find(d => d.id === ins.inspectionDistrictId)?.name || ins.inspectionDistrictId,
+    __inspLocationName(ins), ins.findings || "—", ins.recommendations || "—", __inspLabel(__inspectionStatus(ins))]);
+}
+
+const __INSP_STAT_TITLES = { total: "Total Inspections", completed: "Completed Inspections",
+  pending: "Pending Inspections", overdue: "Overdue Inspections" };
 
 function openInspStatDetail(key) {
-  const def = __INSP_STAT_BUILDERS[key] ? __INSP_STAT_BUILDERS[key]() : null;
-  if (!def) return;
-  const dist = getDistricts().find(d => d.id === activeDistrictId);
+  if (__inspDateRangeInvalid()) return toast("Correct the inspection date range.", "error");
+  const title = __INSP_STAT_TITLES[key];
+  if (!title) return;
+  const rows = __inspRows(__inspFiltered(key === "total" ? "" : key));
   __statDetail = {
-    title: def.title,
-    subtitle: (dist ? dist.name + " \u00b7 " : "") + "Generated " + new Date().toLocaleString() + " (" + def.rows.length + " inspection" + (def.rows.length === 1 ? "" : "s") + ")",
-    cols: def.cols,
-    rows: def.rows,
+    title,
+    subtitle: __inspScopeLabel() + " · " + rows.length + " inspections",
+    cols: __INSP_COLS,
+    rows,
     fileName: "inspections-" + key
   };
   __statFilter = "";
-  $("#statDetailTitle").textContent = def.title;
+  __pgReset("statDetail");
+  $("#statDetailTitle").textContent = title;
   $("#statDetailSubtitle").textContent = __statDetail.subtitle;
-  $("#statDetailHead").innerHTML = "<tr>" + def.cols.map(c => `<th>${esc(c)}</th>`).join("") + "</tr>";
+  $("#statDetailHead").innerHTML = "<tr>" + __INSP_COLS.map(c => `<th>${esc(c)}</th>`).join("") + "</tr>";
   const s = $("#statSearch");
   if (s) s.value = "";
   renderStatDetail("");
@@ -5366,138 +5341,206 @@ function openInspStatDetail(key) {
 }
 
 function renderInspections() {
-  const inspections = __visibleInspections();
-  const locs = getAllLocationsFlat();
-
-  const filtered = __inspFiltered();
-
   const tbody = $("#inspBody");
   if (!tbody) return;
-
-if (filtered.length) {
-    const pageRows = __pgRows("insp", filtered);
-    tbody.innerHTML = pageRows.map(ins => {
-      const loc = locs.find(l => l.id === ins.locationId);
-      const typeCls = { routine: "cat-badge", special: "status-badge status-low", annual: "status-badge status-ok" }[ins.type] || "cat-badge";
-      const statusCls = { completed: "status-badge status-ok", pending: "status-badge status-low", overdue: "status-badge status-out" }[ins.status] || "cat-badge";
-      const statusLabel = ins.status ? ins.status.charAt(0).toUpperCase() + ins.status.slice(1) : "Unknown";
-      const typeLabel = ins.type ? ins.type.charAt(0).toUpperCase() + ins.type.slice(1) : "Unknown";
-      return `<tr><td>${esc(ins.date)}</td><td class="item-name">${window.__ipLinkByName ? __ipLinkByName(ins.itemName, { id: ins.itemId }) : nameCell(ins.itemName)}</td><td>${esc(ins.inspectedBy)}</td><td><span class="${typeCls}">${typeLabel}</span></td><td>${esc(loc ? loc.name : "")}</td><td><span class="${statusCls}">${statusLabel}</span></td><td><button type="button" class="btn btn-sm btn-loc" data-insp-view="${esc(ins.id)}">View</button>${isDevAdmin() ? ` <button type="button" class="btn btn-sm btn-outline" data-insp-edit="${esc(ins.id)}">Edit</button> <button type="button" class="btn btn-sm btn-red" data-insp-delete="${esc(ins.id)}">Delete</button>` : ""}</td></tr>`;
-    }).join("");
-} else {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">No inspections found. Click "+ New Inspection" to add one.</td></tr>`;
+  const districts = getDistricts();
+  const locationFilter = $("#inspLocationFilter");
+  if (locationFilter) {
+    const selected = locationFilter.value;
+    const scope = isDevAdmin() ? districts : districts.filter(d => d.id === activeDistrictId);
+    const options = scope.flatMap(district => getLocationsForDistrict(district.id)
+      .filter(location => isAdmin() || location.id === currentUser?.locationId)
+      .map(location => ({ value: district.id + ":" + location.id,
+        label: isDevAdmin() ? district.name + " · " + location.name : location.name })));
+    locationFilter.innerHTML = '<option value="">All Locations</option>' +
+      options.map(option => `<option value="${esc(option.value)}">${esc(option.label)}</option>`).join("");
+    locationFilter.value = options.some(option => option.value === selected) ? selected : "";
   }
+  $("#inspRangeError")?.classList.toggle("hidden", !__inspDateRangeInvalid());
+  const filtered = __inspFiltered();
+  tbody.innerHTML = filtered.length ? __pgRows("insp", filtered).map(ins => {
+    const status = __inspectionStatus(ins);
+    const typeCls = { routine: "cat-badge", special: "status-badge status-low", annual: "status-badge status-ok" }[ins.type] || "cat-badge";
+    const statusCls = { completed: "status-badge status-ok", pending: "status-badge status-low", overdue: "status-badge status-out" }[status] || "cat-badge";
+    const district = districts.find(d => d.id === ins.inspectionDistrictId)?.name;
+    const location = [isDevAdmin() ? district : "", __inspLocationName(ins)].filter(Boolean).join(" · ");
+    const asset = ins.itemId && window.__ipLinkByName
+      ? __ipLinkByName(ins.itemName, { id: ins.itemId, districtId: ins.inspectionDistrictId })
+      : nameCell(ins.itemName);
+    const attrs = `data-insp-district="${esc(ins.inspectionDistrictId)}"`;
+    return `<tr><td>${esc(ins.date)}</td><td class="item-name">${asset}</td><td>${esc(ins.inspectedBy)}</td>
+      <td><span class="${typeCls}">${__inspLabel(ins.type)}</span></td><td>${esc(location)}</td>
+      <td><span class="${statusCls}">${__inspLabel(status)}</span>${ins.dueDate && status !== "completed" ? `<small> Due ${esc(ins.dueDate)}</small>` : ""}</td>
+      <td><button type="button" class="btn btn-sm btn-loc" data-insp-view="${esc(ins.id)}" ${attrs}>View</button>
+        ${__canEditInspection(ins) ? `<button type="button" class="btn btn-sm btn-outline" data-insp-edit="${esc(ins.id)}" ${attrs}>${isDevAdmin() ? "Edit" : "Follow Up"}</button>` : ""}
+        ${isDevAdmin() ? `<button type="button" class="btn btn-sm btn-red" data-insp-delete="${esc(ins.id)}" ${attrs}>Delete</button>` : ""}</td></tr>`;
+  }).join("") : '<tr class="empty-row"><td colspan="7">No inspections match the current filters.</td></tr>';
   renderPager("insp", filtered.length, renderInspections);
+  const matching = __inspFiltered("");
+  $("#statTotalInspections").textContent = matching.length;
+  for (const [status, id] of [["completed", "statCompleted"], ["pending", "statPending"], ["overdue", "statOverdue"]]) {
+    $("#" + id).textContent = matching.filter(record => __inspectionStatus(record) === status).length;
+  }
+}
 
-  const stats = { total: inspections.length, completed: 0, pending: 0, overdue: 0 };
-  inspections.forEach(ins => { if (stats[ins.status] !== undefined) stats[ins.status]++; });
-  $("#statTotalInspections").textContent = stats.total;
-  $("#statCompleted").textContent = stats.completed;
-  $("#statPending").textContent = stats.pending;
-  $("#statOverdue").textContent = stats.overdue;
+let __inspectionDraft = null;
+let __inspectionSaving = false;
+let __inspectionFileReads = 0;
+let __inspectionAttachmentDraft = null;
+
+function __inspectionItems(districtId, locationId) {
+  return getItemsForDistrict(districtId).filter(item => !item.isDeleted && item.locationId === locationId);
+}
+
+function __inspectionRefreshItems(selected = "") {
+  const locationId = $("#fiLocation").value;
+  const items = __inspectionItems(__inspectionDraft?.districtId, locationId);
+  const select = $("#fiAssetId");
+  select.innerHTML = '<option value="">Manual item / asset name</option>' +
+    __byName(items).map(item => `<option value="${esc(item.id)}">${esc(item.name + (item.unit ? " · " + item.unit : ""))}</option>`).join("");
+  select.value = items.some(item => item.id === selected) ? selected : "";
+  $("#fiItem").readOnly = Boolean(select.value);
+}
+
+function __inspectionSyncStatus() {
+  const pending = $("#fiStatus").value === "pending";
+  $("#fiDueDate").required = pending;
+  $("#fiFindings").required = !pending;
 }
 
 function openInspectionModal(insp) {
+  if (__inspectionSaving || !currentUser || !activeDistrictId || (insp && !__canEditInspection(insp))) return;
+  const districtId = insp?.inspectionDistrictId || activeDistrictId;
+  __inspectionDraft = { districtId, id: insp?.id || "", version: insp ? JSON.stringify(getInspections(districtId).find(row => row.id === insp.id)) : null };
   $("#inspectionModalTitle").textContent = insp ? "Edit Inspection" : "Add New Inspection";
   $("#inspectionSaveBtn").textContent = insp ? "Update Inspection" : "Save Inspection";
-  $("#fiItem").value = insp ? insp.itemName : "";
-  $("#fiInspectedBy").value = insp ? insp.inspectedBy : "";
-  $("#fiType").value = insp ? insp.type : "routine";
-  const fiDateEl = $("#fiDate");
-  if (fiDateEl) {
-    fiDateEl.value = (insp && insp.date) ? insp.date : todayStr();
-    fiDateEl.max = todayStr();
-  }
-  $("#fiFindings").value = insp ? (insp.findings || "") : "";
-  $("#fiRecommendations").value = insp ? (insp.recommendations || "") : "";
-  $("#fiStatus").value = insp ? (insp.status || "completed") : "completed";
-  $("#fiInspectionId").value = insp ? insp.id : "";
-  __attStore.inspect = []; __attRender("inspect");
-
+  $("#fiItem").value = insp?.itemName || "";
+  $("#fiInspectedBy").value = insp?.inspectedBy || currentUser.name || "";
+  $("#fiType").value = insp?.type || "routine";
+  $("#fiDate").value = insp?.date || todayStr();
+  $("#fiDate").max = todayStr();
+  $("#fiDueDate").value = insp?.dueDate || "";
+  $("#fiFindings").value = insp?.findings || "";
+  $("#fiRecommendations").value = insp?.recommendations || "";
+  $("#fiStatus").value = insp?.status === "completed" ? "completed" : "pending";
+  __inspectionAttachmentDraft = {};
+  __inspectionFileReads = 0;
+  __attStore.inspect = [];
+  __attRender("inspect");
   const locSel = $("#fiLocation");
-  if (!canSeeAllLocations()) {
-    locSel.innerHTML = `<option value="${currentUser.locationId}">${esc(getLocations().find(l => l.id === currentUser.locationId)?.name || "")}</option>`;
-    locSel.disabled = true;
-  } else {
-    locSel.disabled = false;
-    const locs = getLocations();
-    locSel.innerHTML = `<option value="">Select location</option>` + __byName(locs).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
-  }
-  locSel.value = insp ? insp.locationId : (canSeeAllLocations() ? "" : currentUser.locationId);
+  const locations = getLocationsForDistrict(districtId).filter(location => isAdmin() || location.id === currentUser.locationId);
+  locSel.innerHTML = '<option value="">Select location</option>' +
+    __byName(locations).map(loc => `<option value="${esc(loc.id)}">${esc(loc.name)}</option>`).join("");
+  locSel.disabled = !isAdmin() || Boolean(insp && !isDevAdmin());
+  locSel.value = insp?.locationId || (locations.some(loc => loc.id === currentUser.locationId) ? currentUser.locationId : "");
+  __inspectionRefreshItems(insp?.itemId);
+  __inspectionSyncStatus();
   openModal("#inspectionModal");
-  setTimeout(() => $("#fiItem").focus(), 50);
 }
 
 async function saveInspection(e) {
   e.preventDefault();
-  const id = $("#fiInspectionId").value;
-  if (id && !isDevAdmin()) return;
+  if (__inspectionSaving || __inspectionFileReads || !__inspectionDraft || !currentUser) return;
+  const draft = __inspectionDraft;
+  const activeDistrictAtSubmit = activeDistrictId;
+  const { id, districtId } = draft;
+  const original = getInspections(districtId).find(record => record.id === id);
+  if (id && (!original || !__canEditInspection(original) || JSON.stringify(original) !== draft.version)) {
+    return toast("This inspection changed. Reopen the record to edit it.", "error");
+  }
+  const actor = signedInUser();
   const itemName = $("#fiItem").value.trim();
   const inspectedBy = $("#fiInspectedBy").value.trim();
   const type = $("#fiType").value;
   const date = $("#fiDate").value;
+  const dueDate = $("#fiDueDate").value;
   const locationId = $("#fiLocation").value;
+  const location = getLocationsForDistrict(districtId).find(loc => loc.id === locationId);
   const findings = $("#fiFindings").value.trim();
   const recommendations = $("#fiRecommendations").value.trim();
   const status = $("#fiStatus").value;
-  if (!itemName || !inspectedBy || !date || !locationId) return toast("Please fill all required fields.", "error");
-  if (date > todayStr()) return toast("Future date is not allowed. Please select today or a past date.", "error");
-
-  let __inspectAtts = [];
-  if ((__attStore.inspect || []).length) { try { __inspectAtts = await __attUploadAll("inspect"); } catch (e) { return; } }
-
-  const inspections = getInspections();
-  if (id) {
-    const insp = inspections.find(i => i.id === id);
-    if (insp) Object.assign(insp, { itemName, inspectedBy, type, date, locationId, findings, recommendations, status, updatedAt: Date.now() });
-    if (insp && __inspectAtts.length) insp.attachments = (insp.attachments || []).concat(__inspectAtts);
-    toast("Inspection updated.", "success");
-  } else {
-    inspections.push({ id: uid(), itemName, inspectedBy, type, date, locationId, findings, recommendations, status, attachments: __inspectAtts, createdAt: Date.now() });
-    toast("Inspection added.", "success");
+  const selectedItem = $("#fiAssetId").value;
+  const asset = __inspectionItems(districtId, locationId).find(item => item.id === selectedItem);
+  if (!itemName || !inspectedBy || !date || !location || !["routine", "special", "annual"].includes(type) ||
+    !["pending", "completed"].includes(status) || (!isAdmin() && locationId !== currentUser.locationId)) {
+    return toast("Please fill all required inspection fields.", "error");
   }
-saveInspections(inspections);
-  __attStore.inspect = []; __attRender("inspect");
-  __audit(id ? "Inspection Updated" : "Inspection Added", `"${itemName}" ? ${type} ? ${status}`, { entity: "Inspection" });
-  closeModals();
-  render();
+  if (date > todayStr()) return toast("Future inspection dates are not allowed.", "error");
+  if ((status === "pending" && !dueDate) || (dueDate && dueDate < date)) {
+    return toast("Enter a due date on or after the inspection date.", "error");
+  }
+  if (status === "completed" && !findings) return toast("Enter findings before marking the inspection completed.", "error");
+  const itemId = asset?.id || (original?.itemName === itemName && original.locationId === locationId && !selectedItem && !draft.assetChanged ? original.itemId : "");
+  const button = $("#inspectionSaveBtn");
+  __inspectionSaving = true;
+  button.disabled = true;
+  try {
+    const files = __attStore.inspect.length ? await __attUploadAll("inspect", { districtId, locationId }) : [];
+    const records = getInspections(districtId);
+    if (activeDistrictId !== activeDistrictAtSubmit || signedInUser()?.id !== actor.id ||
+      (id && JSON.stringify(records.find(record => record.id === id)) !== draft.version)) {
+      throw new Error("This inspection or account changed. Reopen the form before saving.");
+    }
+    const changes = { itemName: asset?.name || itemName, itemId, inspectedBy, type, date, dueDate, locationId,
+      locationName: location.name, findings, recommendations, status };
+    const record = id ? { ...original, ...changes, attachments: [...(original.attachments || []), ...files], updatedAt: Date.now() }
+      : { ...changes, id: uid(), createdBy: actor.id, createdAt: Date.now(), attachments: files };
+    saveInspections(id ? records.map(row => row.id === id ? record : row) : [...records, record], districtId);
+    __audit(id ? "Inspection Updated" : "Inspection Added", record.itemName + " · " + status, { entity: "Inspection", districtId });
+    if (window.__apiFlush) await window.__apiFlush();
+    __attStore.inspect = [];
+    __attRender("inspect");
+    toast(id ? "Inspection updated." : "Inspection added.", "success");
+    closeModals();
+    render();
+  } catch (error) {
+    toast(error.body?.error || error.message || "Inspection could not be saved.", "error");
+  } finally {
+    __inspectionSaving = false;
+    button.disabled = __inspectionFileReads > 0;
+  }
 }
 
 /* ---- Inspection view dialog + export (2026.09.201) ---- */
 let __inspViewId = null;
-function openInspectionView(id) {
-  const ins = getInspections().find(i => i.id === id);
+let __inspViewDistrictId = null;
+function openInspectionView(id, districtId = activeDistrictId) {
+  const ins = __findVisibleInspection(id, districtId);
   if (!ins) return toast("Inspection record not found.", "error");
   __inspViewId = id;
-  const loc = getAllLocationsFlat().find(l => l.id === ins.locationId);
+  __inspViewDistrictId = districtId;
   const typeLabel = ins.type ? ins.type.charAt(0).toUpperCase() + ins.type.slice(1) : "Unknown";
-  const statusLabel = ins.status ? ins.status.charAt(0).toUpperCase() + ins.status.slice(1) : "Unknown";
   const atts = Array.isArray(ins.attachments) ? ins.attachments : [];
   const box = $("#inspViewBody");
   if (!box) return;
+  const district = getDistricts().find(d => d.id === districtId)?.name || districtId;
   box.innerHTML =
+    '<div class="demand-detail-item"><span class="dd-label">District</span><span class="dd-value">' + esc(district) + '</span></div>' +
     '<div class="demand-detail-item"><span class="dd-label">Date</span><span class="dd-value">' + esc(ins.date || "-") + '</span></div>' +
     '<div class="demand-detail-item"><span class="dd-label">Item / Asset</span><span class="dd-value">' + esc(ins.itemName || "-") + '</span></div>' +
     '<div class="demand-detail-item"><span class="dd-label">Inspected By</span><span class="dd-value">' + esc(ins.inspectedBy || "-") + '</span></div>' +
     '<div class="demand-detail-item"><span class="dd-label">Type</span><span class="dd-value">' + esc(typeLabel) + '</span></div>' +
-    '<div class="demand-detail-item"><span class="dd-label">Location</span><span class="dd-value">' + esc(loc ? loc.name : (ins.locationId || "-")) + '</span></div>' +
-    '<div class="demand-detail-item"><span class="dd-label">Status</span><span class="dd-value">' + esc(statusLabel) + '</span></div>' +
+    '<div class="demand-detail-item"><span class="dd-label">Location</span><span class="dd-value">' + esc(__inspLocationName(ins)) + '</span></div>' +
+    '<div class="demand-detail-item"><span class="dd-label">Status</span><span class="dd-value">' + esc(__inspLabel(__inspectionStatus(ins))) + '</span></div>' +
     '<div class="demand-detail-item dd-full"><span class="dd-label">Findings</span><div class="dd-value" style="font-weight:normal;margin-top:4px">' + esc(ins.findings || "No findings recorded.") + '</div></div>' +
     '<div class="demand-detail-item dd-full"><span class="dd-label">Recommendations</span><div class="dd-value" style="font-weight:normal;margin-top:4px">' + esc(ins.recommendations || "No recommendations recorded.") + '</div></div>' +
-    (atts.length ? '<div class="demand-detail-item dd-full"><span class="dd-label">Attachments</span><div style="margin-top:4px">' + atts.map(a => '<span class="cons-badge cons-b-gray" style="margin-right:6px">' + esc(a.fileName || a.name || "file") + '</span>').join("") + '</div></div>' : "");
+    (ins.dueDate ? '<div class="demand-detail-item"><span class="dd-label">Due Date</span><span class="dd-value">' + esc(ins.dueDate) + '</span></div>' : "") +
+    attachmentChipsHtml({ attachments: atts.filter(a => a?.id || a?.fileId)
+      .map(a => ({ id: esc(a.id || a.fileId), fileName: a.fileName || a.name })) });
   openModal("#inspViewModal");
 }
 function __inspData() {
-  const ins = getInspections().find(i => i.id === __inspViewId);
+  const ins = __findVisibleInspection(__inspViewId, __inspViewDistrictId);
   if (!ins) { toast("Inspection record not found.", "error"); return null; }
-  const loc = getAllLocationsFlat().find(l => l.id === ins.locationId);
   return {
     Date: ins.date || "-",
     "Item / Asset": ins.itemName || "-",
     "Inspected By": ins.inspectedBy || "-",
     Type: (ins.type || "").charAt(0).toUpperCase() + (ins.type || "").slice(1),
-    Location: loc ? loc.name : (ins.locationId || "-"),
-    Status: (ins.status || "").charAt(0).toUpperCase() + (ins.status || "").slice(1),
+    District: getDistricts().find(d => d.id === ins.inspectionDistrictId)?.name || ins.inspectionDistrictId,
+    Location: __inspLocationName(ins),
+    "Due Date": ins.dueDate || "—",
+    Status: __inspLabel(__inspectionStatus(ins)),
     Findings: ins.findings || "",
     Recommendations: ins.recommendations || ""
   };
@@ -5523,22 +5566,29 @@ function __inspExportWord() {
   toast("Word document downloaded.", "success");
 }
 function __inspExportPdf() {
-  const d = __inspData(); if (!d) return;
-  const rows = Object.keys(d).map(k => '<tr><th style="text-align:left;padding:6px 10px;border:1px solid #333;background:#eef2f7">' + esc(k) + '</th><td style="padding:6px 10px;border:1px solid #333">' + colCellInline(k, String(d[k] || "-")) + '</td></tr>').join("");
-  const w = window.open("", "_blank", "width=900,height=700");
-  if (!w) return toast("Allow pop-ups to download PDF.", "error");
-  w.document.write('<html><head><title>Inspection Record</title><style>body{font-family:Segoe UI,Arial;padding:24px}h2{margin-top:0}</style></head><body><h2>Inspection Record</h2><table style="border-collapse:collapse;width:100%">' + rows + '</table><script>setTimeout(function(){window.print()},300)<' + '/script></body></html>');
-  w.document.close();
-  toast("Use the print dialog to Save as PDF.", "success");
+  const data = __inspData();
+  if (!data) return;
+  pdfReport({ title: "Inspection Record", subtitle: data.District, fileName: "inspection-" + __inspViewId,
+    cols: ["Field", "Value"], rows: Object.entries(data) });
 }
-function deleteInspection(id) {
-  if (!isDevAdmin()) return;
-  if (!confirm("Delete this inspection record?")) return;
-  const it = getInspections().find(i => i.id === id);
-  saveInspections(getInspections().filter(i => i.id !== id));
-  __audit("Inspection Deleted", `"${it ? it.itemName : id}"`, { entity: "Inspection" });
-  toast("Inspection deleted.", "success");
-  render();
+
+async function deleteInspection(id, districtId = activeDistrictId) {
+  if (!isDevAdmin() || __inspectionSaving) return;
+  const record = __findVisibleInspection(id, districtId);
+  if (!record || !confirm("Delete this inspection record?")) return;
+  __inspectionSaving = true;
+  try {
+    saveInspections(getInspections(districtId).filter(row => row.id !== id), districtId);
+    __audit("Inspection Deleted", record.itemName + " · " + id, { entity: "Inspection", districtId });
+    if (window.__apiFlush) await window.__apiFlush();
+    toast("Inspection deleted.", "success");
+    render();
+  } catch (error) {
+    toast(error.body?.error || error.message || "Inspection could not be deleted.", "error");
+    renderInspections();
+  } finally {
+    __inspectionSaving = false;
+  }
 }
 
 /* ==================== SHRAMDAAN ==================== */
@@ -7878,21 +7928,36 @@ function __attRender(ctx) {
   }).join("");
 }
 function __attPick(ctx, files) {
+  if (ctx === "inspect" && __inspectionSaving) return;
   if (!__attStore[ctx]) __attStore[ctx] = [];
   for (const f of Array.from(files || [])) {
     if (f.size > ATT_LIMIT) { toast(`"${f.name}" is too large (max 4MB).`, "error"); continue; }
     if (__attStore[ctx].some(p => p.name === f.name && p.size === f.size)) { toast(`"${f.name}" is already attached.`, "error"); continue; }
     const reader = new FileReader();
-    reader.onload = () => { __attStore[ctx].push({ id: uid(), name: f.name, mime: f.type || "application/octet-stream", size: f.size, dataUrl: String(reader.result) }); __attRender(ctx); };
-    reader.onerror = () => toast(`Could not read "${f.name}".`, "error");
+    const draft = ctx === "inspect" ? __inspectionAttachmentDraft : null;
+    if (draft) {
+      __inspectionFileReads++;
+      $("#inspectionSaveBtn").disabled = true;
+      reader.onloadend = () => {
+        if (draft !== __inspectionAttachmentDraft) return;
+        __inspectionFileReads--;
+        $("#inspectionSaveBtn").disabled = __inspectionSaving || __inspectionFileReads > 0;
+      };
+    }
+    reader.onload = () => {
+      if (draft && draft !== __inspectionAttachmentDraft) return;
+      __attStore[ctx].push({ id: uid(), name: f.name, mime: f.type || "application/octet-stream", size: f.size, dataUrl: String(reader.result) });
+      __attRender(ctx);
+    };
+    reader.onerror = () => { if (!draft || draft === __inspectionAttachmentDraft) toast(`Could not read "${f.name}".`, "error"); };
     reader.readAsDataURL(f);
   }
 }
-async function __attUploadAll(ctx) {
+async function __attUploadAll(ctx, inspectionScope) {
   const out = [];
-  for (const p of (__attStore[ctx] || [])) {
+  for (const p of (__attStore[ctx] || []).slice()) {
     if (!p.dataUrl) continue;
-    try { out.push(await __stockUploadPhoto(p)); }
+    try { out.push(await __stockUploadPhoto(p, inspectionScope)); }
     catch (e) { toast(`"${p.name}" could not be uploaded. Please try again.`, "error"); throw e; }
   }
   return out;
@@ -13630,33 +13695,44 @@ $("#inventoryBody").addEventListener("click", e => {
 
   $("#newInspectionBtn").addEventListener("click", () => openInspectionModal(null));
   $("#inspectionForm").addEventListener("submit", saveInspection);
+  $("#fiStatus").addEventListener("change", __inspectionSyncStatus);
+  $("#fiLocation").addEventListener("change", () => {
+    if (__inspectionDraft) __inspectionDraft.assetChanged = true;
+    __inspectionRefreshItems();
+  });
+  $("#fiAssetId").addEventListener("change", e => {
+    if (__inspectionDraft) __inspectionDraft.assetChanged = true;
+    const item = __inspectionItems(__inspectionDraft?.districtId, $("#fiLocation").value).find(row => row.id === e.target.value);
+    $("#fiItem").readOnly = Boolean(item);
+    if (item) $("#fiItem").value = item.name;
+  });
   $$("#inspectionStats .stat-card").forEach(card => {
-    card.addEventListener("click", () => {
-      const key = card.dataset.inspKey;
-      if (key) openInspStatDetail(key);
-    });
+    card.addEventListener("click", () => openInspStatDetail(card.dataset.inspKey));
   });
   $("#inspBody")?.addEventListener("click", e => {
-  const edit = e.target.closest("[data-insp-edit]");
-  if (edit && isDevAdmin()) {
-    const inspection = getInspections().find(row => row.id === edit.dataset.inspEdit);
-    if (inspection) openInspectionModal(inspection);
-    return;
+    const rowAction = e.target.closest("[data-insp-view], [data-insp-edit], [data-insp-delete]");
+    if (!rowAction) return;
+    const { inspDistrict, inspView, inspEdit, inspDelete } = rowAction.dataset;
+    if (inspView) openInspectionView(inspView, inspDistrict);
+    else if (inspDelete) deleteInspection(inspDelete, inspDistrict);
+    else {
+      const record = __findVisibleInspection(inspEdit, inspDistrict);
+      if (record) openInspectionModal(record);
+    }
+  });
+  $("#inspViewExcel")?.addEventListener("click", __inspExportExcel);
+  $("#inspViewWord")?.addEventListener("click", __inspExportWord);
+  $("#inspViewPdf")?.addEventListener("click", __inspExportPdf);
+  for (const id of ["inspSearch", "inspTypeFilter", "inspStatusFilter", "inspLocationFilter", "inspDateFrom", "inspDateTo"]) {
+    $("#" + id)?.addEventListener(id === "inspSearch" ? "input" : "change", () => {
+      __pgReset("insp");
+      renderInspections();
+    });
   }
-  const del = e.target.closest("[data-insp-delete]");
-  if (del && isDevAdmin()) { deleteInspection(del.dataset.inspDelete); return; }
-  const b = e.target.closest("[data-insp-view]");
-  if (b) { openInspectionView(b.getAttribute("data-insp-view")); return; }
-});
-$("#inspViewExcel")?.addEventListener("click", __inspExportExcel);
-$("#inspViewWord")?.addEventListener("click", __inspExportWord);
-$("#inspViewPdf")?.addEventListener("click", __inspExportPdf);
-$("#inspSearch")?.addEventListener("input", renderInspections);
-  $("#inspTypeFilter")?.addEventListener("change", renderInspections);
-  $("#inspStatusFilter")?.addEventListener("change", renderInspections);
   $("#inspExportBtn")?.addEventListener("click", e => { e.stopPropagation(); $("#inspExportMenu")?.classList.toggle("hidden"); });
   $$("#inspExportMenu [data-export]").forEach(b => b.addEventListener("click", () => {
     $("#inspExportMenu")?.classList.add("hidden");
+    if (__inspDateRangeInvalid()) return toast("Correct the inspection date range before exporting.", "error");
     const t = b.dataset.export;
     if (t === "print") printInspReport();
     else if (t === "pdf") exportInspPDF();
@@ -20145,7 +20221,7 @@ window.addEventListener("focus", () => {
 });
 
 document.addEventListener("change", (e) => {
-  if (e.target && e.target.type === "date") {
+  if (e.target?.type === "date" && !e.target.hasAttribute("data-allow-future")) {
     const today = todayStr();
     if (e.target.value && e.target.value > today) {
       e.target.value = today;
@@ -20157,7 +20233,7 @@ document.addEventListener("change", (e) => {
 }, true);
 
 document.addEventListener("input", (e) => {
-  if (e.target && e.target.type === "date") {
+  if (e.target?.type === "date" && !e.target.hasAttribute("data-allow-future")) {
     const today = todayStr();
     if (e.target.value && e.target.value > today) {
       e.target.value = today;
