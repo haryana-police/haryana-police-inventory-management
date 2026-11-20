@@ -601,7 +601,7 @@ body.lang-hi .nm-en, html[lang="hi"] .nm-en { display: none !important; }
 #demandModal.modal-lg { max-width: 980px; width: calc(100vw - 32px); }
 .fd-item-row { grid-template-columns: 1.2fr 2fr .55fr .9fr auto; gap: 10px; }
 #demandActionModal .modal { max-width: 980px; width: calc(100vw - 32px); }
-#demandActionModal .table-wrap { overflow-x: visible; }
+#demandActionModal .table-wrap { max-width: 100%; overflow-x: auto; }
 #demandActionModal table { table-layout: auto; width: 100%; }
 #demandActionModal th, #demandActionModal td { padding: 9px 8px; white-space: normal; word-break: break-word; font-size: .82rem; }
 #demandActionModal .item-name { max-width: 260px; }

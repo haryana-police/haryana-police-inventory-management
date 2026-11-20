@@ -35,8 +35,56 @@
     return item.quantity - (item.allotted || 0) - (item.lostReturned || 0) -
       (item.damagedReturned || 0) - counts(item).damaged;
   }
+  function remaining(line) {
+    return Math.max(0, (Number(line.qty) || 0) - (line.approvedQty || 0) - (line.rejectedQty || 0) - (line.cancelledQty || 0));
+  }
+  function active(record) {
+    return !record.closed && !record.isConsumable && ["pending", "partially_completed"].includes(record.status);
+  }
+  function reserved(state, district, item, condition, exceptId) {
+    let total = 0;
+    for (const record of list(state, "distributions_" + district)) {
+      if (!active(record) || record.id === exceptId) continue;
+      for (const line of record.items || []) {
+        const matches = line.fromItemId ? line.fromItemId === item.id :
+          nameKey(line.itemName) === nameKey(item.name) && (!line.categoryId || line.categoryId === item.categoryId) &&
+          (line.fromLocationId || record.fromLocationId) === item.locationId;
+        if (matches && (!condition ? line.condition !== "damaged" : line.condition === condition)) total += remaining(line);
+      }
+    }
+    return total;
+  }
+  function validateReservations(state, previous = {}) {
+    for (const [district, items] of Object.entries(state[prefix + "items"] || {})) {
+      for (const item of items) {
+        const before = districtList(previous, "items", district).find(row => row.id === item.id);
+        if (item.isDeleted) {
+          if (conditions.some(condition => reserved(state, district, item, condition) > 0)) fail("Cancel pending distributions before deleting their source stock.");
+          continue;
+        }
+        if (before && ["quantity", "conditionCounts", "allotted", "lostReturned", "damagedReturned"].every(field => JSON.stringify(item[field]) === JSON.stringify(before[field])) &&
+          conditions.every(condition => reserved(state, district, item, condition) === reserved(previous, district, before, condition))) continue;
+        const stock = counts(item);
+        const previousCounts = before ? counts(before) : { good: 0, poor: 0, damaged: 0 };
+        for (const condition of conditions) {
+          const deficit = reserved(state, district, item, condition) - stock[condition];
+          const oldDeficit = before ? reserved(previous, district, before, condition) - previousCounts[condition] : 0;
+          if (deficit > Math.max(0, oldDeficit)) fail(`Pending distributions already reserve the ${condition} stock of "${item.name}".`);
+        }
+        const deficit = reserved(state, district, item) - available(item);
+        const oldDeficit = before ? reserved(previous, district, before) - available(before) : 0;
+        if (deficit > Math.max(0, oldDeficit)) fail(`Insufficient unreserved stock for "${item.name}". Edit or cancel an existing pending distribution first.`);
+      }
+    }
+    for (const [district, items] of Object.entries(previous[prefix + "items"] || {})) {
+      for (const item of items) {
+        if (!districtList(state, "items", district).some(row => row.id === item.id) &&
+          conditions.some(condition => reserved(state, district, item, condition) > 0)) fail("Cancel pending distributions before removing their source stock.");
+      }
+    }
+  }
   function canReceive(user, record, state) {
-    if (!user || record.status !== "pending" || record.isConsumable) return false;
+    if (!user || !active(record) || !(record.items || []).some(line => remaining(line) > 0)) return false;
     if (user.role === "devadmin") return true;
     if (!scope(user, record.toDistrictId)) return false;
     if (record.toType === "admin") return user.role === "admin" && user.districtId === record.toDistrictId;
@@ -69,8 +117,10 @@
     }
     for (const need of requested.values()) {
       const stock = counts(need.source);
-      for (const condition of conditions) if (need[condition] > stock[condition]) fail(`Insufficient ${condition} stock for "${need.source.name}".`);
-      if (need.good + need.poor > available(need.source)) fail(`Insufficient available stock for "${need.source.name}". Issued, lost and scrap units cannot be distributed.`);
+      for (const condition of conditions) {
+        if (need[condition] > stock[condition] - reserved(state, record.fromDistrictId, need.source, condition, record.id)) fail(`Insufficient unreserved ${condition} stock for "${need.source.name}".`);
+      }
+      if (need.good + need.poor > available(need.source) - reserved(state, record.fromDistrictId, need.source, null, record.id)) fail(`Insufficient available stock for "${need.source.name}". Issued, lost, scrap and other reserved units cannot be distributed.`);
     }
   }
   function history(item, type, delta, record, actor, now, id) {
@@ -90,13 +140,13 @@
     if (!match) { match = { ...category, id: id() }; target.push(match); }
     return match.id;
   }
-  function transfer(state, record, user, now, id) {
-    validateLines(state, record);
+  function transfer(state, record, user, now, id, lines) {
+    validateLines(state, { ...record, items: lines });
     const location = districtList(state, "locations", record.toDistrictId).find(row => row.id === record.toLocationId);
     if (!location) fail("The receiving location no longer exists.");
     const map = state[prefix + "items"] ||= {};
     const target = map[record.toDistrictId] ||= [];
-    for (const line of record.items) {
+    for (const line of lines) {
       const source = sourceFor(state, record, line);
       if (record.fromDistrictId === record.toDistrictId && source.locationId === location.id) fail("Source and receiving locations must be different.");
       const categoryId = targetCategory(state, record, source, id);
@@ -113,6 +163,7 @@
       source.quantity -= line.qty;
       destination.conditionCounts[line.condition] += line.qty;
       destination.quantity += line.qty;
+      if (!Number.isSafeInteger(destination.quantity)) fail("The receiving stock quantity is too large.");
       source.updatedAt = destination.updatedAt = now;
       line.fromItemId = source.id;
       line.fromLocationId = source.locationId;
@@ -124,7 +175,9 @@
   }
   function reverse(state, record, user, now, id) {
     if (!record.items?.length) fail("This distribution has no stock movements to reverse.");
-    for (const line of record.items) {
+    const movements = record.items.flatMap(line => line.transfers?.length ? line.transfers.map(movement => ({ ...line, ...movement })) :
+      [{ ...line, qty: line.approvedQty ?? line.qty }]).filter(line => line.qty > 0);
+    for (const line of movements) {
       const source = districtList(state, "items", record.fromDistrictId).find(item => item.id === line.fromItemId && !item.isDeleted);
       const recipient = districtList(state, "items", record.toDistrictId).find(item => item.id === line.toItemId && !item.isDeleted);
       if (!source || !recipient || source === recipient || !conditions.includes(line.condition) ||
@@ -140,17 +193,8 @@
       }
     }
   }
-  function create(state, user, command, now, id) {
-    const districtId = command.districtId;
-    if (!scope(user, districtId)) fail("You cannot distribute stock from this district.", 403);
-    const locationId = command.fromLocationId || user.locationId;
-    const locations = districtList(state, "locations", districtId);
-    if (!locations.some(row => row.id === locationId) || !ownsSource(user, districtId, locationId)) fail("Select an authorised source location.", 403);
-    if (!command.targets?.length || !command.items?.length) fail("Select recipients and at least one item.");
-    const district = list(state, "districts").find(row => row.id === districtId);
-    if (!district) fail("The sender district no longer exists.");
-    const targetKeys = new Set();
-    const lines = command.items.map(line => {
+  function prepareLines(state, user, districtId, locationId, input, now, id) {
+    return input.map(line => {
       if (!conditions.includes(line.condition) || !Number.isSafeInteger(line.qty) || line.qty < 1) fail("Enter positive whole quantities.");
       let source;
       if (line.fromItemId) source = sourceFor(state, { fromDistrictId: districtId }, line);
@@ -172,6 +216,18 @@
       return { key: id(), itemName: source.name, qty: line.qty, condition: line.condition, fromItemId: source.id,
         fromLocationId: source.locationId, categoryId: source.categoryId, categoryName: category.name, unit: source.unit || "pcs", toItemId: null };
     });
+  }
+  function create(state, user, command, now, id) {
+    const districtId = command.districtId;
+    if (!scope(user, districtId)) fail("You cannot distribute stock from this district.", 403);
+    const locationId = command.fromLocationId || user.locationId;
+    const locations = districtList(state, "locations", districtId);
+    if (!locations.some(row => row.id === locationId) || !ownsSource(user, districtId, locationId)) fail("Select an authorised source location.", 403);
+    if (!command.targets?.length || !command.items?.length) fail("Select recipients and at least one item.");
+    const district = list(state, "districts").find(row => row.id === districtId);
+    if (!district) fail("The sender district no longer exists.");
+    const targetKeys = new Set();
+    const lines = prepareLines(state, user, districtId, locationId, command.items, now, id);
     const records = state[prefix + "distributions_" + districtId] ||= [];
     const created = [];
     for (const target of command.targets) {
@@ -197,7 +253,7 @@
         toLocationId: location.id, toLocationName: location.name, toName: target.type === "admin" ? targetDistrict.name + " (Admin)" : location.name,
         toUserId: receiver?.id || null, toUserName: receiver?.name || "", items: structuredClone(lines),
         attachments: structuredClone(command.attachments || []), status: "pending", approveRemark: "", rejectRemark: "",
-        approvedBy: "", approvedAt: null, rejectedBy: "", rejectedAt: null, createdAt: now, updatedAt: null };
+        approvedBy: "", approvedAt: null, rejectedBy: "", rejectedAt: null, createdAt: now, updatedAt: null, revision: 0 };
       records.push(record);
       created.push(record.id);
     }
@@ -209,22 +265,81 @@
     const { now, id } = options;
     let result;
     if (command.action === "create") result = create(state, user, command, now, id);
+    else if (command.action === "clear") {
+      if (user.role !== "devadmin") fail("Only Developer Admin may clear distributions.", 403);
+      const records = list(state, "distributions_" + command.districtId);
+      const ids = [];
+      for (const record of records) {
+        if (record.isConsumable) continue;
+        if (record.transferred) reverse(state, record, user, now, id);
+        else if (record.status === "completed") fail("A completed legacy distribution has no confirmed transfer to reverse.");
+        ids.push(record.id);
+      }
+      state[prefix + "distributions_" + command.districtId] = records.filter(record => record.isConsumable);
+      result = { ids };
+    }
     else {
       const records = list(state, "distributions_" + command.storeId);
       const record = records.find(row => row.id === command.id);
       if (!record) fail("Distribution record not found.", 404);
       if (record.isConsumable) fail("Manage this distribution through its consumable ledger.");
       if (record.fromDistrictId !== command.storeId) fail("The distribution store does not match its sender.");
-      if (["approve", "reject"].includes(command.action)) {
+      if (command.expectedRevision !== undefined && command.expectedRevision !== (record.revision || 0)) fail("This distribution changed. Open it again.", 409);
+      if (command.expectedUpdatedAt !== undefined && command.expectedUpdatedAt !== (record.updatedAt || record.createdAt)) fail("This distribution changed. Open it again.", 409);
+      if (["amend", "cancel"].includes(command.action)) {
+        if (!active(record) || (user.role !== "devadmin" && user.id !== record.fromUserId)) fail("Only the sender can edit or cancel an active pending distribution.", 403);
+        if (command.action === "cancel") {
+          for (const line of record.items) line.cancelledQty = (line.cancelledQty || 0) + remaining(line);
+          record.status = "cancelled";
+          record.closed = true;
+          record.cancelledBy = user.name || user.username;
+          record.cancelledAt = now;
+        } else {
+          if (!Array.isArray(command.items) || !command.items.length) fail("Keep at least one pending item, or cancel the request.");
+          const requested = prepareLines(state, user, record.fromDistrictId, record.fromLocationId, command.items, now, id);
+          const retained = record.items.filter(line => (line.approvedQty || 0) > 0).map(line => ({ ...line, qty: line.approvedQty }));
+          for (const line of requested) {
+            const previous = retained.find(row => row.fromItemId === line.fromItemId && row.condition === line.condition);
+            if (previous) previous.qty += line.qty;
+            else retained.push({ ...line, approvedQty: 0 });
+          }
+          record.items = retained;
+          record.remarks = String(command.remarks || "");
+          if (Array.isArray(command.attachments)) record.attachments = structuredClone(command.attachments);
+        }
+      } else if (["approve", "reject"].includes(command.action)) {
         if (!canReceive(user, record, state)) fail("Only the authorised recipient can decide a pending distribution.", 403);
-        if (command.action === "approve") { transfer(state, record, user, now, id); record.status = "completed"; record.transferred = true;
+        if (command.action === "approve") {
+          const selected = command.approvals || record.items.map((line, index) => ({ key: line.key || String(index), qty: remaining(line) }));
+          if (!Array.isArray(selected) || !selected.length) fail("Enter at least one receiving quantity.");
+          const seen = new Set();
+          const lines = [];
+          for (const selection of selected) {
+            const originalLine = record.items.find((line, index) => (line.key || String(index)) === selection.key);
+            if (!originalLine || seen.has(selection.key) || !Number.isSafeInteger(selection.qty) || selection.qty < 0 || selection.qty > remaining(originalLine)) fail("Receiving quantities must be whole numbers within the pending quantities.");
+            seen.add(selection.key);
+            if (selection.qty) lines.push({ ...originalLine, key: originalLine.key || selection.key, qty: selection.qty });
+          }
+          if (!lines.length) fail("Enter at least one receiving quantity above zero.");
+          transfer(state, record, user, now, id, lines);
+          for (const movement of lines) {
+            const originalLine = record.items.find((line, index) => (line.key || String(index)) === movement.key);
+            originalLine.key = movement.key;
+            originalLine.approvedQty = (originalLine.approvedQty || 0) + movement.qty;
+            originalLine.toItemId = movement.toItemId;
+            (originalLine.transfers ||= []).push({ fromItemId: movement.fromItemId, toItemId: movement.toItemId,
+              qty: movement.qty, condition: movement.condition, at: now });
+          }
+          record.status = record.items.some(line => remaining(line) > 0) ? "partially_completed" : "completed";
+          record.transferred = true;
           record.approveRemark = String(command.remark || ""); record.approvedBy = user.name || user.username; record.approvedAt = now;
         } else { if (!String(command.remark || "").trim()) fail("Rejection remark is required.");
-          record.status = "rejected"; record.rejectRemark = String(command.remark).trim(); record.rejectedBy = user.name || user.username; record.rejectedAt = now;
+          for (const line of record.items) line.rejectedQty = (line.rejectedQty || 0) + remaining(line);
+          record.closed = true;
+          record.status = record.transferred ? "partially_completed" : "rejected"; record.rejectRemark = String(command.remark).trim(); record.rejectedBy = user.name || user.username; record.rejectedAt = now;
         }
       } else {
         if (user.role !== "devadmin") fail("Only Developer Admin may edit or delete distributions.", 403);
-        if (command.expectedUpdatedAt !== undefined && command.expectedUpdatedAt !== (record.updatedAt || record.createdAt)) fail("This distribution changed. Open it again.", 409);
         if (command.action === "delete") {
           if (record.transferred) reverse(state, record, user, now, id);
           else if (record.status === "completed") fail("This completed legacy distribution has no confirmed transfer to reverse.");
@@ -233,9 +348,11 @@
         else fail("Unknown distribution action.");
       }
       record.updatedAt = now;
+      record.revision = (record.revision || 0) + 1;
       result = { id: record.id };
     }
+    validateReservations(state, original);
     return { state, result };
   }
-  return { execute, counts, available, canReceive, validateLines, unitKey };
+  return { execute, counts, available, remaining, reserved, active, validateReservations, canReceive, validateLines, unitKey };
 });

@@ -132,10 +132,15 @@ ok('topbar-right clips on a phone', /overflow-y:\s*hidden/.test(css));
 ok('the wrap was a containing block by default', /position:\s*relative/.test(desk));
 
 console.log('\nthe fix has to be able to reach the browser:');
-const tag = (idx.match(/mobile\.css\?v=([\d.]+)/) || [])[1];
-ok('mobile.css carries a version', !!tag);
-ok('mobile.css is not left on a stale version', tag === '2026.09.232');
-ok('mobile.js bumped alongside it', /mobile\.js\?v=2026\.09\.232/.test(idx));
+const mobileVersions = Object.fromEntries([...idx.matchAll(/mobile\.(css|js)\?v=(\d{4}\.\d{2}\.\d+)(?=["'])/g)]
+  .map(([, extension, version]) => [extension, version]));
+const includesMobileFixes = version => {
+  if (!version) return false;
+  const [year, month, revision] = version.split('.').map(Number);
+  return year > 2026 || (year === 2026 && (month > 9 || (month === 9 && revision >= 232)));
+};
+ok('mobile.css carries a version that includes the fixes', includesMobileFixes(mobileVersions.css));
+ok('mobile.js carries a version that includes the fixes', includesMobileFixes(mobileVersions.js));
 
 // Navigation had two shapes fighting over the same widths. Below 768px the
 // sidebar was a bottom bar, always on screen. Between 769px and 1024px it was a
@@ -180,7 +185,6 @@ ok('the inner block is pinned instead of centred', /\.login-left-inner,\s*\r?\n\
 ok('the desktop rule really does centre with margin:auto', /\.login-left-inner\s*\{[^}]*margin:\s*auto/.test(desk));
 ok('the panels are opened up, which is what made it spill', /\.login-left,\s*\r?\n\s*\.login-right\s*\{[^}]*overflow:\s*visible/.test(css));
 ok('no demo card is absolutely positioned', !/\.demo-card\s*\{[^}]*position:\s*absolute/.test(desk));
-ok('mobile.css is current', /mobile\.css\?v=2026\.09\.232/.test(idx));
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

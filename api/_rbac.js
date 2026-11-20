@@ -114,32 +114,16 @@ function diffItemWrites(prevState, nextState) {
   return writes;
 }
 
-// Distribution approvals transfer stock across units/districts by design: the
-// RECEIVER approves, so the deducted source item belongs to the distributor's
-// unit (not the approver's) and the added destination item belongs to the
-// receiver's unit. A plain ownership gate would 403 that legitimate transfer.
-// When the same write flips a distribution record from 'pending' to
-// 'completed', the item records it names become exempt — and ONLY those.
-// Returns a Set of "districtId|locationId|name(lowercased)" keys.
+// Legacy public helper retained for callers. Status changes grant no stock permissions.
 function distributionExemptKeys() {
   // Transfers are executed by the authenticated command endpoint.
   // A client-written status must never grant inventory permissions.
   return new Set();
 }
 
-function firstViolation(writes, user, exempt) {
+function firstViolation(writes, user) {
   const check = (kind, entry) => {
     const it = entry.item || {};
-    // Exempt items that move through a distribution approval in this same
-    // write (see distributionExemptKeys). Matched by the record's actual
-    // district + stored location + name, so a forged/renamed record is not
-    // silently whitelisted.
-    const prevForLoc = kind === 'delete' ? entry.item : (entry.prev || null);
-    const archLoc = prevForLoc && prevForLoc.locationId !== undefined ? prevForLoc.locationId : it.locationId;
-    const nameLower = String(it.name || '').trim().toLowerCase();
-    const distExemptKey = (entry.districtId || '') + '|' + (archLoc != null ? archLoc : '') + '|' + nameLower;
-    const distWildKey = (entry.districtId || '') + '|*|' + nameLower;
-    if (exempt && (exempt.has(distExemptKey) || exempt.has(distWildKey))) return null;
     // OWNERSHIP COMES FROM THE DATABASE, not the payload:
     //  - add:    the new record must be created inside the caller's own unit
     //  - edit:   the PREVIOUSLY STORED record must already belong to the
@@ -211,7 +195,7 @@ function authorizeItemWrites(user, writes, opts) {
   // Developer Admin holds full authority: it may add, edit, delete or clear
   // any inventory record in any district (2026 authority grant).
   if (user.role === 'devadmin') return { ok: true };
-  const violation = firstViolation(writes, user, opts.prevState || opts.nextState ? distributionExemptKeys(opts.prevState, opts.nextState) : null);
+  const violation = firstViolation(writes, user);
   if (violation) {
     return {
       ok: false, status: 403, code: 'RBAC_ITEM_FORBIDDEN',
@@ -552,7 +536,7 @@ function sanitizeMaintenanceRecord(record) {
   return r;
 }
 
-module.exports = { projectStateFor, restoreScopeFor, diffStructureWrites, authorizeStructureWrites, diffConsumableWrites, authorizeConsumableWrites, diffMaintenanceWrites, finalizeMaintenanceState, MAINT_KEY_PREFIX, SHRAMDAAN_KEY_PREFIX, ITEM_STORE_KEY, DISTRIBUTION_KEY_PREFIX, CONTENT_FIELDS, stableStringify, itemFingerprint, diffItemWrites, distributionExemptKeys, authorizeItemWrites, authorizeUserCollectionWrite, authorizeMaintenanceWrites, finishMaintenanceRecord, sanitizeMaintenanceRecord };
+module.exports = { guardShramDaanWrites, projectStateFor, restoreScopeFor, diffStructureWrites, authorizeStructureWrites, diffConsumableWrites, authorizeConsumableWrites, diffMaintenanceWrites, finalizeMaintenanceState, MAINT_KEY_PREFIX, SHRAMDAAN_KEY_PREFIX, ITEM_STORE_KEY, DISTRIBUTION_KEY_PREFIX, CONTENT_FIELDS, stableStringify, itemFingerprint, diffItemWrites, distributionExemptKeys, authorizeItemWrites, authorizeUserCollectionWrite, authorizeMaintenanceWrites, finishMaintenanceRecord, sanitizeMaintenanceRecord };
 
 
 // ============================================================
@@ -661,6 +645,69 @@ function dPhotoOwnerIn(key, record, state) {
 }
 
 // The read. Returns a copy; nothing the caller holds is touched.
+function canSeeShramDaanUnit(user, record) {
+  return ["devadmin", "admin", "ig"].includes(user?.role) ||
+    Boolean(user?.locationId && record?.locationId === user.locationId);
+}
+
+function guardShramDaanWrites(user, before, after) {
+  const denied = message => ({ status: user ? 403 : 401, error: message });
+  const invalid = message => ({ status: 400, error: message });
+  const scope = dScope(user);
+  const now = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  }).format(new Date());
+  for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    if (!key.startsWith(SHRAMDAAN_KEY_PREFIX)) continue;
+    if (stableStringify(before[key] ?? null) === stableStringify(after[key] ?? null)) continue;
+    if (!user) return denied("Sign in to change Shramdaan records.");
+    const districtId = key.slice(SHRAMDAAN_KEY_PREFIX.length);
+    const previous = dArr(before[key]);
+    const next = after[key] === undefined ? [] : after[key];
+    if (!Array.isArray(next) || next.some(record => !record || typeof record.id !== "string" || !record.id) ||
+      new Set(next.map(record => record.id)).size !== next.length) {
+      return invalid("Invalid Shramdaan record list.");
+    }
+    if (stableStringify(previous) === stableStringify(next)) continue;
+    if (scope !== null && !scope.includes(districtId)) return denied("You cannot change Shramdaan records outside your assigned district.");
+    const oldById = new Map(previous.filter(Boolean).map(record => [record.id, record]));
+    const nextById = new Map(next.map(record => [record.id, record]));
+    if (user.role !== "devadmin" && [...oldById.keys()].some(id => !nextById.has(id))) {
+      return denied("Only Developer Admin can delete Shramdaan records.");
+    }
+    const locations = dArr(after["hp_inventory.locations"]?.[districtId]);
+    for (const record of next) {
+      const original = oldById.get(record.id);
+      if (original) {
+        if (stableStringify(record) !== stableStringify(original)) return denied("Saved Shramdaan records cannot be overwritten.");
+        continue;
+      }
+      const location = locations.find(loc => loc?.id === record.locationId);
+      if (record.createdBy !== user.id || !canSeeShramDaanUnit(user, record)) {
+        return denied("Record the drive under your own account and assigned unit.");
+      }
+      if (!location || record.locationName !== location.name) return invalid("Select a valid location in the district.");
+      const types = ["gardening", "cleaning", "planting", "fatigue", "other"];
+      const date = typeof record.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(record.date) ? new Date(record.date) : null;
+      if (!types.includes(record.workType) ||
+        (record.workType === "other" ? !String(record.customType || "").trim() : Boolean(record.customType)) ||
+        !date || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== record.date ||
+        !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(record.time || "") ||
+        record.date + " " + record.time > now ||
+        !Number.isSafeInteger(record.participants) || record.participants < 1 ||
+        typeof record.description !== "string" || !record.description.trim()) return invalid("Complete the Shramdaan activity details.");
+      if (!Array.isArray(record.photos) || record.photos.length < 1 || record.photos.length > 8 ||
+        record.photos.some(photo => !photo?.stamped || photo.capturedAt !== record.date + " " + record.time ||
+          typeof photo.dataUrl !== "string" || photo.dataUrl.length > 6 * 1024 * 1024 ||
+          !/^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(photo.dataUrl))) {
+        return invalid("Attach 1–8 valid Shramdaan photos stamped with the activity date and time.");
+      }
+    }
+  }
+  return null;
+}
+
 function projectStateFor(user, state) {
   const scope = dScope(user);
   if (scope === null || !state || typeof state !== 'object') return state;
@@ -732,7 +779,7 @@ function projectStateFor(user, state) {
       continue;
     }
     if (key.indexOf(SHRAMDAAN_KEY_PREFIX) === 0) {
-      if (inScope(key.slice(SHRAMDAAN_KEY_PREFIX.length))) out[key] = value;
+      if (inScope(key.slice(SHRAMDAAN_KEY_PREFIX.length))) out[key] = dArr(value).filter(record => canSeeShramDaanUnit(user, record));
       continue;
     }
     if (key.indexOf(DISTRIBUTION_KEY_PREFIX) === 0) {
@@ -866,27 +913,8 @@ function restoreScopeFor(user, current, incoming) {
     if (D_PER_DISTRICT.indexOf(key) >= 0) {
       const src = dObj(cur);
       const bucket = Object.assign({}, dObj(out[key]));
-      const distExempt = (key === D_ITEMS_KEY) ? distributionExemptKeys(current, incoming) : null;
-      for (const d of Object.keys(src)) {
-        if (inScope(d)) continue;
-        if (key === D_ITEMS_KEY && distExempt && distExempt.size > 0) {
-          const curItems = dArr(src[d]);
-          const incItems = dArr(bucket[d]);
-          const incMap = new Map();
-          for (const it of incItems) { if (it && it.id) incMap.set(it.id, it); }
-          bucket[d] = curItems.map((it) => {
-            if (!it || !it.id) return it;
-            const nameLower = String(it.name || '').trim().toLowerCase();
-            const exactKey = d + '|' + (it.locationId || '') + '|' + nameLower;
-            const wildKey = d + '|*|' + nameLower;
-            if (distExempt.has(exactKey) || distExempt.has(wildKey)) {
-              if (incMap.has(it.id)) return incMap.get(it.id);
-            }
-            return it;
-          });
-        } else {
-          bucket[d] = src[d];
-        }
+      for (const district of Object.keys(src)) {
+        if (!inScope(district)) bucket[district] = src[district];
       }
       out[key] = bucket;
       continue;
@@ -965,8 +993,24 @@ function restoreScopeFor(user, current, incoming) {
     }
     if (key.indexOf(SHRAMDAAN_KEY_PREFIX) === 0) {
       const shramDistId = key.slice(SHRAMDAAN_KEY_PREFIX.length);
-      if (inScope(shramDistId)) continue;
-      out[key] = cur;
+      if (!inScope(shramDistId) || !Object.prototype.hasOwnProperty.call(out, key)) {
+        out[key] = cur;
+      } else if (Array.isArray(out[key])) {
+        const hidden = dArr(cur).filter(record => record && !canSeeShramDaanUnit(user, record));
+        if (hidden.length && new Set(out[key].map(record => record?.id)).size === out[key].length) {
+          const hiddenIds = new Set(hidden.map(record => record.id));
+          const submitted = new Map(out[key].filter(record => !hiddenIds.has(record?.id)).map(record => [record?.id, record]));
+          const existing = [];
+          for (const record of dArr(cur)) {
+            if (hiddenIds.has(record?.id)) existing.push(record);
+            else if (submitted.has(record?.id)) {
+              existing.push(submitted.get(record.id));
+              submitted.delete(record.id);
+            }
+          }
+          out[key] = [...submitted.values(), ...existing];
+        }
+      }
       continue;
     }
     if (

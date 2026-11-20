@@ -19,7 +19,7 @@
 const { Pool } = require('./_filepool');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { projectStateFor, restoreScopeFor, ITEM_STORE_KEY, diffItemWrites, authorizeItemWrites, authorizeUserCollectionWrite, diffConsumableWrites, authorizeConsumableWrites, diffStructureWrites, authorizeStructureWrites, diffMaintenanceWrites, authorizeMaintenanceWrites, finalizeMaintenanceState, MAINT_KEY_PREFIX } = require('./_rbac');
+const { guardShramDaanWrites, projectStateFor, restoreScopeFor, ITEM_STORE_KEY, diffItemWrites, authorizeItemWrites, authorizeUserCollectionWrite, diffConsumableWrites, authorizeConsumableWrites, diffStructureWrites, authorizeStructureWrites, diffMaintenanceWrites, authorizeMaintenanceWrites, finalizeMaintenanceState, MAINT_KEY_PREFIX } = require('./_rbac');
 const pool = new Pool();
 const Distribution = require('./_distribution');
 
@@ -979,6 +979,8 @@ function validateAllocState(state, previousState = {}) {
       return res.status(409).json({ error: 'Refresh this page to use the current stock save workflow.' });
     }
     let incoming = restoreScopeFor(writeUser, current, body.state);
+    const shramVerdict = guardShramDaanWrites(writeUser, current, incoming);
+    if (shramVerdict) return res.status(shramVerdict.status).json({ error: shramVerdict.error });
     const distributionVerdict = Distribution.guardStateWrites(writeUser, current, incoming);
     if (distributionVerdict) return res.status(distributionVerdict.status).json({ error: distributionVerdict.error });
     incoming['hp_inventory.distribution_receipts'] = current['hp_inventory.distribution_receipts'] || [];
@@ -1112,6 +1114,8 @@ function validateAllocState(state, previousState = {}) {
     }
     const verr = validateAllocState(incoming, current);
     if (verr) return res.status(400).json({ error: verr });
+    try { Distribution.validateReservations(incoming, current); }
+    catch (error) { return res.status(error.status || 400).json({ error: error.message }); }
     // Only the maintenance keys are taken from the finalised document, never
     // the whole of it. finalising captures the state as it arrived, which is
     // BEFORE the password merge below runs, so copying the whole document back
@@ -1251,6 +1255,8 @@ function validateAllocState(state, previousState = {}) {
     }
     const verr = validateAllocState(state, previousState);
     if (verr) return res.status(400).json({ error: verr });
+    try { Distribution.validateReservations(state, previousState); }
+    catch (error) { return res.status(error.status || 400).json({ error: error.message }); }
     await setState(state);
     return res.json({ ok: true });
   }

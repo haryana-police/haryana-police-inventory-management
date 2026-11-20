@@ -12,18 +12,31 @@ const ok = (n, c, why) => {
   if (c) { pass++; console.log('  PASS  ' + n); }
   else { fail++; console.log('  FAIL  ' + n + (why ? '   <- ' + why : '')); }
 };
-const LAYER = css.slice(css.indexOf('DIALOG TABLES AND DIALOG PADDING'));
+const layerStart = css.indexOf('DIALOG TABLES AND DIALOG PADDING');
+const layerEnd = css.indexOf('/* ---------- 23. STATUS / CONDITION BADGES', layerStart);
+const LAYER = css.slice(layerStart, layerEnd);
+const rules = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+const dialogWidth = id => {
+  const selector = '#' + id + ' .modal';
+  const widths = rules.filter(([, selectors]) => selectors.split(',').some(part => part.trim() === selector))
+    .map(([,, declarations]) => declarations.match(/max-width:\s*min\(\s*(\d+)px,\s*calc\(100vw\s*-\s*\d+px\)\)/)?.[1])
+    .filter(Boolean);
+  return Number(widths.at(-1));
+};
 ok('the fix is in the file', LAYER.length > 500);
 ok('and at the end, where it wins', css.indexOf('DIALOG TABLES AND DIALOG PADDING') > css.length * 0.8);
 
 console.log('\ncolumns are not squeezed any more:');
-ok('every dialog with a table has a width of its own',
-   /#allocItemDetailModal \.modal/.test(LAYER) && /#allocPersonDetailModal \.modal/.test(LAYER) &&
-   /#scanHistoryModal \.modal/.test(LAYER) && /#demandDetailsModal \.modal/.test(LAYER) &&
-   /#viewItemModal \.modal/.test(LAYER) && /#demandActionModal \.modal/.test(LAYER));
-ok('the widest dialog is the widest table', /#allocItemDetailModal \.modal \{ max-width: min\(11\d\dpx/.test(LAYER));
+const tableDialogs = ['allocItemDetailModal', 'allocPersonDetailModal', 'scanHistoryModal',
+  'demandDetailsModal', 'viewItemModal', 'demandActionModal'];
+ok('each tested table dialog has a viewport-capped width', tableDialogs.every(id => dialogWidth(id) > 0));
+ok('the item detail dialog is at least as wide as the other table dialogs',
+   dialogWidth(tableDialogs[0]) >= Math.max(...tableDialogs.slice(1).map(dialogWidth)));
 ok('a table can be wider than its dialog and scroll', /\.modal \.table-wrap[\s\S]*?overflow-x:\s*auto/.test(LAYER));
 ok('the scrollport is the wrapper, not the dialog', /\.modal \.table-wrap,\s*\n?\s*\.modal-body \.table-wrap \{ max-width: 100%; overflow-x: auto; \}/.test(LAYER));
+ok('the demand action wrapper keeps horizontal scrolling',
+   rules.filter(([, selectors]) => selectors.trim() === '#demandActionModal .table-wrap')
+     .at(-1)?.[2].match(/overflow-x:\s*auto\b/));
 ok('the table itself is given a floor', /\.modal table \{ width: 100%; min-width: 100%; \}/.test(LAYER));
 ok('the floor is set on the table, not the body', /table:has\(#aidAllottedBody\)/.test(LAYER) && !/^#aidAllottedBody[^{]*\{[^}]*min-width/m.test(LAYER));
 ok('the 17-column dialog gets a real floor', /table:has\(#aidAllottedBody\)[^{]*\{ min-width: 1000px/.test(LAYER));
@@ -34,7 +47,7 @@ console.log('\nnothing is hidden to make it fit:');
 ok('a number or a date is kept whole, not squeezed', /white-space:\s*nowrap/.test(LAYER));
 ok('prose wraps instead of being cut', /min-width:\s*12rem;\s*\n?\s*white-space:\s*normal/.test(LAYER) ||
    /white-space:\s*normal/.test(LAYER));
-ok('no font is made smaller anywhere in the fix', !/font-size:\s*\.\d+rem/.test(LAYER));
+ok('the dialog table layout rules do not override font size', !/font-size\s*:/.test(LAYER));
 ok('no nowrap is forced on a prose column', !/cell-remark[^{]*\{[^}]*white-space:\s*nowrap/.test(LAYER));
 
 console.log('\ntext is not against the border:');

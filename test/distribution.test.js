@@ -28,7 +28,8 @@ function fixture() {
     [key("distributions_a")]: [], [key("distributions_b")]: []
   };
 }
-function options() { let sequence = 0; return { now: 1795161000000, id: () => "new-" + (++sequence) }; }
+let sequence = 0;
+function options() { return { now: 1795161000000, id: () => "new-" + (++sequence) }; }
 function createCommand(extra = {}) {
   return { action: "create", districtId: "a", fromLocationId: "source",
     targets: [{ type: "unit", districtId: "a", locationId: "recipient" }],
@@ -174,6 +175,92 @@ test("client status changes never grant item-write permissions", () => {
   assert.equal(RBAC.distributionExemptKeys(state, next).size, 0);
   assert.equal(RBAC.authorizeItemWrites(outsider, RBAC.diffItemWrites(state, next), { prevState: state, nextState: next }).ok, false);
   assert.equal(Distribution.guardStateWrites(outsider, state, next).status, 403);
+});
+
+test("pending requests reserve condition stock and prevent duplicate commitments", () => {
+  const { state } = pending();
+  assert.equal(Ledger.reserved(state, "a", source(state)), 2);
+  const command = createCommand({ items: [{ fromItemId: "radio", categoryId: "cat-a", condition: "good", qty: 6 }] });
+  assert.throws(() => Ledger.execute(state, sender, command, options()), /reserve|unreserved/);
+  const issued = structuredClone(state); source(issued).allotted = 8;
+  assert.throws(() => Ledger.validateReservations(issued, state), /unreserved/);
+});
+
+test("sender amendment and cancellation update and release reservations", () => {
+  const { state, id } = pending();
+  const amended = Ledger.execute(state, sender, decision(id, "amend", {
+    items: [{ fromItemId: "radio", categoryId: "cat-a", condition: "good", qty: 4 }], remarks: "Need four"
+  }), options()).state;
+  assert.equal(record(amended).items[0].qty, 4);
+  assert.equal(Ledger.reserved(amended, "a", source(amended)), 4);
+  assert.throws(() => Ledger.execute(amended, outsider, decision(id, "cancel"), options()), /Only the sender/);
+  const cancelled = Ledger.execute(amended, sender, decision(id, "cancel"), options()).state;
+  assert.equal(source(cancelled).quantity, 10);
+  assert.equal(Ledger.reserved(cancelled, "a", source(cancelled)), 0);
+  assert.equal(record(cancelled).status, "cancelled");
+  assert.equal(Ledger.canReceive(receiver, record(cancelled), cancelled), false);
+});
+
+test("partial receipts move selected quantities, retain reservations and reverse exactly what arrived", () => {
+  const { state, id } = pending();
+  const lineKey = record(state).items[0].key;
+  const partial = Ledger.execute(state, receiver, decision(id, "approve", { approvals: [{ key: lineKey, qty: 1 }] }), options()).state;
+  assert.equal(record(partial).status, "partially_completed");
+  assert.equal(record(partial).items[0].approvedQty, 1);
+  assert.equal(source(partial).quantity, 9);
+  assert.equal(Ledger.reserved(partial, "a", source(partial)), 1);
+  assert.equal(Ledger.canReceive(receiver, record(partial), partial), true);
+  const completed = Ledger.execute(partial, receiver, decision(id, "approve", { approvals: [{ key: lineKey, qty: 1 }] }), options()).state;
+  assert.equal(record(completed).status, "completed");
+  assert.equal(source(completed).quantity, 8);
+  const reversed = Ledger.execute(completed, developer, decision(id, "delete"), options()).state;
+  assert.equal(source(reversed).quantity, 10);
+  assert.equal(reversed[key("items")].a.find(item => item.locationId === "recipient").quantity, 0);
+});
+
+test("partial receipt followed by cancellation or rejection keeps received stock", () => {
+  for (const action of ["cancel", "reject"]) {
+    const { state, id } = pending();
+    const partial = Ledger.execute(state, receiver, decision(id, "approve", {
+      approvals: [{ key: record(state).items[0].key, qty: 1 }]
+    }), options()).state;
+    const closed = Ledger.execute(partial, action === "cancel" ? sender : receiver, decision(id, action, { remark: "Stop remaining stock" }), options()).state;
+    assert.equal(source(closed).quantity, 9);
+    assert.equal(closed[key("items")].a.find(item => item.locationId === "recipient").quantity, 1);
+    assert.equal(Ledger.reserved(closed, "a", source(closed)), 0);
+    assert.equal(Ledger.canReceive(receiver, record(closed), closed), false);
+    const reversed = Ledger.execute(closed, developer, decision(id, "delete"), options()).state;
+    assert.equal(source(reversed).quantity, 10);
+  }
+});
+
+test("sender changes only remaining quantities after a partial receipt", () => {
+  const { state, id } = pending();
+  const partial = Ledger.execute(state, receiver, decision(id, "approve", { approvals: [{ key: record(state).items[0].key, qty: 1 }] }), options()).state;
+  const amended = Ledger.execute(partial, sender, decision(id, "amend", {
+    items: [{ fromItemId: "radio", categoryId: "cat-a", condition: "poor", qty: 2 }]
+  }), options()).state;
+  assert.equal(record(amended).items.find(line => line.condition === "good").approvedQty, 1);
+  assert.equal(record(amended).items.find(line => line.condition === "good").qty, 1);
+  const completed = Ledger.execute(amended, receiver, decision(id), options()).state;
+  assert.equal(source(completed).quantity, 7);
+  assert.equal(record(completed).status, "completed");
+  const reversed = Ledger.execute(completed, developer, decision(id, "delete"), options()).state;
+  assert.equal(source(reversed).quantity, 10);
+  assert.deepEqual(source(reversed).conditionCounts, { good: 7, poor: 2, damaged: 1 });
+});
+
+test("stale partial decisions and fractional receipt quantities are rejected", () => {
+  const { state, id } = pending();
+  const lineKey = record(state).items[0].key;
+  for (const qty of [0, -1, 1.5, 3]) assert.throws(() => Ledger.execute(state, receiver,
+    decision(id, "approve", { approvals: [{ key: lineKey, qty }] }), options()));
+  const partial = Ledger.execute(state, receiver, decision(id, "approve", {
+    expectedRevision: 0, approvals: [{ key: lineKey, qty: 1 }]
+  }), options()).state;
+  assert.throws(() => Ledger.execute(partial, receiver, decision(id, "approve", {
+    expectedRevision: 0, approvals: [{ key: lineKey, qty: 1 }]
+  }), options()), /changed/);
 });
 
 function apiHarness(initial = fixture()) {

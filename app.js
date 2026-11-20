@@ -697,8 +697,6 @@ function seedAll() {
     if (!loadData(demKey)) seedDemands(d.id);
     const distKey = `distributions_${d.id}`;
     if (!loadData(distKey)) seedDistributions(d.id);
-    const shramKey = `shramdaan_${d.id}`;
-    if (!loadData(shramKey)) seedShramDaan(d.id, true);
   });
 }
 
@@ -5549,145 +5547,36 @@ let __shramActiveTab = "history";
 let __shramStatFilter = "all";
 let __shramDetailId = null;
 
+const SHRAM_WORK_TYPES = ["gardening", "cleaning", "planting", "fatigue", "other"];
+const SHRAM_PHOTO_LIMIT = 8;
+const SHRAM_PHOTO_MAX_BYTES = 4 * 1024 * 1024;
+let __shramPhotoReads = 0;
+let __shramSaving = false;
+
 function getShramDaanList() {
   if (!activeDistrictId) return [];
   const list = loadData(`shramdaan_${activeDistrictId}`);
-  if (Array.isArray(list)) return list;
-  return seedShramDaan(activeDistrictId, true);
+  return Array.isArray(list) ? list : [];
+}
+
+function __shramVisibleDrives() {
+  return getShramDaanList().filter(drive => !(drive.createdBy === "system" && /^shram_[123]$/.test(drive.id)) &&
+    (isAdmin() || (currentUser?.locationId && drive.locationId === currentUser.locationId)));
 }
 
 function saveShramDaanList(list) {
-  if (!activeDistrictId) return;
-  saveData(`shramdaan_${activeDistrictId}`, list);
+  if (activeDistrictId) saveData(`shramdaan_${activeDistrictId}`, list);
 }
 
-function seedShramDaan(districtId, forceSave) {
-  const d = getDistricts().find(x => x.id === districtId);
-  const distName = d ? d.name : "District";
-  const locs = typeof getLocationsForDistrict === "function" ? getLocationsForDistrict(districtId) : getLocations();
-  const lineLoc = locs.find(l => (l.name || "").toLowerCase().includes("line")) || locs[0] || { id: "line_1", name: "Police Line" };
-  const stationLoc = locs.find(l => (l.name || "").toLowerCase().includes("station") || (l.name || "").toLowerCase().includes("thana") || (l.name || "").toLowerCase().includes("ps")) || locs[1] || locs[0] || { id: "ps_1", name: "Police Station City" };
-
-  const today = new Date();
-  const d1 = new Date(today.getTime() - 86400000 * 2).toISOString().slice(0, 10);
-  const d2 = new Date(today.getTime() - 86400000 * 5).toISOString().slice(0, 10);
-  const d3 = new Date(today.getTime() - 86400000 * 8).toISOString().slice(0, 10);
-
-  function makeSamplePhotoSvg(typeText, dateText, officerText, locText, color1, color2) {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
-      <defs>
-        <linearGradient id="bg_${color1.replace('#','')}" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="${color1}"/>
-          <stop offset="100%" stop-color="${color2}"/>
-        </linearGradient>
-      </defs>
-      <rect width="800" height="500" fill="url(#bg_${color1.replace('#','')})"/>
-      <circle cx="400" cy="180" r="70" fill="rgba(255,255,255,0.12)"/>
-      <path d="M375 210 L400 150 L425 210 Z" fill="rgba(255,255,255,0.3)"/>
-      <text x="400" y="270" font-family="'Segoe UI', Arial, sans-serif" font-size="26" font-weight="bold" fill="#ffffff" text-anchor="middle">${typeText}</text>
-      <text x="400" y="300" font-family="'Segoe UI', Arial, sans-serif" font-size="15" fill="rgba(255,255,255,0.85)" text-anchor="middle">Haryana Police \u00b7 Community &amp; Cleanliness Drive</text>
-      <rect x="25" y="405" width="750" height="72" rx="6" fill="rgba(0,0,0,0.82)" stroke="#d4af37" stroke-width="2"/>
-      <text x="40" y="430" font-family="monospace" font-size="13" font-weight="bold" fill="#d4af37">&#x25C6; HARYANA POLICE - SHRAMDAAN DRIVE</text>
-      <text x="40" y="449" font-family="monospace" font-size="12" fill="#ffffff">DATE: ${dateText} | UNIT: ${locText}</text>
-      <text x="40" y="467" font-family="monospace" font-size="11.5" fill="#93c5fd">CONDUCTED BY: ${officerText}</text>
-    </svg>`;
-    return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
-  }
-
-  const sampleDrives = [
-    {
-      id: "shram_1",
-      workType: "cleaning",
-      customType: "",
-      workTypeLabel: "Cleaning",
-      locationId: lineLoc.id,
-      locationName: lineLoc.name,
-      officerRole: "Line Officer",
-      officerName: "Insp. Suresh Kumar",
-      officerBelt: "Line Officer, Dist. Lines",
-      date: d1,
-      time: "08:00",
-      participants: 28,
-      description: "Comprehensive cleanliness drive conducted across Police Line parade grounds, administrative block, MT section and police barracks. Waste segregation, sweeping and drain sanitation completed.",
-      photos: [
-        {
-          id: "ph_cl_1",
-          name: "police-line-cleaning-1.jpg",
-          dataUrl: makeSamplePhotoSvg("Cleanliness Drive", d1 + " 08:00 AM", "Insp. Suresh Kumar (Line Officer)", lineLoc.name, "#1e3a8a", "#0d9488"),
-          capturedAt: d1 + " 08:00",
-          stamped: true
-        },
-        {
-          id: "ph_cl_2",
-          name: "police-line-cleaning-2.jpg",
-          dataUrl: makeSamplePhotoSvg("Barracks & Grounds Sanitation", d1 + " 09:30 AM", "Insp. Suresh Kumar (Line Officer)", lineLoc.name, "#0f766e", "#155e75"),
-          capturedAt: d1 + " 09:30",
-          stamped: true
-        }
-      ],
-      createdBy: "system",
-      createdAt: Date.now() - 86400000 * 2
-    },
-    {
-      id: "shram_2",
-      workType: "planting",
-      customType: "",
-      workTypeLabel: "Planting",
-      locationId: stationLoc.id,
-      locationName: stationLoc.name,
-      officerRole: "Station Officer",
-      officerName: "Sub-Insp. Manoj Sharma",
-      officerBelt: "Station Officer / SHO",
-      date: d2,
-      time: "09:30",
-      participants: 15,
-      description: "Mass tree plantation drive. Planted 30 medicinal and fruit-bearing saplings (Neem, Peepal, Jamun, Amla) along the perimeter boundary wall and entrance courtyard of the Police Station.",
-      photos: [
-        {
-          id: "ph_pl_1",
-          name: "police-station-planting.jpg",
-          dataUrl: makeSamplePhotoSvg("Tree Plantation", d2 + " 09:30 AM", "Sub-Insp. Manoj Sharma (Station Officer)", stationLoc.name, "#065f46", "#047857"),
-          capturedAt: d2 + " 09:30",
-          stamped: true
-        }
-      ],
-      createdBy: "system",
-      createdAt: Date.now() - 86400000 * 5
-    },
-    {
-      id: "shram_3",
-      workType: "gardening",
-      customType: "",
-      workTypeLabel: "Gardening",
-      locationId: lineLoc.id,
-      locationName: lineLoc.name,
-      officerRole: "Line Officer",
-      officerName: "Insp. Suresh Kumar",
-      officerBelt: "Line Officer, Dist. Lines",
-      date: d3,
-      time: "16:00",
-      participants: 12,
-      description: "Maintenance and beautification of Police Line central garden. Lawn mowing, weeding flowerbeds, pruning hedge plants and setting up organic fertilizer beds.",
-      photos: [
-        {
-          id: "ph_gd_1",
-          name: "police-line-gardening.jpg",
-          dataUrl: makeSamplePhotoSvg("Gardening & Lawn Mowing", d3 + " 04:00 PM", "Insp. Suresh Kumar (Line Officer)", lineLoc.name, "#854d0e", "#b45309"),
-          capturedAt: d3 + " 16:00",
-          stamped: true
-        }
-      ],
-      createdBy: "system",
-      createdAt: Date.now() - 86400000 * 8
-    }
-  ];
-
-  saveData(`shramdaan_${districtId}`, sampleDrives);
-  return sampleDrives;
+function __shramDateRangeInvalid() {
+  const from = $("#shramDateFrom")?.value;
+  const to = $("#shramDateTo")?.value;
+  return Boolean(from && to && from > to);
 }
 
-function __shramFiltered(sourceList) {
-  const all = Array.isArray(sourceList) ? sourceList : getShramDaanList();
+function __shramFiltered(sourceList, includeWorkType = true) {
+  const all = Array.isArray(sourceList) ? sourceList : __shramVisibleDrives();
+  if (__shramDateRangeInvalid()) return [];
   const search = ($("#shramSearch")?.value || "").trim().toLowerCase();
   const typeFilter = ($("#shramTypeFilter")?.value || "").toLowerCase();
   const locFilter = $("#shramLocationFilter")?.value || "";
@@ -5695,8 +5584,8 @@ function __shramFiltered(sourceList) {
   const dTo = $("#shramDateTo")?.value || "";
 
   return all.filter(r => {
-    if (__shramStatFilter && __shramStatFilter !== "all" && r.workType !== __shramStatFilter) return false;
-    if (typeFilter && r.workType !== typeFilter) return false;
+    if (includeWorkType && __shramStatFilter && __shramStatFilter !== "all" && r.workType !== __shramStatFilter) return false;
+    if (includeWorkType && typeFilter && r.workType !== typeFilter) return false;
     if (locFilter && r.locationId !== locFilter) return false;
     if (dFrom && r.date < dFrom) return false;
     if (dTo && r.date > dTo) return false;
@@ -5723,7 +5612,7 @@ function __shramFiltered(sourceList) {
 
 function getShramWorkTypeLabel(workType, customType, fallback) {
   const isHi = window.__LANG === "hi";
-  if (customType) return customType + (isHi ? " (अन्य)" : " (Other)");
+  if (workType === "other" && customType) return customType + (isHi ? " (अन्य)" : " (Other)");
   const wt = (workType || "").toLowerCase();
   const enLabels = { gardening: "Gardening", cleaning: "Cleaning", planting: "Planting", fatigue: "Fatigue", other: "Other" };
   const hiLabels = { gardening: "बागवानी", cleaning: "सफ़ाई अभियान", planting: "पौधारोपण", fatigue: "फटीक", other: "अन्य कार्य" };
@@ -5740,23 +5629,24 @@ function renderShramDaan() {
   const container = $("#view-shramdaan");
   if (!container) return;
 
-  const all = getShramDaanList();
+  const all = __shramVisibleDrives();
+  const rangeError = $("#shramRangeError");
+  if (rangeError) rangeError.classList.toggle("hidden", !__shramDateRangeInvalid());
 
-  // Populate Location filter if needed
   const locFilter = $("#shramLocationFilter");
-  if (locFilter && locFilter.options.length <= 1) {
-    const locs = getLocations();
+  if (locFilter) {
+    const selected = locFilter.value;
+    const locs = getLocations().filter(location => isAdmin() || location.id === currentUser?.locationId);
     locFilter.innerHTML = `<option value="">All Locations / Units</option>` +
-      locs.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
+      locs.map(l => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join("");
+    locFilter.value = locs.some(l => l.id === selected) ? selected : "";
   }
 
-  // Calculate statistics
-  const stats = { total: all.length, gardening: 0, cleaning: 0, planting: 0, fatigue: 0 };
-  let totalPhotos = 0;
-  all.forEach(d => {
-    if (stats[d.workType] !== undefined) stats[d.workType]++;
-    if (Array.isArray(d.photos)) totalPhotos += d.photos.length;
-  });
+  const matching = __shramFiltered(all, false);
+  const stats = { total: matching.length, gardening: 0, cleaning: 0, planting: 0, fatigue: 0 };
+  for (const drive of matching) {
+    if (drive.workType !== "total" && Object.hasOwn(stats, drive.workType)) stats[drive.workType]++;
+  }
 
   const sTotal = $("#statShramTotal"); if (sTotal) sTotal.textContent = stats.total;
   const sGardening = $("#statShramGardening"); if (sGardening) sGardening.textContent = stats.gardening;
@@ -5777,6 +5667,7 @@ function renderShramDaan() {
   if (tbody) {
     if (filtered.length) {
       const pageRows = __pgRows("shram", filtered);
+      const offset = __pgPage("shram", filtered.length) * __pgSize("shram");
       tbody.innerHTML = pageRows.map((r, idx) => {
         const badgeCls = `shram-badge shram-badge-${r.workType || 'other'}`;
         const icons = { gardening: "🌿", cleaning: "🧹", planting: "🌱", fatigue: "💪", other: "📌" };
@@ -5797,7 +5688,7 @@ function renderShramDaan() {
 
         return `
           <tr>
-            <td style="font-weight:600;color:var(--text-muted);">${idx + 1}</td>
+            <td style="font-weight:600;color:var(--text-muted);">${offset + idx + 1}</td>
             <td style="white-space:nowrap;">
               <div style="font-weight:600;">${esc(r.date || "")}</div>
               <div style="font-size:11.5px;color:var(--text-muted);">🕒 ${esc(r.time || "")}</div>
@@ -5820,13 +5711,13 @@ function renderShramDaan() {
             <td style="text-align:center;white-space:nowrap;">
               <button type="button" class="btn btn-sm btn-outline" data-shram-action="view" data-id="${esc(r.id)}" title="View full drive details">View</button>
               <button type="button" class="btn btn-sm btn-outline" data-shram-action="print" data-id="${esc(r.id)}" title="Print Drive Slip">🖨️</button>
-              ${(canEdit() || isDevAdmin()) ? `<button type="button" class="btn btn-sm btn-outline" data-shram-action="delete" data-id="${esc(r.id)}" style="color:var(--red,#dc2626);" title="Delete Record">&times;</button>` : ""}
+              ${isDevAdmin() ? `<button type="button" class="btn btn-sm btn-outline" data-shram-action="delete" data-id="${esc(r.id)}" style="color:var(--red,#dc2626);" title="Delete Record">&times;</button>` : ""}
             </td>
           </tr>
         `;
       }).join("");
     } else {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted);">No Shramdaan records found. Click "+ Record Shramdaan" to add one.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted);">${__shramDateRangeInvalid() ? "Correct the date range to see records." : "No Shramdaan records match the current filters."}</td></tr>`;
     }
     renderPager("shram", filtered.length, renderShramDaan);
   }
@@ -5850,7 +5741,7 @@ function renderShramDaan() {
         const badgeCls = `shram-badge shram-badge-${d.workType || 'other'}`;
         const icons = { gardening: "🌿", cleaning: "🧹", planting: "🌱", fatigue: "💪", other: "📌" };
         const icon = icons[d.workType] || "📌";
-        const typeTitle = d.customType ? d.customType : (d.workTypeLabel || d.workType);
+        const typeTitle = getShramWorkTypeLabel(d.workType, d.customType, d.workTypeLabel);
 
         return `
           <div class="shram-photo-card" data-drive-id="${esc(d.id)}" data-photo-idx="${item.pIdx}">
@@ -5886,80 +5777,64 @@ function renderShramDaan() {
   }
 }
 
-function __shramStampPhoto(photo, cb) {
+async function __shramStampPhoto(photo, entry) {
   const img = new Image();
-  img.onload = () => {
-    try {
-      const c = document.createElement("canvas");
-      const maxDim = 1600;
-      let w = img.width, h = img.height;
-      if (w > maxDim || h > maxDim) {
-        if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
-        else { w = Math.round(w * maxDim / h); h = maxDim; }
-      }
-      c.width = w;
-      c.height = h;
-      const ctx = c.getContext("2d");
-      ctx.drawImage(img, 0, 0, w, h);
-
-      const pad = Math.max(10, Math.round(w * 0.02));
-      const fontSize = Math.max(13, Math.round(w * 0.022));
-      ctx.font = "bold " + fontSize + "px 'Courier New', monospace, sans-serif";
-
-      const dateStr = $("#shramDate")?.value || new Date().toISOString().slice(0, 10);
-      const timeStr = $("#shramTime")?.value || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const officerStr = currentUser ? ((currentUser.rank ? currentUser.rank + " " : "") + (currentUser.name || "Police Officer")) : "Police Officer";
-      const locDisplay = $("#shramLocationDisplay");
-      const locEl = $("#shramLocation");
-      const unitStr = (locDisplay && locDisplay.value) || (locEl && locEl.selectedIndex >= 0 ? locEl.options[locEl.selectedIndex].text : "");
-
-      const stampLine1 = "HARYANA POLICE - SHRAMDAAN DRIVE";
-      const stampLine2 = "DATE: " + dateStr + " " + timeStr + (unitStr ? " | " + unitStr : "") + " | BY: " + officerStr;
-
-      const line1W = ctx.measureText(stampLine1).width;
-      const line2W = ctx.measureText(stampLine2).width;
-      const boxW = Math.max(line1W, line2W) + pad * 2;
-      const boxH = fontSize * 2.8 + pad * 1.5;
-
-      ctx.fillStyle = "rgba(0, 0, 0, 0.82)";
-      ctx.fillRect(pad, h - boxH - pad, boxW, boxH);
-
-      ctx.fillStyle = "#d4af37";
-      ctx.fillRect(pad, h - boxH - pad, boxW, Math.max(2, Math.round(fontSize * 0.16)));
-
-      ctx.fillStyle = "#ffffff";
-      ctx.fillText(stampLine1, pad * 2, h - boxH - pad + fontSize + pad * 0.4);
-      ctx.fillStyle = "#fef08a";
-      ctx.fillText(stampLine2, pad * 2, h - pad - pad * 0.5);
-
-      photo.dataUrl = c.toDataURL("image/jpeg", 0.85);
-      photo.stamped = true;
-      photo.capturedAt = dateStr + " " + timeStr;
-    } catch (e) {
-      console.warn("Photo stamp fallback:", e);
-    }
-    cb(photo);
-  };
-  img.onerror = () => cb(photo);
   img.src = photo.dataUrl;
+  await img.decode();
+  const canvas = document.createElement("canvas");
+  const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
+  const width = Math.round(img.width * scale);
+  const height = Math.round(img.height * scale);
+  const fontSize = Math.max(12, Math.round(width * 0.022));
+  const padding = Math.max(8, Math.round(width * 0.02));
+  canvas.width = Math.max(width, 360);
+  const ctx = canvas.getContext("2d");
+  const font = "bold " + fontSize + "px sans-serif";
+  ctx.font = font;
+  const capturedAt = entry.date + " " + entry.time;
+  const text = ["HARYANA POLICE - SHRAMDAAN DRIVE",
+    "Activity: " + capturedAt, "Unit: " + entry.locationName,
+    "Recorded by: " + entry.officerName];
+  const lines = [];
+  for (const line of text) {
+    let fragment = "";
+    for (const character of line) {
+      if (fragment && ctx.measureText(fragment + character).width > canvas.width - 2 * padding) {
+        lines.push(fragment.trim());
+        fragment = "";
+      }
+      fragment += character;
+    }
+    lines.push(fragment.trim());
+  }
+  const lineHeight = Math.ceil(fontSize * 1.5);
+  canvas.height = height + padding * 2 + lineHeight * lines.length;
+  ctx.fillStyle = "#172033";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, Math.floor((canvas.width - width) / 2), 0, width, height);
+  ctx.font = font;
+  ctx.fillStyle = "#fff";
+  lines.forEach((line, index) => ctx.fillText(line, padding, height + padding + fontSize + index * lineHeight));
+  return { ...photo, name: (photo.name || "shramdaan-photo").replace(/\.[^.]+$/, "") + ".jpg",
+    mime: "image/jpeg", dataUrl: canvas.toDataURL("image/jpeg", 0.82), stamped: true, capturedAt };
 }
 
 function __shramAddPhoto(photo) {
-  if (!photo.stamped && photo.dataUrl && photo.dataUrl.indexOf("data:image/") === 0 && photo.dataUrl.indexOf("data:image/svg") !== 0) {
-    __shramStampPhoto(photo, stampedPhoto => {
-      __shramPhotos.push(stampedPhoto);
-      __shramRenderPhotoPreviews();
-      toast("Photo stamped with verified date & time.", "success");
-    });
-  } else {
-    if (!photo.capturedAt) {
-      const dStr = $("#shramDate")?.value || new Date().toISOString().slice(0, 10);
-      const tStr = $("#shramTime")?.value || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      photo.capturedAt = dStr + " " + tStr;
-    }
-    __shramPhotos.push(photo);
-    __shramRenderPhotoPreviews();
+  if (__shramSaving) return;
+  if (__shramPhotos.length + __shramPhotoReads >= SHRAM_PHOTO_LIMIT) {
+    return toast("Attach up to " + SHRAM_PHOTO_LIMIT + " photos per drive.", "error");
   }
+  if (!/^data:image\/(?:jpeg|png|webp|gif|bmp);base64,/i.test(photo.dataUrl || "") ||
+    (photo.size || 0) > SHRAM_PHOTO_MAX_BYTES) {
+    return toast("Choose a valid JPG, PNG, WebP, GIF or BMP image up to 4 MB.", "error");
+  }
+  __shramPhotos.push(photo);
+  __shramRenderPhotoPreviews();
+}
+
+function __shramUpdateSaveButton() {
+  const button = $("#shramSubmitBtn");
+  if (button) button.disabled = __shramSaving || __shramPhotoReads > 0;
 }
 
 function __shramRenderPhotoPreviews() {
@@ -5974,37 +5849,30 @@ function __shramRenderPhotoPreviews() {
     <div class="shram-photo-thumb" data-photo-idx="${idx}">
       <img src="${p.dataUrl}" alt="${esc(p.name || 'Preview')}">
       <button type="button" class="shram-thumb-remove" data-remove-idx="${idx}" title="Remove photo">&times;</button>
-      <div class="shram-thumb-badge">${esc(p.capturedAt || 'Stamped')}</div>
+      <div class="shram-thumb-badge">${esc(p.capturedAt || 'Stamp added on save')}</div>
     </div>
   `).join("");
 }
 
 function openShramDaanModal() {
   const modal = $("#shramDaanModal");
-  if (!modal) return;
+  if (!modal || __shramSaving) return;
 
   try {
     $("#shramDaanForm")?.reset();
     __shramPhotos = [];
     __shramRenderPhotoPreviews();
 
-    // Default Location / Unit from logged-in user
-    const locs = typeof getLocations === "function" ? getLocations() : [];
-    let defaultLoc = null;
-    const defaultLocId = (currentUser && currentUser.locationId) || (typeof getVisibleLocationId === "function" ? getVisibleLocationId() : "");
-    if (defaultLocId) {
-      defaultLoc = locs.find(l => l.id === defaultLocId);
+    __shramPhotoReads = 0;
+    __shramUpdateSaveButton();
+    const locs = getLocations().filter(location => isAdmin() || location.id === currentUser?.locationId);
+    const input = $("#shramLocation");
+    if (input) {
+      input.innerHTML = '<option value="">Select a location</option>' +
+        locs.map(location => `<option value="${esc(location.id)}">${esc(location.name)}</option>`).join("");
+      input.value = locs.some(location => location.id === currentUser?.locationId) ? currentUser.locationId : "";
+      input.disabled = !isAdmin();
     }
-    if (!defaultLoc && locs.length > 0) {
-      defaultLoc = locs[0];
-    }
-    const locName = defaultLoc ? defaultLoc.name : ((currentUser && (currentUser.unit || currentUser.locationName)) || "Haryana Police Unit");
-    const locId = defaultLoc ? defaultLoc.id : (defaultLocId || "unit_default");
-
-    const locDisplay = $("#shramLocationDisplay");
-    if (locDisplay) locDisplay.value = locName;
-    const locHidden = $("#shramLocation");
-    if (locHidden) locHidden.value = locId;
 
     const now = new Date();
     const dEl = $("#shramDate"); if (dEl) { dEl.value = todayStr(); dEl.max = todayStr(); }
@@ -6015,6 +5883,7 @@ function openShramDaanModal() {
     }
 
     $("#shramCustomTypeWrap")?.classList.add("hidden");
+    if ($("#shramCustomType")) $("#shramCustomType").required = false;
   } catch (err) {
     console.error("Error setting up shramdaan modal form:", err);
   }
@@ -6023,22 +5892,28 @@ function openShramDaanModal() {
 
 async function saveShramDaanEntry(e) {
   if (e) e.preventDefault();
+  if (__shramSaving || __shramPhotoReads) return;
+  if (!currentUser || !activeDistrictId) return toast("Sign in and select a district.", "error");
+  const districtId = activeDistrictId;
+  const actor = signedInUser();
+  const form = $("#shramDaanForm");
   const workType = $("#shramWorkType")?.value;
-  if (!workType) return toast("Please select a Work Type.", "error");
+  if (!SHRAM_WORK_TYPES.includes(workType)) return toast("Please select a Work Type.", "error");
 
-  const customType = $("#shramCustomType")?.value.trim() || "";
+  const customType = workType === "other" ? ($("#shramCustomType")?.value.trim() || "") : "";
   if (workType === "other" && !customType) {
     return toast("Please specify the custom work type.", "error");
   }
 
-  const locationId = $("#shramLocation")?.value || (currentUser ? currentUser.locationId : "");
-  const locObj = typeof getLocations === "function" ? getLocations().find(l => l.id === locationId) : null;
-  const locationName = $("#shramLocationDisplay")?.value || (locObj ? locObj.name : "Location / Unit");
-
-  // Auto-filled from logged-in user
-  const officerName = currentUser ? ((currentUser.rank ? currentUser.rank + " " : "") + (currentUser.name || "User")) : "Officer";
-  const officerRole = currentUser ? ((typeof ROLE_LABELS !== "undefined" && ROLE_LABELS[currentUser.role]) || currentUser.role || "Officer") : "Officer";
-  const officerBelt = currentUser ? (currentUser.beltNumber || currentUser.pno || currentUser.beltNo || "") : "";
+  const locationId = $("#shramLocation")?.value;
+  const location = getLocations().find(loc => loc.id === locationId);
+  if (!location || (!isAdmin() && locationId !== currentUser.locationId)) {
+    return toast("Select a valid assigned location before recording the drive.", "error");
+  }
+  const locationName = location.name;
+  const officerName = [actor.rank, actor.name || actor.username].filter(Boolean).join(" ");
+  const officerRole = ROLE_LABELS[actor.role] || actor.role;
+  const officerBelt = actor.beltNumber || actor.pno || actor.beltNo || "";
 
   const date = $("#shramDate")?.value;
   const time = $("#shramTime")?.value;
@@ -6046,7 +5921,9 @@ async function saveShramDaanEntry(e) {
   if (date > todayStr()) return toast("Future date is not allowed. Please select today or a past date.", "error");
   if (date === todayStr() && time > nowTimeStr()) return toast("Future time is not allowed. Please select current or past time.", "error");
 
-  const participants = Number($("#shramParticipants")?.value) || 1;
+  const participants = Number($("#shramParticipants")?.value);
+  if (!Number.isSafeInteger(participants) || participants < 1) return toast("Enter a positive whole personnel count.", "error");
+  if (!__shramPhotos.length) return toast("Attach at least one photo.", "error");
   const description = $("#shramDescription")?.value.trim();
   if (!description) return toast("Please enter a description of the work done.", "error");
 
@@ -6074,23 +5951,41 @@ async function saveShramDaanEntry(e) {
     time,
     participants,
     description,
-    photos: [...__shramPhotos],
-    createdBy: currentUser ? currentUser.id : "system",
+    photos: [],
+    createdBy: actor.id,
     createdAt: Date.now()
   };
 
-  const list = getShramDaanList();
-  list.unshift(newEntry);
-  saveShramDaanList(list);
-
-  __audit("Shramdaan Recorded", `${labels[workType]} at ${locationName} by ${officerName}`, { entity: "Shramdaan" });
-  toast("Shramdaan drive recorded successfully with verified timestamp!", "success");
-  closeModals();
-  renderShramDaan();
+  __shramSaving = true;
+  __shramUpdateSaveButton();
+  const controls = [...(form?.querySelectorAll("input, select, textarea") || [])].filter(input => !input.disabled);
+  controls.forEach(input => { input.disabled = true; });
+  try {
+    const photos = __shramPhotos.slice();
+    for (const photo of photos) {
+      try { newEntry.photos.push(await __shramStampPhoto(photo, newEntry)); }
+      catch { throw new Error("Could not read " + (photo.name || "one photo") + ". Remove it or choose another image."); }
+    }
+    if (activeDistrictId !== districtId || signedInUser()?.id !== actor.id) {
+      throw new Error("The active account or district changed. Reopen the form to save this drive.");
+    }
+    saveShramDaanList([newEntry, ...getShramDaanList()]);
+    __audit("Shramdaan Recorded", `${labels[workType]} at ${locationName} by ${officerName}`, { entity: "Shramdaan", districtId });
+    if (window.__apiFlush) await window.__apiFlush();
+    toast("Shramdaan drive recorded successfully.", "success");
+    closeModals();
+    renderShramDaan();
+  } catch (error) {
+    toast(error.message || "Shramdaan could not be saved. Try again.", "error");
+  } finally {
+    controls.forEach(input => { input.disabled = false; });
+    __shramSaving = false;
+    __shramUpdateSaveButton();
+  }
 }
 
 function openShramDaanDetailModal(id) {
-  const list = getShramDaanList();
+  const list = __shramVisibleDrives();
   const drive = list.find(d => d.id === id);
   if (!drive) return toast("Drive record not found.", "error");
   __shramDetailId = id;
@@ -6155,7 +6050,7 @@ function openShramDaanDetailModal(id) {
 }
 
 function openShramLightbox(driveId, photoIdx) {
-  const list = getShramDaanList();
+  const list = __shramVisibleDrives();
   const drive = list.find(d => d.id === driveId);
   if (!drive || !drive.photos || !drive.photos[photoIdx]) return;
   const p = drive.photos[photoIdx];
@@ -6174,7 +6069,7 @@ function openShramLightbox(driveId, photoIdx) {
 }
 
 function printShramSlip(id) {
-  const drive = getShramDaanList().find(d => d.id === id);
+  const drive = __shramVisibleDrives().find(d => d.id === id);
   if (!drive) return toast("Record not found.", "error");
   const dist = getDistricts().find(d => d.id === activeDistrictId);
   const w = window.open("", "_blank", "width=850,height=700");
@@ -6211,7 +6106,7 @@ function printShramSlip(id) {
         </div>
         <table>
           <tr><th>Drive ID</th><td>#${esc(drive.id)}</td></tr>
-          <tr><th>Work Type</th><td><b>${esc(drive.workTypeLabel || drive.workType)}</b> ${drive.customType ? `(${esc(drive.customType)})` : ''}</td></tr>
+          <tr><th>Work Type</th><td><b>${esc(getShramWorkTypeLabel(drive.workType, drive.customType, drive.workTypeLabel))}</b></td></tr>
           <tr><th>Date &amp; Time</th><td>${esc(drive.date)} at ${esc(drive.time)}</td></tr>
           <tr><th>Location / Unit</th><td>${esc(drive.locationName || '-')}</td></tr>
           <tr><th>Personnel Involved</th><td>${drive.participants || 1} Police Personnel</td></tr>
@@ -6230,29 +6125,35 @@ function printShramSlip(id) {
   w.document.close();
 }
 
-function deleteShramDaan(id) {
-  if (!confirm("Are you sure you want to delete this Shramdaan drive record?")) return;
-  const list = getShramDaanList().filter(d => d.id !== id);
-  saveShramDaanList(list);
-  toast("Shramdaan drive record deleted.", "success");
-  renderShramDaan();
+async function deleteShramDaan(id) {
+  if (!isDevAdmin() || __shramSaving) return;
+  const record = __shramVisibleDrives().find(drive => drive.id === id);
+  if (!record || !confirm("Are you sure you want to delete this Shramdaan drive record?")) return;
+  __shramSaving = true;
+  try {
+    saveShramDaanList(getShramDaanList().filter(drive => drive.id !== id));
+    __audit("Shramdaan Deleted", record.id + " · " + record.locationName + " · " + record.date, { entity: "Shramdaan" });
+    if (window.__apiFlush) await window.__apiFlush();
+    toast("Shramdaan drive record deleted.", "success");
+    renderShramDaan();
+  } catch (error) {
+    toast(error.message || "Shramdaan could not be deleted. Try again.", "error");
+    renderShramDaan();
+  } finally {
+    __shramSaving = false;
+    __shramUpdateSaveButton();
+  }
 }
 
+const __SHRAM_STAT_COLS = ["Date & Time", "Work Type", "Description / Work Done", "Location / Unit", "Officer", "Participants", "Photos"];
+
 function __shramExportData() {
-  const filtered = __shramFiltered();
-  const rows = filtered.map(d => [
-    d.date + " " + (d.time || ""),
-    d.workTypeLabel || d.workType,
-    d.description || "-",
-    d.locationName || "-",
-    String(d.participants || 1),
-    String(d.photos ? d.photos.length : 0)
-  ]);
+  const rows = __shramStatRows(__shramFiltered());
   const dist = getDistricts().find(x => x.id === activeDistrictId);
   return {
     title: "Shramdaan Activity Report",
-    subtitle: (dist ? dist.name + " \u00b7 " : "") + "Generated " + new Date().toLocaleString() + " (" + rows.length + " drive" + (rows.length === 1 ? "" : "s") + ")",
-    cols: ["Date & Time", "Work Type", "Description / Work Done", "Location / Unit", "Participants", "Photos"],
+    subtitle: (dist ? dist.name + " · " : "") + "Generated " + new Date().toLocaleString() + " (" + rows.length + " drives)",
+    cols: __SHRAM_STAT_COLS,
     rows,
     fileName: "shramdaan-report"
   };
@@ -6263,22 +6164,21 @@ function exportShramExcel() { excelReport(__shramExportData()); toast("Excel exp
 function exportShramWord() { wordReport(__shramExportData()); toast("Word document exported.", "success"); }
 function exportShramPDF() { pdfReport(__shramExportData()); }
 
-const __SHRAM_STAT_COLS = ["Date & Time", "Work Type", "Description / Work Done", "Location / Unit", "Participants", "Photos"];
-
 function __shramStatRows(drives) {
   return drives.map(d => [
     (d.date || "") + (d.time ? " " + d.time : ""),
-    d.workTypeLabel || d.workType || "Other",
+    getShramWorkTypeLabel(d.workType, d.customType, d.workTypeLabel),
     d.description || "-",
     d.locationName || "-",
-    Number(d.participants) || 1,
+    d.officerName || d.recordedByName || "-",
+    d.participants ?? "",
     (d.photos && d.photos.length) ? d.photos.length : 0
   ]);
 }
 
 const __SHRAM_STAT_BUILDERS = {
   all: () => {
-    const list = getShramDaanList();
+    const list = __shramFiltered();
     return {
       title: window.__LANG === "hi" ? "सभी श्रमदान अभियान" : "All Shramdaan Drives",
       cols: __SHRAM_STAT_COLS,
@@ -6286,7 +6186,7 @@ const __SHRAM_STAT_BUILDERS = {
     };
   },
   gardening: () => {
-    const list = getShramDaanList().filter(d => (d.workType || "").toLowerCase() === "gardening");
+    const list = __shramFiltered().filter(d => (d.workType || "").toLowerCase() === "gardening");
     return {
       title: window.__LANG === "hi" ? "बागवानी अभियान" : "Gardening Drives",
       cols: __SHRAM_STAT_COLS,
@@ -6294,7 +6194,7 @@ const __SHRAM_STAT_BUILDERS = {
     };
   },
   cleaning: () => {
-    const list = getShramDaanList().filter(d => (d.workType || "").toLowerCase() === "cleaning");
+    const list = __shramFiltered().filter(d => (d.workType || "").toLowerCase() === "cleaning");
     return {
       title: window.__LANG === "hi" ? "सफ़ाई अभियान" : "Cleaning Drives",
       cols: __SHRAM_STAT_COLS,
@@ -6302,7 +6202,7 @@ const __SHRAM_STAT_BUILDERS = {
     };
   },
   planting: () => {
-    const list = getShramDaanList().filter(d => (d.workType || "").toLowerCase() === "planting");
+    const list = __shramFiltered().filter(d => (d.workType || "").toLowerCase() === "planting");
     return {
       title: window.__LANG === "hi" ? "पौधारोपण अभियान" : "Tree Planting Drives",
       cols: __SHRAM_STAT_COLS,
@@ -6310,7 +6210,7 @@ const __SHRAM_STAT_BUILDERS = {
     };
   },
   fatigue: () => {
-    const list = getShramDaanList().filter(d => (d.workType || "").toLowerCase() === "fatigue");
+    const list = __shramFiltered().filter(d => (d.workType || "").toLowerCase() === "fatigue");
     return {
       title: window.__LANG === "hi" ? "फटीक अभियान" : "Fatigue Drives",
       cols: __SHRAM_STAT_COLS,
@@ -6392,6 +6292,7 @@ function initShramDaanListeners() {
       const df = $("#shramDateFrom"); if (df) df.value = "";
       const dt = $("#shramDateTo"); if (dt) dt.value = "";
       __shramStatFilter = "all";
+      __pgReset("shram");
       renderShramDaan();
       return;
     }
@@ -6403,8 +6304,9 @@ function initShramDaanListeners() {
       __shramStatFilter = f;
       const tf = $("#shramTypeFilter");
       if (tf) tf.value = f === "all" ? "" : f;
+      __pgReset("shram");
       renderShramDaan();
-      openShramStatDetail(f);
+      if (!__shramDateRangeInvalid()) openShramStatDetail(f);
       return;
     }
 
@@ -6452,6 +6354,7 @@ function initShramDaanListeners() {
     const expBtn = e.target.closest("#shramExportMenu [data-export]");
     if (expBtn) {
       $("#shramExportMenu")?.classList.add("hidden");
+      if (__shramDateRangeInvalid()) return toast("Correct the date range before exporting.", "error");
       const t = expBtn.dataset.export;
       if (t === "print") printShramReport();
       else if (t === "pdf") exportShramPDF();
@@ -6482,40 +6385,53 @@ function initShramDaanListeners() {
 
   // Delegated change/input handlers
   document.addEventListener("input", e => {
-    if (e.target && e.target.id === "shramSearch") renderShramDaan();
+    if (e.target && e.target.id === "shramSearch") { __pgReset("shram"); renderShramDaan(); }
   });
 
   document.addEventListener("change", e => {
     if (!e.target) return;
     if (e.target.id === "shramTypeFilter") {
       __shramStatFilter = e.target.value || "all";
+      __pgReset("shram");
       renderShramDaan();
     } else if (e.target.id === "shramLocationFilter" || e.target.id === "shramDateFrom" || e.target.id === "shramDateTo") {
+      __pgReset("shram");
       renderShramDaan();
     } else if (e.target.id === "shramWorkType") {
       const val = e.target.value;
       const wrap = $("#shramCustomTypeWrap");
       if (wrap) {
-        if (val === "other") wrap.classList.remove("hidden");
-        else wrap.classList.add("hidden");
+        wrap.classList.toggle("hidden", val !== "other");
+        const custom = $("#shramCustomType");
+        if (custom) {
+          custom.required = val === "other";
+          if (val !== "other") custom.value = "";
+        }
       }
     } else if (e.target.id === "shramFileInput") {
-      const files = e.target.files;
-      if (!files || !files.length) return;
-      Array.from(files).forEach(f => {
+      const files = Array.from(e.target.files || []);
+      const draftPhotos = __shramPhotos;
+      for (const file of files) {
+        if (__shramPhotos.length + __shramPhotoReads >= SHRAM_PHOTO_LIMIT) {
+          toast("Attach up to " + SHRAM_PHOTO_LIMIT + " photos per drive.", "error");
+          break;
+        }
+        if (!/^image\/(?:jpeg|png|webp|gif|bmp)$/i.test(file.type) || file.size > SHRAM_PHOTO_MAX_BYTES) {
+          toast(file.name + " must be a supported image up to 4 MB.", "error");
+          continue;
+        }
+        __shramPhotoReads++;
         const reader = new FileReader();
-        reader.onload = () => {
-          __shramAddPhoto({
-            id: uid(),
-            name: f.name,
-            mime: f.type || "image/jpeg",
-            size: f.size,
-            dataUrl: String(reader.result),
-            stamped: false
-          });
+        reader.onloadend = () => {
+          if (__shramPhotos !== draftPhotos) return;
+          __shramPhotoReads--;
+          if (reader.error || !reader.result) toast("Could not read " + file.name + ".", "error");
+          else __shramAddPhoto({ id: uid(), name: file.name, mime: file.type, size: file.size, dataUrl: String(reader.result) });
+          __shramUpdateSaveButton();
         };
-        reader.readAsDataURL(f);
-      });
+        reader.readAsDataURL(file);
+      }
+      __shramUpdateSaveButton();
       e.target.value = "";
     }
   });
@@ -6774,12 +6690,15 @@ function __distReceiverName(d) {
   return d.toLocationName || d.toDistrictName || "—";
 }
 
-function __distStatusMeta(s) {
+function __distStatusMeta(s, record) {
   const map = {
     pending: { label: "Pending", cls: "status-badge status-low" },
     completed: { label: "Completed", cls: "status-badge status-ok" },
     rejected: { label: "Rejected", cls: "status-badge status-out" },
+    partially_completed: { label: "Partially Approved", cls: "status-badge status-low" },
+    cancelled: { label: "Cancelled", cls: "status-badge status-neutral" },
   };
+  if (s === "partially_completed" && record?.closed) return { label: "Partially Received — Closed", cls: "status-badge status-neutral" };
   return map[s] || { label: (s || "Pending").replace(/^./, c => c.toUpperCase()), cls: "cat-badge" };
 }
 
@@ -6868,18 +6787,18 @@ let __distRowSeq = 0;
 function __distRowHtml(key) {
   const cats = __distType() === "cons" ? getConsCats() : getCategories();
   return `<div class="fd-item-row dist-item-row" data-key="${key}" data-dtype="${__distType()}">
-    <select class="fd-row-cat"><option value="">Category *</option>${cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select>
+    <select class="fd-row-cat" aria-label="Item category"><option value="">Category *</option>${cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select>
     <div class="fd-name-wrap">
-      <select class="fd-row-item" disabled><option value="">Select a category first...</option></select>
+      <select class="fd-row-item" aria-label="Source stock item" disabled><option value="">Select a category first...</option></select>
       <input type="text" class="fd-row-newname hidden" placeholder="New item name..." autocomplete="off">
     </div>
     <div class="dist-stock-info"></div>
     <div class="as-cond-qtys dist-cond-qtys">
-      <span class="as-cq"><label>Good</label><input type="number" class="fd-row-qty-good" min="0" value="0"></span>
-      <span class="as-cq"><label>Damaged</label><input type="number" class="fd-row-qty-poor" min="0" value="0"></span>
+      <span class="as-cq"><label for="dist-${key}-good">Good</label><input id="dist-${key}-good" type="number" class="fd-row-qty-good" min="0" step="1" value="0"></span>
+      <span class="as-cq"><label for="dist-${key}-poor">Damaged</label><input id="dist-${key}-poor" type="number" class="fd-row-qty-poor" min="0" step="1" value="0"></span>
       
     </div>
-    <button type="button" class="fd-row-remove" data-action="dist-row-remove" title="Remove item">&times;</button>
+    <button type="button" class="fd-row-remove" data-action="dist-row-remove" title="Remove item" aria-label="Remove distribution item">&times;</button>
   </div>`;
 }
 
@@ -6908,27 +6827,38 @@ function __distPopulateRowItems(row) {
   itemSel.innerHTML = `<option value="">Select item</option>` + items.map(i => {
     const location = getLocations().find(l => l.id === i.locationId);
     return `<option value="${esc(i.id)}">${esc(i.name + (location ? " — " + location.name : ""))}</option>`;
-  }).join("") + `<option value="__new__">&#10133; New item...</option>`;
+  }).join("");
   __distUpdateRowInfo(row);
+}
+
+function __distQuantitySummary() {
+  const summary = $("#distQuantitySummary");
+  if (!summary) return;
+  const recipients = __distSelectedTargets().length;
+  const totals = new Map();
+  for (const row of $("#distItemsBody")?.querySelectorAll(".fd-item-row") || []) {
+    const item = __distSourceItems().find(item => item.id === row.querySelector(".fd-row-item")?.value);
+    const quantity = ["good", "poor", "damaged"].reduce((total, condition) => total + Math.max(0, Number(row.querySelector(".fd-row-qty-" + condition)?.value) || 0), 0);
+    if (quantity) totals.set(item?.unit || "pcs", (totals.get(item?.unit || "pcs") || 0) + quantity);
+  }
+  const perRecipient = [...totals].map(([unit, quantity]) => quantity + " " + unit).join(" + ") || "0";
+  const allRecipients = [...totals].map(([unit, quantity]) => quantity * recipients + " " + unit).join(" + ") || "0";
+  summary.textContent = recipients + " recipient(s) · " + (__distEditing ? "Pending quantities: " : "Per recipient: ") + perRecipient + " · Total: " + allRecipients;
 }
 
 function __distUpdateRowInfo(row) {
   const info = row.querySelector(".dist-stock-info");
   if (!info) return;
-  const sel = row.querySelector(".fd-row-item");
-  const v = sel ? sel.value : "";
-  if (!v) { info.innerHTML = ""; return; }
-  if (__distType() === "cons") {
-    const ci = getConsItems().find(i => i.name.toLowerCase() === v.toLowerCase());
-    if (!ci) { info.innerHTML = `<small style="color:var(--muted)">Consumable item info not found.</small>`; return; }
-    const q = __consQty(ci.id);
-    info.innerHTML = `<small>Available <b>${q.available}</b> &middot; Pending <b>${q.pending}</b> &middot; Distributed <b>${q.distributed}</b></small>`;
-    return;
-  }
-  if (v === "__new__") { info.innerHTML = `<small style="color:var(--muted)">New item — stock will be created at 0 here.</small>`; return; }
-  const it = getItemsForDistrict(activeDistrictId).find(i => i.id === v);
-  const { available, issued, lost, good, damaged } = stockConditionBreakdown(it, stockIssueConditionCounts().get(it?.id));
-  info.innerHTML = `<small>Available <b>${available}</b> (Good <b>${good}</b> &middot; Damaged <b>${damaged}</b>) &middot; Issued <b>${issued}</b> &middot; Lost <b>${lost}</b></small>`;
+  const item = __distSourceItems().find(item => item.id === row.querySelector(".fd-row-item")?.value);
+  if (!item) { info.textContent = ""; __distQuantitySummary(); return; }
+  try {
+    const counts = DistributionLedger.counts(item);
+    const reserved = DistributionLedger.reserved(__distState(), activeDistrictId, item, null, __distEditing?.id);
+    info.innerHTML = "<small>Total <b>" + item.quantity + "</b> · Available <b>" + Math.max(0, DistributionLedger.available(item) - reserved) +
+      "</b> · Reserved <b>" + reserved + "</b> · Issued <b>" + (item.allotted || 0) + "</b> · Lost <b>" + (item.lostReturned || 0) +
+      "</b> · Good <b>" + counts.good + "</b> · Damaged <b>" + counts.poor + "</b> · Scrap <b>" + scrapQty(item) + "</b></small>";
+  } catch (error) { info.textContent = error.message; }
+  __distQuantitySummary();
 }
 
 function addDistRow() {
@@ -6960,6 +6890,7 @@ function __distUpdateToLabel() {
   if (!btn) return;
   const names = __distSelectedTargets().map(o => o.label.replace(/^\[(UNIT|ADMIN)\] /, ""));
   btn.textContent = !names.length ? "Select recipients..." : (names.length <= 2 ? names.join(", ") : names.length + " selected");
+  __distQuantitySummary();
 }
 
 function __distSelectedTargets() {
@@ -6967,6 +6898,11 @@ function __distSelectedTargets() {
 }
 
 function openDistributionModal() {
+  __distEditing = null;
+  $("#distFormTitle").textContent = "Distribute Items";
+  $("#distSaveBtn").textContent = "Submit Distribution";
+  $("#distQtyHint").textContent = "Enter quantities per recipient. Stock is reserved when you submit.";
+  $("#distToDropBtn").disabled = false;
   if (!currentUser) return toast("Please login first.", "error");
   // devadmin may open to VIEW; saving is blocked inside saveDistribution.
   __distToChecked.clear();
@@ -6984,7 +6920,54 @@ function openDistributionModal() {
   const body = $("#distItemsBody");
   if (body) body.innerHTML = "";
   addDistRow();
+  __distQuantitySummary();
   openModal("#distributionModal");
+}
+
+function bindDistributionAccessibility() {
+  const ids = ["distributionModal", "distApproveModal", "distRejectModal", "distDetailModal"];
+  for (const id of ids) {
+    const modal = document.getElementById(id);
+    if (!modal || modal.dataset.keyboardBound) continue;
+    modal.dataset.keyboardBound = "1";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    const heading = modal.querySelector("h2");
+    if (heading) { heading.id ||= id + "Title"; modal.setAttribute("aria-labelledby", heading.id); }
+    const observer = new MutationObserver(() => {
+      if (!modal.classList.contains("hidden")) {
+        modal.__previousFocus = document.activeElement;
+        setTimeout(() => {
+          if (!modal.classList.contains("hidden")) modal.querySelector("button, input, select, textarea")?.focus();
+        }, 0);
+      } else if (modal.__previousFocus?.isConnected && !modal.__previousFocus.closest(".modal-backdrop.hidden")) {
+        modal.__previousFocus.focus();
+      }
+    });
+    observer.observe(modal, { attributes: true, attributeFilter: ["class"] });
+  }
+  if (document.body.dataset.distributionKeyboardBound) return;
+  document.body.dataset.distributionKeyboardBound = "1";
+  document.addEventListener("keydown", event => {
+    const modal = ids.map(id => document.getElementById(id)).find(element => element && !element.classList.contains("hidden"));
+    if (!modal) return;
+    if (event.key === "Escape") {
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (modal.id === "distributionModal" && !$("#distToChecks").classList.contains("hidden")) {
+        $("#distToChecks").classList.add("hidden"); $("#distToDropBtn").focus();
+      } else closeModal(modal.id);
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = [...modal.querySelectorAll('button, input, select, textarea, a[href], [tabindex="0"]')]
+      .filter(element => !element.disabled && element.getClientRects().length && element.tabIndex >= 0);
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (event.shiftKey && (document.activeElement === first || !modal.contains(document.activeElement))) {
+      event.preventDefault(); last?.focus();
+    } else if (!event.shiftKey && (document.activeElement === last || !modal.contains(document.activeElement))) {
+      event.preventDefault(); first?.focus();
+    }
+  }, true);
 }
 
 function __distFindFromItem(d, it) {
@@ -6995,12 +6978,72 @@ function __distFindFromItem(d, it) {
   return matches.length === 1 ? matches[0] : null;
 }
 
+function openDistributionEdit(id) {
+  const record = __allVisibleDistributions().find(row => row.id === id);
+  if (!record || !DistributionLedger.active(record) || (record.fromUserId !== currentUser.id && !isDevAdmin())) return;
+  openDistributionModal();
+  __distEditing = structuredClone(record);
+  $("#distFormTitle").textContent = "Edit Pending Distribution — " + record.distNo;
+  $("#distSaveBtn").textContent = "Save Pending Changes";
+  $("#distQtyHint").textContent = "Edit the quantities still pending. Already received quantities are recorded separately.";
+  $("#distToDropBtn").disabled = true;
+  __distToChecked.clear();
+  __distToChecked.add(__distRecipientKey({ type: record.toType, districtId: record.toDistrictId, locationId: record.toLocationId }));
+  __distRenderChecks(""); __distUpdateToLabel();
+  $("#distRemarks").value = record.remarks || "";
+  $("#distItemsBody").replaceChildren();
+  const grouped = new Map();
+  for (const line of record.items) {
+    const pending = DistributionLedger.remaining(line);
+    if (!pending) continue;
+    const key = JSON.stringify([line.fromItemId, line.categoryId]);
+    if (!grouped.has(key)) grouped.set(key, { line, good: 0, poor: 0, damaged: 0 });
+    grouped.get(key)[line.condition] += pending;
+  }
+  for (const group of grouped.values()) {
+    addDistRow();
+    const row = $("#distItemsBody").lastElementChild;
+    row.querySelector(".fd-row-cat").value = group.line.categoryId;
+    __distPopulateRowItems(row);
+    row.querySelector(".fd-row-item").value = group.line.fromItemId;
+    for (const condition of ["good", "poor", "damaged"]) {
+      let input = row.querySelector(".fd-row-qty-" + condition);
+      if (!input && group[condition]) {
+        const label = document.createElement("label");
+        label.textContent = "Scrap";
+        input = document.createElement("input");
+        input.type = "number"; input.min = "0"; input.step = "1"; input.className = "fd-row-qty-" + condition;
+        label.appendChild(input); row.querySelector(".dist-cond-qtys").appendChild(label);
+      }
+      if (input) input.value = group[condition];
+    }
+    __distUpdateRowInfo(row);
+  }
+  __distQuantitySummary();
+}
+
+async function cancelPendingDistribution(id) {
+  const record = __allVisibleDistributions().find(row => row.id === id);
+  if (!record || !DistributionLedger.active(record) || (record.fromUserId !== currentUser.id && !isDevAdmin())) return;
+  if (!confirm("Cancel the pending quantities of " + record.distNo + "? Already received stock stays with the recipient.")) return;
+  if (__distributionDecisionBusy) return;
+  __distributionDecisionBusy = true;
+  try {
+    await __distributionCommand({ action: "cancel", storeId: record.__storeId || record.fromDistrictId, id: record.id,
+      expectedRevision: record.revision || 0, expectedUpdatedAt: record.updatedAt || record.createdAt });
+    render(); toast("Pending distribution cancelled. Its stock reservation has been released.", "success");
+  } catch (error) { toast(error.body?.error || error.message, "error"); }
+  finally { __distributionDecisionBusy = false; }
+}
+
 function __distHasStock(item, condition) {
   if (!item) return 0;
   const counts = DistributionLedger.counts(item);
-  if (condition === "damaged") return counts.damaged;
-  const available = Math.max(0, DistributionLedger.available(item));
-  if (condition === "good" || condition === "poor") return Math.min(counts[condition], available);
+  const state = __distState();
+  const exceptId = __distEditing?.id;
+  if (condition === "damaged") return Math.max(0, counts.damaged - DistributionLedger.reserved(state, activeDistrictId, item, condition, exceptId));
+  const available = Math.max(0, DistributionLedger.available(item) - DistributionLedger.reserved(state, activeDistrictId, item, null, exceptId));
+  if (condition === "good" || condition === "poor") return Math.max(0, Math.min(counts[condition] - DistributionLedger.reserved(state, activeDistrictId, item, condition, exceptId), available));
   return available;
 }
 
@@ -7023,6 +7066,7 @@ function __distApplyTransfer(record) {
   } catch { return false; }
 }
 
+let __distEditing = null;
 let __distributionBusy = false;
 let __distributionSubmissionId = null;
 let __distributionSubmissionFingerprint = null;
@@ -7067,11 +7111,13 @@ async function commitDistribution() {
   if (!planned.length) throw new Error("Add at least one item to distribute.");
   const warnings = [...need.values()].filter(row => __distHasStock(row.source, row.condition) < row.quantity)
     .map(row => row.name + " (" + row.condition + "): available " + __distHasStock(row.source, row.condition) + ", requested " + row.quantity);
-  if (warnings.length && !confirm("Available stock check:\n" + warnings.join("\n") + "\nSubmit this pending request anyway? Stock is checked again at approval.")) return;
-  const attachments = (__attStore.dist || []).length ? await __attUploadAll("dist") : [];
+  if (warnings.length) throw new Error("Insufficient unreserved stock:\n" + warnings.join("\n"));
+  const uploaded = (__attStore.dist || []).length ? await __attUploadAll("dist") : [];
+  const attachments = [...(__distEditing?.attachments || []), ...uploaded];
   const fromLocationId = getLocations().some(location => location.id === currentUser.locationId)
     ? currentUser.locationId : planned.find(line => line.fromLocationId)?.fromLocationId || __distHQLocation(activeDistrictId)?.id;
-  const command = { action: "create", districtId: activeDistrictId, fromLocationId,
+  const command = { action: __distEditing ? "amend" : "create", districtId: activeDistrictId, fromLocationId,
+    ...(__distEditing ? { storeId: __distEditing.__storeId || __distEditing.fromDistrictId, id: __distEditing.id, expectedRevision: __distEditing.revision || 0, expectedUpdatedAt: __distEditing.updatedAt || __distEditing.createdAt } : {}),
     targets: targets.map(({ type, districtId, locationId }) => ({ type, districtId, locationId })),
     items: planned, attachments, remarks: $("#distRemarks").value.trim() };
   const fingerprint = JSON.stringify(command);
@@ -7082,7 +7128,7 @@ async function commitDistribution() {
   const result = await __distributionCommand(command, __distributionSubmissionId);
   __attStore.dist = []; __attRender("dist");
   closeModals(); render();
-  toast("Distribution saved for " + result.ids.length + " recipient(s).", "success");
+  toast(__distEditing ? "Pending distribution updated." : "Distribution saved for " + result.ids.length + " recipient(s).", "success");
 }
 
 let __actDistStoreId = null;
@@ -7100,7 +7146,7 @@ function __getActDistribution() {
 }
 
 function __distSummaryHtml(d) {
-  const meta = __distStatusMeta(d.status);
+  const meta = __distStatusMeta(d.status, d);
   return `<div class="demand-detail-grid">
     <div class="demand-detail-item"><span class="dd-label">Distribution No</span><span class="dd-value">${esc(d.distNo || "DIST-")}</span></div>
     <div class="demand-detail-item"><span class="dd-label">Distributed By</span><span class="dd-value">${esc(d.fromUserName || "—")}${d.fromLocationName ? ' <span style="color:var(--muted);font-size:.75rem">(' + esc(d.fromLocationName) + ")</span>" : ""}</span></div>
@@ -7111,13 +7157,20 @@ function __distSummaryHtml(d) {
   </div>`;
 }
 
-function __distItemsSummaryHtml(d) {
-  return `<div class="table-wrap" style="margin-top:4px">
-    <table>
-      <thead><tr><th>Item</th><th>Category</th><th>Qty</th><th>Condition</th></tr></thead>
-      <tbody>${(d.items || []).map(it => `<tr><td>${__ipLinkByName(it.itemName, { id: it.fromItemId || it.itemId, categoryId: it.categoryId, districtId: d.fromDistrictId })}</td><td>${esc(it.categoryName || "—")}</td><td>${it.qty}</td><td>${esc(it.condition)}</td></tr>`).join("")}</tbody>
-    </table>
-  </div>`;
+function __distLineProgress(record, line) {
+  const received = line.approvedQty ?? (record.status === "completed" ? line.qty : 0);
+  const pending = !record.closed && ["pending", "partially_completed"].includes(record.status) ? DistributionLedger.remaining(line) : 0;
+  return { received, pending, closed: Math.max(0, line.qty - received - pending) };
+}
+
+function __distItemsSummaryHtml(record, receiving = false) {
+  return '<div class="table-wrap"><table><thead><tr><th>Item</th><th>Condition</th><th>Requested</th><th>Received</th><th>Pending</th>' +
+    (receiving ? '<th>Receive now</th>' : '') + '</tr></thead><tbody>' + (record.items || []).map((line, index) => {
+      const { received, pending } = __distLineProgress(record, line);
+      return '<tr><td>' + esc(line.itemName) + '</td><td>' + esc(({good: "Good", poor: "Damaged", damaged: "Scrap"})[line.condition] || line.condition) +
+        '</td><td>' + line.qty + '</td><td>' + received + '</td><td>' + pending + '</td>' +
+        (receiving ? '<td><input type="number" class="dist-approve-qty" aria-label="Receive ' + esc(line.itemName + ' ' + line.condition) + ' now" data-key="' + esc(line.key || String(index)) + '" min="0" max="' + pending + '" step="1" value="' + pending + '"></td>' : '') + '</tr>';
+    }).join('') + '</tbody></table></div>' + (receiving ? '<p class="form-hint">Enter quantities received now. The remaining quantities stay pending and reserved.</p>' : '');
 }
 
 function openDistApprove(id) {
@@ -7125,10 +7178,12 @@ function openDistApprove(id) {
   if (!d || d.id !== id) d = __setActDist(id);
   if (!d) return toast("Distribution record could not be found.", "error");
   if (!__distActionableBy(d)) return toast("You are not authorised to approve this distribution.", "error");
-  if (d.status !== "pending") return toast("This distribution is no longer pending.", "error");
+  if (!DistributionLedger.active(d)) return toast("This distribution is no longer pending.", "error");
+  __distDecisionSnapshot = structuredClone(d);
+  __distDecisionFingerprint = null;
   const rm = $("#distApproveRemark");
   if (rm) rm.value = "";
-  $("#distApproveSummary").innerHTML = __distSummaryHtml(d) + __distItemsSummaryHtml(d);
+  $("#distApproveSummary").innerHTML = __distSummaryHtml(d) + __distItemsSummaryHtml(d, true);
   openModal("#distApproveModal");
 }
 
@@ -7137,9 +7192,12 @@ async function approveDistribution() {
 }
 
 let __distributionDecisionBusy = false;
+let __distDecisionSnapshot = null;
+let __distDecisionFingerprint = null;
+let __distDecisionRequestId = null;
 async function __decideDistribution(action) {
   if (__distributionDecisionBusy) return;
-  const record = __getActDistribution();
+  const record = __distDecisionSnapshot || __getActDistribution();
   if (!record || !__distActionableBy(record)) return toast("You are not authorised to decide this distribution.", "error");
   const remark = $(action === "approve" ? "#distApproveRemark" : "#distRejectRemark").value.trim();
   if (action === "reject" && !remark) return toast("Rejection remark is required.", "error");
@@ -7147,8 +7205,17 @@ async function __decideDistribution(action) {
   const button = $(action === "approve" ? "#distApproveSubmitBtn" : "#distRejectSubmitBtn");
   if (button) button.disabled = true;
   try {
-    await __distributionCommand({ action, storeId: record.__storeId || record.fromDistrictId, id: record.id, remark });
+    const approvals = action === "approve" ? [...$("#distApproveSummary").querySelectorAll(".dist-approve-qty")].map(input => ({ key: input.dataset.key, qty: Number(input.value) })) : undefined;
+    const command = { action, storeId: record.__storeId || record.fromDistrictId, id: record.id, remark,
+      expectedRevision: record.revision || 0, expectedUpdatedAt: record.updatedAt || record.createdAt, ...(approvals ? { approvals } : {}) };
+    const fingerprint = JSON.stringify(command);
+    if (fingerprint !== __distDecisionFingerprint) {
+      __distDecisionRequestId = uid();
+      __distDecisionFingerprint = fingerprint;
+    }
+    await __distributionCommand(command, __distDecisionRequestId);
     closeModals(); __actDistStoreId = null; __actDistId = null; render();
+    __distDecisionSnapshot = null;
     toast(action === "approve" ? "Distribution approved. Stock has been transferred." : "Distribution rejected.", "success");
   } catch (error) { toast(error.body?.error || error.message, "error"); }
   finally { __distributionDecisionBusy = false; if (button) button.disabled = false; }
@@ -7159,7 +7226,9 @@ function openDistReject(id) {
   if (!d || d.id !== id) d = __setActDist(id);
   if (!d) return toast("Distribution record could not be found.", "error");
   if (!__distActionableBy(d)) return toast("You are not authorised to reject this distribution.", "error");
-  if (d.status !== "pending") return toast("This distribution is no longer pending.", "error");
+  if (!DistributionLedger.active(d)) return toast("This distribution is no longer pending.", "error");
+  __distDecisionSnapshot = structuredClone(d);
+  __distDecisionFingerprint = null;
   const rm = $("#distRejectRemark");
   if (rm) rm.value = "";
   $("#distRejectSummary").innerHTML = __distSummaryHtml(d) + __distItemsSummaryHtml(d);
@@ -7209,8 +7278,8 @@ function __distFiltered() {
       const hay = [it.itemName, it.categoryName, d.distNo || "DIST-", d.fromUserName, __distReceiverName(d)].join(" ").toLowerCase();
       if (!hay.includes(q.toLowerCase())) return false;
     }
-    if (dateFrom && d.createdAt < new Date(dateFrom).getTime()) return false;
-    if (dateTo && d.createdAt >= new Date(dateTo).getTime() + 86400000) return false;
+    if (dateFrom && d.createdAt < new Date(dateFrom + "T00:00:00").getTime()) return false;
+    if (dateTo) { const end = new Date(dateTo + "T00:00:00"); end.setDate(end.getDate() + 1); if (d.createdAt >= end.getTime()) return false; }
     return true;
   }).sort((a, b) => b.d.createdAt - a.d.createdAt);
 }
@@ -7285,7 +7354,7 @@ function manageOperationalRecord(button) {
     if (distribution && !original.isConsumable) {
       try {
         await __distributionCommand({ action: deleting ? "delete" : "edit", storeId: row.__storeId, id: row.id,
-          remark: $("#devOperationalValue")?.value.trim() || "", expectedUpdatedAt: original.updatedAt || original.createdAt });
+          remark: $("#devOperationalValue")?.value.trim() || "", expectedRevision: original.revision || 0, expectedUpdatedAt: original.updatedAt || original.createdAt });
         render(); toast("Distribution " + (deleting ? "deleted and stock reversed." : "updated."), "success");
       } catch (error) { toast(error.body?.error || error.message, "error"); }
       return;
@@ -7337,49 +7406,60 @@ function renderDistribution() {
     const rows = __pgRows("dist", filtered);
     tbody.innerHTML = rows.map((r, idx) => {
       const d = r.d, it = r.it;
-      const meta = __distStatusMeta(d.status);
-      const sender = d.fromUserName + (d.fromLocationName ? ' <span style="display:block;color:var(--muted);font-size:.72rem">' + esc(d.fromLocationName) + "</span>" : "");
+      const meta = __distStatusMeta(d.status, d);
+      const sender = esc(d.fromUserName || "") + (d.fromLocationName ? ' <span style="display:block;color:var(--muted);font-size:.72rem">' + esc(d.fromLocationName) + "</span>" : "");
       const receiver = __distReceiverName(d);
-      const actionable = d.status === "pending" && __distActionableBy(d);
+      const actionable = __distActionableBy(d);
       let btns = "";
       if (actionable) {
         btns = `<button type="button" class="btn btn-sm btn-green" data-action="dist-approve" data-id="${d.id}">Approve</button> <button type="button" class="btn btn-sm btn-red" data-action="dist-reject" data-id="${d.id}">Reject</button>`;
-      } else if (d.status === "pending") {
+      } else if (DistributionLedger.active(d)) {
         btns = `<span style="font-size:.72rem;color:var(--amber)">Awaiting recipient</span>`;
       }
       btns += ` <button type="button" class="btn btn-sm btn-outline" data-action="dist-details" data-id="${d.id}">Details</button>`;
+      if (DistributionLedger.active(d) && (d.fromUserId === currentUser.id || isDevAdmin())) {
+        btns += ' <button type="button" class="btn btn-sm btn-outline" data-action="dist-edit-pending" data-id="' + esc(d.id) + '">Edit pending</button>' +
+          ' <button type="button" class="btn btn-sm btn-outline" data-action="dist-cancel-pending" data-id="' + esc(d.id) + '">Cancel pending</button>';
+      }
       btns += operationalRecordActions("dist", d);
-      return `<tr data-dist-id="${d.id}"><td>${start + idx + 1}</td><td class="item-name">${__ipLinkByName(it.itemName, { id: it.fromItemId || it.itemId, categoryId: it.categoryId, districtId: d.fromDistrictId })}</td><td>${esc(it.categoryName || "—")}</td><td class="qty-strong">${it.qty}</td><td>${sender}</td><td>${esc(receiver)}</td><td><span class="${meta.cls}">${meta.label}</span></td><td>${new Date(d.createdAt).toLocaleDateString("en-IN")}</td><td class="actions-cell">${btns}</td></tr>`;
+      return `<tr data-dist-id="${d.id}"><td>${start + idx + 1}</td><td>${esc(d.distNo || "DIST-")}</td><td class="item-name">${__ipLinkByName(it.itemName, { id: it.fromItemId || it.itemId, categoryId: it.categoryId, districtId: d.fromDistrictId })}</td><td>${esc(it.categoryName || "—")}</td><td class="qty-strong">${it.qty}${(it.approvedQty || 0) > 0 || d.status === "partially_completed" ? `<small style="display:block">Received ${__distLineProgress(d, it).received} · Pending ${__distLineProgress(d, it).pending}</small>` : ""}</td><td>${esc(({good: "Good", poor: "Damaged", damaged: "Scrap"})[it.condition] || it.condition || "—")}</td><td>${sender}</td><td>${esc(receiver)}</td><td><span class="${meta.cls}">${meta.label}</span></td><td>${new Date(d.createdAt).toLocaleDateString("en-IN")}</td><td class="actions-cell">${btns}</td></tr>`;
     }).join("");
   } else {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="9">No distributions found. Click "+ Distribute Items" to distribute stock.</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">No distributions found. Click "+ Distribute Items" to distribute stock.</td></tr>`;
   }
   renderPager("dist", filtered.length, renderDistribution);
-  const counts = { total: 0, pending: 0, completed: 0, rejected: 0 };
+  const counts = { total: 0, pending: 0, completed: 0, rejected: 0, partially_completed: 0, cancelled: 0 };
   __allVisibleDistributions().forEach(d => {
     counts.total++;
     if (d.status === "completed") counts.completed++;
     else if (d.status === "pending") counts.pending++;
     else if (d.status === "rejected") counts.rejected++;
+    else if (d.status === "partially_completed") counts.partially_completed++;
+    else if (d.status === "cancelled") counts.cancelled++;
   });
   const setTxt = (id, v) => { const el = $("#" + id); if (el) el.textContent = v; };
   setTxt("statTotalDist", counts.total);
   setTxt("statCompletedDist", counts.completed);
   setTxt("statPendingDist", counts.pending);
   setTxt("statRejectedDist", counts.rejected);
+  setTxt("statPartialDist", counts.partially_completed);
+  setTxt("statCancelledDist", counts.cancelled);
   updateDistDot();
 }
 
 function __distExportData() {
   const rows = __distFiltered().map(r => {
     const d = r.d, it = r.it;
-    const meta = __distStatusMeta(d.status);
+    const meta = __distStatusMeta(d.status, d);
     const remark = d.status === "rejected" ? d.rejectRemark : d.status === "completed" ? d.approveRemark : d.remarks || "";
     return [
       d.distNo || "",
       it.itemName,
       it.categoryName || "",
       it.qty,
+      __distLineProgress(d, it).received,
+      __distLineProgress(d, it).pending,
+      __distLineProgress(d, it).closed,
       it.condition || "any",
       d.fromUserName + (d.fromLocationName ? " (" + d.fromLocationName + ")" : ""),
       __distReceiverName(d),
@@ -7392,7 +7472,7 @@ function __distExportData() {
   return {
     title: "Distribution Report",
     subtitle: (dist ? dist.name + " - " : "") + "Generated " + new Date().toLocaleString() + " (" + rows.length + " row" + (rows.length === 1 ? "" : "s") + ")",
-    cols: ["Dist No", "Item", "Category", "Qty", "Condition", "Distributed By", "Distributed To", "Status", "Date", "Remark"],
+    cols: ["Dist No", "Item", "Category", "Requested Qty", "Received Qty", "Pending Qty", "Rejected / Cancelled Qty", "Condition", "Distributed By", "Distributed To", "Status", "Date", "Remark"],
     rows,
     fileName: "distribution-report"
   };
@@ -7404,18 +7484,21 @@ function exportDistWord() { wordReport(__distExportData()); toast("Word document
 function exportDistPDF() { pdfReport(__distExportData()); }
 
 /* ---- Distribution stat cards (mirror the dashboard stat detail pattern) ---- */
-const __DIST_STAT_COLS = ["Dist No", "Item", "Category", "Qty", "Condition", "Distributed By", "Distributed To", "Status", "Date", "Remark"];
+const __DIST_STAT_COLS = ["Dist No", "Item", "Category", "Requested Qty", "Received Qty", "Pending Qty", "Rejected / Cancelled Qty", "Condition", "Distributed By", "Distributed To", "Status", "Date", "Remark"];
 
 function __distStatRows(list) {
   return __distItemRowObjects(list).map(r => {
     const d = r.d, it = r.it;
-    const meta = __distStatusMeta(d.status);
+    const meta = __distStatusMeta(d.status, d);
     const remark = d.status === "rejected" ? d.rejectRemark : d.status === "completed" ? d.approveRemark : d.remarks || "";
     return [
       d.distNo || "",
       it.itemName,
       it.categoryName || "",
       it.qty,
+      __distLineProgress(d, it).received,
+      __distLineProgress(d, it).pending,
+      __distLineProgress(d, it).closed,
       it.condition || "any",
       d.fromUserName + (d.fromLocationName ? " (" + d.fromLocationName + ")" : ""),
       __distReceiverName(d),
@@ -7427,6 +7510,8 @@ function __distStatRows(list) {
 }
 
 const __DIST_STAT_BUILDERS = {
+  partially_completed: () => ({ title: "Partially Approved Distributions", cols: __DIST_STAT_COLS, rows: __distStatRows(__allVisibleDistributions().filter(row => row.status === "partially_completed")) }),
+  cancelled: () => ({ title: "Cancelled Distributions", cols: __DIST_STAT_COLS, rows: __distStatRows(__allVisibleDistributions().filter(row => row.status === "cancelled")) }),
   total: () => {
     const list = __allVisibleDistributions();
     return { title: "All Distributions", cols: __DIST_STAT_COLS, rows: __distStatRows(list) };
@@ -8592,8 +8677,8 @@ function __demandFiltered() {
       const hay = [d.itemName, it.itemName, d.demandNo || "DEM-", d.reason || ""].join(" ").toLowerCase();
       if (!hay.includes(q.toLowerCase())) return false;
     }
-    if (dateFrom && d.createdAt < new Date(dateFrom).getTime()) return false;
-    if (dateTo && d.createdAt >= new Date(dateTo).getTime() + 86400000) return false;
+    if (dateFrom && d.createdAt < new Date(dateFrom + "T00:00:00").getTime()) return false;
+    if (dateTo) { const end = new Date(dateTo + "T00:00:00"); end.setDate(end.getDate() + 1); if (d.createdAt >= end.getTime()) return false; }
     return true;
   }).sort((a, b) => b.d.createdAt - a.d.createdAt);
 }
@@ -10578,7 +10663,9 @@ function stockConditionCounts(item) {
 function availableQty(item) {
   const t = allocTotals(item);
   const __dmg = (item.conditionCounts || {}).damaged || 0;
-  return Math.max(0, (item.quantity || 0) - t.allotted - t.damaged - t.lost - __dmg);
+  const reserved = typeof DistributionLedger !== "undefined" && typeof __distState === "function"
+    ? DistributionLedger.reserved(__distState(), item.districtId || activeDistrictId, item) : 0;
+  return Math.max(0, (item.quantity || 0) - t.allotted - t.damaged - t.lost - __dmg - reserved);
 }
 
 function stockIssueConditionCounts() {
@@ -13427,6 +13514,8 @@ document.addEventListener("click", e => {
       manageOperationalRecord(act);
       return;
     }
+    if (act?.dataset.action === "dist-edit-pending") { openDistributionEdit(act.dataset.id); return; }
+    if (act?.dataset.action === "dist-cancel-pending") { cancelPendingDistribution(act.dataset.id); return; }
     if (act && (act.dataset.action === "dist-approve" || act.dataset.action === "dist-reject" || act.dataset.action === "dist-details")) {
       if (act.dataset.action === "dist-approve") openDistApprove(act.dataset.id);
       else if (act.dataset.action === "dist-reject") openDistReject(act.dataset.id);
@@ -13696,6 +13785,9 @@ $("#inspSearch")?.addEventListener("input", renderInspections);
   $("#demandReviewRejectBtn")?.addEventListener("click", rejectDemandReview);
 
   // ---- Distribution bindings ----
+  bindDistributionAccessibility();
+  $("#distOpenConsumables")?.addEventListener("click", () => { closeModals(); switchTab("consumables"); });
+  $("#distItemsBody")?.addEventListener("input", __distQuantitySummary);
   $("#addDistributionBtn")?.addEventListener("click", openDistributionModal);
   $("#distAddItemBtn")?.addEventListener("click", addDistRow);
   $("#distItemsBody")?.addEventListener("change", e => {
@@ -13748,7 +13840,7 @@ if (e.target.classList.contains("dist-check-all")) {
   });
   $("#distItemsBody")?.addEventListener("click", e => {
     const rm = e.target.closest(".fd-row-remove");
-    if (rm) { const row = rm.closest(".fd-item-row"); if (row) row.remove(); return; }
+    if (rm) { const row = rm.closest(".fd-item-row"); if (row) row.remove(); __distQuantitySummary(); return; }
     const sug = e.target.closest(".fd-suggest-item");
     if (sug) { const wrap = sug.closest(".fd-name-wrap"); if (wrap) { wrap.querySelector(".fd-row-name").value = sug.dataset.name; wrap.querySelector(".fd-suggest").classList.add("hidden"); } return; }
   });
@@ -19607,7 +19699,7 @@ function devClearPageData() {
     },
     inspections: { what: "all inspection records", run() { saveInspections([]); } },
     demands: { what: "all demand records", run() { saveDemands([]); } },
-    distribution: { what: "all distribution records", run() { saveDistributions([]); } },
+    distribution: { what: "all stock distribution records and their transfers", async run() { await __distributionCommand({ action: "clear", districtId: activeDistrictId }); } },
     maintenance: { what: "all maintenance requests", run() { saveMaintenance([]); } },
     shramdaan: { what: "all Shramdaan records", run() { saveShramDaanList([]); } },
     consumables: {
@@ -19631,9 +19723,9 @@ function devClearPageData() {
     "<p>This will permanently delete <b>" + esc(entry.what) + "</b> of <b>" + esc(distName) + "</b>.</p>" +
     "<p>The server takes an automatic backup before every save, so the state just before this clear is recoverable from local-data/backups.</p>",
     "Clear Data",
-    function () {
+    async function () {
       try {
-        entry.run();
+        await entry.run();
         __audit("Data Cleared", entry.what + " (" + distName + ")", { entity: "Page Data" });
         render();
         toast("Cleared: " + entry.what + " (" + distName + ").", "success");
