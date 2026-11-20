@@ -1,3 +1,5 @@
+const ConsumableLedger = require("../consumable-ledger");
+
 // ============================================================
 // INVENTORY RBAC  (server-side, source of truth)
 // ============================================================
@@ -119,44 +121,10 @@ function diffItemWrites(prevState, nextState) {
 // When the same write flips a distribution record from 'pending' to
 // 'completed', the item records it names become exempt — and ONLY those.
 // Returns a Set of "districtId|locationId|name(lowercased)" keys.
-function distributionExemptKeys(prevState, nextState) {
-  const exempt = new Set();
-  const scan = (state, map) => {
-    if (!state || typeof state !== 'object') return;
-    for (const key of Object.keys(state)) {
-      if (key.indexOf(DISTRIBUTION_KEY_PREFIX) !== 0) continue;
-      for (const d of (Array.isArray(state[key]) ? state[key] : [])) {
-        if (d && d.id) map[d.id] = d;
-      }
-    }
-  };
-  const prev = {};
-  const next = {};
-  scan(prevState, prev);
-  scan(nextState, next);
-  for (const id of Object.keys(next)) {
-    const o = prev[id];
-    const n = next[id];
-    if (!n) continue;
-    // Allow if transitioning from pending to completed, or already completed in nextState
-    if (!o || o.status !== 'pending' || n.status !== 'completed') continue;
-    for (const it of (Array.isArray(n.items) ? n.items : [])) {
-      const name = String(it.itemName || '').trim().toLowerCase();
-      if (!name) continue;
-      const fromDist = n.fromDistrictId || '';
-      const toDist = n.toDistrictId || '';
-      const fromLoc = it.fromLocationId || n.fromLocationId || '';
-      const toLoc = n.toLocationId || it.toLocationId || '';
-
-      if (fromDist) {
-        if (fromLoc) exempt.add(fromDist + '|' + fromLoc + '|' + name);
-      }
-      if (toDist) {
-        if (toLoc) exempt.add(toDist + '|' + toLoc + '|' + name);
-      }
-    }
-  }
-  return exempt;
+function distributionExemptKeys() {
+  // Transfers are executed by the authenticated command endpoint.
+  // A client-written status must never grant inventory permissions.
+  return new Set();
 }
 
 function firstViolation(writes, user, exempt) {
@@ -1136,7 +1104,7 @@ function diffConsumableWrites(prevState, nextState) {
 }
 function __consQtyInt(t) {
   const q = Number(t && t.qty);
-  return Number.isInteger(q) && q > 0 ? q : null;
+  return Number.isSafeInteger(q) && q > 0 ? q : null;
 }
 // Replay helper: oldest first so sequential snapshots validate.
 function __consOrdered(list) {
@@ -1197,91 +1165,87 @@ function authorizeConsumableWrites(user, writes, opts) {
   const itemsById = new Map();
   for (const it of prevItems) if (it && it.id) itemsById.set(it.id, it);
   for (const it of nextItems) if (it && it.id) itemsById.set(it.id, it);
-  const aggByItem = {};
-  const reqState = {};
-  const reqById = {};
-  const replay = (t) => {
-    if (!t || !t.itemId) return;
-    const agg = (aggByItem[t.itemId] = aggByItem[t.itemId] || { total: 0, pending: 0, distributed: 0, lost: 0 });
-    __consAggFor(agg, t);
-    if (t.type === 'DISTRIBUTION_REQUEST') { reqState[t.id] = 'pending'; reqById[t.id] = t; }
-    else if (t.type === 'DISTRIBUTION_APPROVED' && t.requestId) reqState[t.requestId] = 'approved';
-    else if (t.type === 'DISTRIBUTION_REJECTED' && t.requestId) reqState[t.requestId] = 'rejected';
+  const locations = __consArr(prevState, "hp_inventory.locations", user.districtId);
+  const users = (Array.isArray(prevState["hp_inventory.users"]) ? prevState["hp_inventory.users"] : [])
+    .filter(account => account && account.districtId === user.districtId);
+  const actorLocation = ConsumableLedger.stockKey(user, locations);
+  const ledger = __consOrdered(prevTxns);
+  const reqState = new Map();
+  const reqById = new Map();
+  const trackDecision = txn => {
+    if (txn.type === "DISTRIBUTION_REQUEST") {
+      reqState.set(txn.id, "pending");
+      reqById.set(txn.id, txn);
+    } else if (txn.type === "DISTRIBUTION_APPROVED" || txn.type === "DISTRIBUTION_REJECTED") {
+      reqState.set(txn.requestId, txn.type);
+    }
   };
-  for (const t of __consOrdered(prevTxns)) replay(t);
-  const addsTxns = writes.adds.filter(a => a.kind === 'txn').map(a => a.rec);
+  for (const txn of ledger) if (txn) trackDecision(txn);
+  const addsTxns = writes.adds.filter(entry => entry.kind === "txn").map(entry => entry.rec);
   for (const t of __consOrdered(addsTxns)) {
-    const fail = (msg) => deny('RBAC_CONS_LEDGER', `Forbidden: invalid consumable transaction (${msg}).`, { txnId: t.id, type: t.type });
-    if (!t || !t.itemId) return fail("missing item");
-    if (!CONS_TYPES[t.type]) return fail(`unknown type "${t.type}"`);
+    const fail = msg => deny("RBAC_CONS_LEDGER", `Forbidden: invalid consumable transaction (${msg}).`, { txnId: t.id, type: t.type });
+    if (!t.itemId) return fail("missing item");
+    if (!Object.hasOwn(CONS_TYPES, t.type)) return fail(`unknown type "${t.type}"`);
+    const item = itemsById.get(t.itemId);
+    if (!item) return fail("unknown consumable item");
+    const district = () => ConsumableLedger.district(ledger, t.itemId);
     if (t.type === "DELETED") {
-      const item = itemsById.get(t.itemId);
-      if (!item) return fail("unknown consumable item");
-      const agg = (aggByItem[t.itemId] = aggByItem[t.itemId] || { total: 0, pending: 0, distributed: 0, lost: 0 });
-      const availForNew = agg.total - agg.distributed - agg.lost - agg.pending;
-      if (availForNew > 0 || agg.pending > 0) return deny("RBAC_CONS_QTY", `Forbidden: cannot delete item with remaining stock. Available: ${availForNew}.`, { itemId: t.itemId, available: availForNew });
+      const balance = district();
+      const available = ConsumableLedger.available(balance);
+      if (available > 0 || balance.pending > 0) return deny("RBAC_CONS_QTY", `Forbidden: cannot delete item with remaining stock. Available: ${available}.`, { itemId: t.itemId, available });
       continue;
     }
     const q = __consQtyInt(t);
     if (!q) return fail("quantity must be a positive whole number");
-    const item = itemsById.get(t.itemId);
-    if (!item) return fail("unknown consumable item");
-    if (String(t.categoryId || '') !== String(item.categoryId || '')) return fail('category does not match the item');
-    const agg = (aggByItem[t.itemId] = aggByItem[t.itemId] || { total: 0, pending: 0, distributed: 0, lost: 0 });
-    const availForNew = agg.total - agg.distributed - agg.lost - agg.pending;
-    const nowNext = () => ({
-      total: agg.total,
-      available: Math.max(0, agg.total - agg.distributed - agg.lost - agg.pending),
-      pending: agg.pending, distributed: agg.distributed, lost: agg.lost,
-    });
-    if (t.type === 'ADD') {
-      agg.total += q;
-    } else if (t.type === 'DISTRIBUTION_REQUEST') {
-      if (String(t.byId || '') !== String(user.id)) return fail('Distributed By must be the logged-in user');
-      if (t.toType === 'unit') {
-        const locs = __consArr(prevState, 'hp_inventory.locations', user.districtId);
-        if (!locs.some(l => l && l.id === t.toId)) return fail('recipient unit must exist inside your own district');
-      } else if (t.toType === 'staff') {
-        const users = Array.isArray(prevState['hp_inventory.users']) ? prevState['hp_inventory.users'] : [];
-        if (!users.some(u => u && u.id === t.toId && u.districtId === user.districtId)) return fail('recipient staff must exist inside your own district');
-      } else return fail('recipient type must be unit or staff');
-      if (!t.toName) return fail('recipient name missing');
-      if (q > availForNew) return deny("RBAC_CONS_QTY", `Forbidden: insufficient available quantity. Available: ${availForNew}, requested: ${q}.`, { itemId: t.itemId, requested: q, available: availForNew });
-      agg.pending += q;
-      reqState[t.id] = 'pending';
-      reqById[t.id] = t;
-    } else if (t.type === 'DISTRIBUTION_APPROVED' || t.type === 'DISTRIBUTION_REJECTED') {
-      const rid = String(t.requestId || '');
-      const req = reqById[rid];
-      if (!req) return fail('unknown distribution request');
-      if (reqState[rid] !== 'pending') return fail('this request was already approved or rejected');
-      const isRecipient = req.toType === 'staff' ? String(user.id) === String(req.toId) : String(user.locationId) === String(req.toId);
-      if (!isRecipient) return fail('only the receiving unit/staff may approve or reject this request');
-      if (q !== __consQtyInt(req)) return fail('approved/rejected quantity must match the requested quantity');
-      if (t.type === 'DISTRIBUTION_REJECTED' && !String(t.reason || '').trim()) return fail('rejection requires a reason');
-      if (t.type === 'DISTRIBUTION_APPROVED') { agg.pending -= q; agg.distributed += q; }
-      else agg.pending -= q;
-      reqState[rid] = t.type === 'DISTRIBUTION_APPROVED' ? 'approved' : 'rejected';
-    } else if (t.type === 'LOSS') {
-      if (q > availForNew) return deny("RBAC_CONS_LOSS_FORBIDDEN", `Forbidden: insufficient available quantity. Available: ${availForNew}, lost: ${q}.`, { itemId: t.itemId, available: availForNew });
-      agg.lost += q;
+    if (String(t.categoryId || "") !== String(item.categoryId || "")) return fail("category does not match the item");
+
+    if (t.type === "ADD" && t.stockLocation &&
+      t.stockLocation !== actorLocation && !locations.some(loc => t.stockLocation === "unit:" + loc.id)) {
+      return fail("receiving stock location must exist inside your own district");
     }
-    // Snapshot integrity: the client must record accurate next-state values.
-    const expectNext = nowNext();
+    if (t.type === "DISTRIBUTION_REQUEST" || t.type === "LOSS") {
+      if ((t.stockLocation ?? "") !== (user.role === "admin" ? "" : actorLocation)) {
+        return fail("source stock location does not match the logged-in user");
+      }
+      if (String(t.byId || "") !== String(user.id)) return fail("stock movement must be recorded by the logged-in user");
+      const balance = t.stockLocation
+        ? ConsumableLedger.atLocation(ledger, t.itemId, t.stockLocation, users, locations)
+        : ConsumableLedger.district(ledger, t.itemId, true);
+      const available = ConsumableLedger.available(balance);
+      if (q > available) {
+        const code = t.type === "LOSS" ? "RBAC_CONS_LOSS_FORBIDDEN" : "RBAC_CONS_QTY";
+        return deny(code, `Forbidden: insufficient available quantity. Available: ${available}, requested: ${q}.`, { itemId: t.itemId, requested: q, available });
+      }
+    }
+    if (t.type === "DISTRIBUTION_REQUEST") {
+      if (t.toType === "unit") {
+        if (!locations.some(loc => loc && loc.id === t.toId)) return fail("recipient unit must exist inside your own district");
+      } else if (t.toType === "staff") {
+        if (!users.some(account => account.id === t.toId)) return fail("recipient staff must exist inside your own district");
+      } else return fail("recipient type must be unit or staff");
+      if (!t.toName) return fail("recipient name missing");
+    } else if (t.type === "DISTRIBUTION_APPROVED" || t.type === "DISTRIBUTION_REJECTED") {
+      const rid = String(t.requestId || "");
+      const req = reqById.get(rid);
+      if (!req) return fail("unknown distribution request");
+      if (reqState.get(rid) !== "pending") return fail("this request was already approved or rejected");
+      const isRecipient = req.toType === "staff" ? String(user.id) === String(req.toId) : String(user.locationId) === String(req.toId);
+      if (!isRecipient) return fail("only the receiving unit/staff may approve or reject this request");
+      if (t.itemId !== req.itemId || t.toType !== req.toType || String(t.toId) !== String(req.toId)) {
+        return fail("decision must match the requested item and recipient");
+      }
+      if (q !== __consQtyInt(req)) return fail("approved/rejected quantity must match the requested quantity");
+      if (t.type === "DISTRIBUTION_REJECTED" && !String(t.reason || "").trim()) return fail("rejection requires a reason");
+    }
+    ledger.push(t);
+    trackDecision(t);
+    const balance = district();
+    const expectNext = { ...balance, available: Math.max(0, ConsumableLedger.available(balance)) };
     if (t.next && stableStringify(t.next) !== stableStringify(expectNext)) {
-      return deny('RBAC_CONS_SNAPSHOT', 'Forbidden: quantity snapshot does not match the authoritative ledger.', { txnId: t.id, expected: expectNext, got: t.next });
+      return deny("RBAC_CONS_SNAPSHOT", "Forbidden: quantity snapshot does not match the authoritative ledger.", { txnId: t.id, expected: expectNext, got: t.next });
     }
   }
   return { ok: true };
-}
-function __consAggFor(agg, txn) {
-  const q = Math.max(0, Math.floor(Number(txn.qty) || 0));
-  if (txn.type === 'ADD') agg.total += q;
-  else if (txn.type === 'DISTRIBUTION_REQUEST') agg.pending += q;
-  else if (txn.type === 'DISTRIBUTION_APPROVED') { agg.pending -= q; agg.distributed += q; }
-  else if (txn.type === 'DISTRIBUTION_REJECTED') agg.pending -= q;
-  else if (txn.type === 'LOSS') agg.lost += q;
-  return agg;
 }
 function __consArr(state, key, distId) {
   const m = __consMap(state, key);

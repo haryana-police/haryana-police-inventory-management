@@ -21,6 +21,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { projectStateFor, restoreScopeFor, ITEM_STORE_KEY, diffItemWrites, authorizeItemWrites, authorizeUserCollectionWrite, diffConsumableWrites, authorizeConsumableWrites, diffStructureWrites, authorizeStructureWrites, diffMaintenanceWrites, authorizeMaintenanceWrites, finalizeMaintenanceState, MAINT_KEY_PREFIX } = require('./_rbac');
 const pool = new Pool();
+const Distribution = require('./_distribution');
 
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 const BCRYPT_ROUNDS = 12;
@@ -603,6 +604,60 @@ async function route(req, res) {
   }
   const body = req.body || {};
   const p0 = seg[0];
+  if (p0 === 'distribution' && req.method === 'POST') {
+    const { user } = await authFromRequest(req);
+    if (!user) return res.status(401).json({ error: 'Sign in to manage distributions.' });
+    if (!body.requestId || typeof body.requestId !== 'string' || body.requestId.length > 160) {
+      return res.status(400).json({ error: 'A distribution request ID is required.' });
+    }
+    if (!body.command || typeof body.command !== 'object' || Array.isArray(body.command)) {
+      return res.status(400).json({ error: 'A distribution action is required.' });
+    }
+    const previous = await getState();
+    const receiptKey = 'hp_inventory.distribution_receipts';
+    const receipts = previous[receiptKey] || [];
+    const fingerprint = crypto.createHash('sha256').update(require('./_rbac').stableStringify(body.command)).digest('hex');
+    const receiptId = user.id + ':' + body.requestId;
+    const receipt = receipts.find(row => row.id === receiptId);
+    if (receipt) {
+      if (receipt.fingerprint !== fingerprint) return res.status(409).json({ error: 'This submission changed. Submit it with a new request ID.' });
+      return res.json({ ok: true, replayed: true, ...receipt.result });
+    }
+    try {
+      const now = Date.now();
+      const { state, result } = Distribution.execute(previous, user, body.command || {}, {
+        now, id: () => crypto.randomUUID()
+      });
+      const invalid = validateAllocState(state, previous);
+      if (invalid) return res.status(400).json({ error: invalid });
+      state[receiptKey] = [...receipts.slice(-499), { id: receiptId, fingerprint, result }];
+      const districtId = body.command.districtId || body.command.storeId;
+      const auditKey = 'hp_inventory.audit_' + districtId;
+      state[auditKey] = [{ id: crypto.randomUUID(), ts: now, userId: user.id, user: user.name || user.username,
+        role: user.role, districtId, locationId: user.locationId || '', action: 'Distribution ' + body.command.action,
+        entity: 'Distribution', detail: (result.ids || [result.id]).join(', ') }, ...(state[auditKey] || [])].slice(0, 5000);
+      const changed = (state['hp_inventory.distributions_' + districtId] || []).filter(record =>
+        (result.ids || [result.id]).includes(record.id));
+      for (const record of changed) {
+        if (!['create', 'approve', 'reject'].includes(body.command.action)) continue;
+        const destination = body.command.action === 'create' ? record.toDistrictId : record.fromDistrictId;
+        const notifications = state['hp_inventory.notifications_' + destination] ||= [];
+        const notificationType = { create: 'distribution_received', approve: 'distribution_approved', reject: 'distribution_rejected' }[body.command.action];
+        notifications.unshift({ id: crypto.randomUUID(), type: notificationType,
+          title: 'Distribution ' + (body.command.action === 'create' ? 'Received' : record.status),
+          message: record.distNo + ' — ' + (user.name || user.username), distributionId: record.id,
+          targetUserId: body.command.action === 'create' ? record.toUserId : record.fromUserId,
+          targetLocId: body.command.action === 'create' ? record.toLocationId : record.fromLocationId,
+          createdAt: now, read: false });
+      }
+      await setState(state);
+      try { const events = rtDiffState(previous, state); if (events.length) await rtPublish(events); }
+      catch (error) { console.error('distribution notification failed:', error); }
+      return res.json({ ok: true, ...result });
+    } catch (error) {
+      return res.status(error.status || 400).json({ error: error.message });
+    }
+  }
   if (p0 === 'grievances') {
     const { user } = await authFromRequest(req);
     if (!user) return res.status(401).json({ error: 'Sign in to access grievances.' });
@@ -924,6 +979,9 @@ function validateAllocState(state, previousState = {}) {
       return res.status(409).json({ error: 'Refresh this page to use the current stock save workflow.' });
     }
     let incoming = restoreScopeFor(writeUser, current, body.state);
+    const distributionVerdict = Distribution.guardStateWrites(writeUser, current, incoming);
+    if (distributionVerdict) return res.status(distributionVerdict.status).json({ error: distributionVerdict.error });
+    incoming['hp_inventory.distribution_receipts'] = current['hp_inventory.distribution_receipts'] || [];
     body.state = incoming;
     const currentUsers = Array.isArray(current['hp_inventory.users']) ? current['hp_inventory.users'] : [];
     const incomingUsers = Array.isArray(incoming['hp_inventory.users']) ? incoming['hp_inventory.users'] : [];
@@ -1097,6 +1155,10 @@ function validateAllocState(state, previousState = {}) {
   // ---------- SAVE A SINGLE KEY (incremental) ----------
   if (p0 === 'key' && req.method === 'POST') {
     if (!body.key || !body.value) return res.status(400).json({ error: 'key and value required' });
+    if (body.key.startsWith('hp_inventory.distributions_') || body.key === 'hp_inventory.distribution_receipts') {
+      const { user } = await authFromRequest(req);
+      return res.status(user ? 403 : 401).json({ error: 'Use the authorised distribution workflow.' });
+    }
     const isUsersWrite = body.key === 'hp_inventory.users' || body.key === TOKEN_KEY;
     const isItemsWrite = body.key === ITEM_STORE_KEY;
     if (isItemsWrite) return res.status(409).json({ error: 'Use the version-checked state save workflow for inventory.' });

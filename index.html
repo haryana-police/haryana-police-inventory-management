@@ -8,7 +8,7 @@
 <!-- Both stylesheets are versioned: without the query the browser keeps
      serving the old file from its own cache, so a CSS fix appears to do
      nothing until a hard refresh. Bump these when either file changes. -->
-<link rel="stylesheet" href="styles.css?v=2026.10.132">
+<link rel="stylesheet" href="styles.css?v=2026.11.20.1">
   <script>
     (function () {
       try { if (localStorage.getItem("hpi_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
@@ -571,7 +571,7 @@
           <div class="table-wrap">
             <table id="consStockTable" data-sortable="false">
               <thead id="consStockHead">
-                <tr><th style="width:54px">S.No</th><th>Item Name</th><th>Total Qty</th><th>Available</th><th>Distributed</th><th>Lost</th><th>Status</th><th>Actions</th></tr>
+                <tr><th style="width:54px">S.No</th><th>Item Name</th><th>Total Qty</th><th>Available</th><th>Pending Approval</th><th>Distributed</th><th>Lost</th><th>Status</th><th>Actions</th></tr>
               </thead>
               <tbody id="consStockBody"></tbody>
             </table>
@@ -3351,10 +3351,12 @@
 <script src="api-client.js?v=2026.09.212"></script>
   <script src="enter-to-submit.js?v=2026.09.253"></script>
   <script src="cat-multiselect.js?v=2026.09.253"></script>
-  <script src="app.js?v=2026.11.19.4"></script>
+  <script src="consumable-ledger.js?v=1"></script>
+  <script src="distribution-ledger.js?v=1"></script>
+  <script src="app.js?v=2026.11.20.6"></script>
   <script src="grievances.js" defer></script>
 <script src="ims-agent.js?v=2026.09.255" defer></script>
-<script src="item-profile.js?v=2026.10.051"></script>
+<script src="item-profile.js?v=2026.11.20.1"></script>
 <script src="person-profile.js?v=2026.09.213"></script>
 <input type="file" id="attFileInput" multiple hidden>
 <div class="modal-backdrop hidden" id="camModal" style="z-index: 100050;">

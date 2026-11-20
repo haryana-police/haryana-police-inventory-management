@@ -715,11 +715,19 @@
   }
   function consStatusCls(s) {
     if (s === "Available") return "status-ok";
-    if (s === "Lost" || s === "Distributed") return "status-out";
+    if (s === "Lost" || s === "Distributed" || s === "Out of Stock") return "status-out";
     return "status-low";
   }
+  function consProfileBalance(item) {
+    var txns = (loadData("consumable_txns") || {})[state.districtId] || [];
+    if (__consIsAdminView()) return __consBalanceView(ConsumableLedger.district(txns, item.id));
+    var locations = getLocationsForDistrict(state.districtId);
+    var users = getUsers().filter(function (user) { return user.districtId === state.districtId; });
+    var location = ConsumableLedger.stockKey(currentUser, locations);
+    return __consBalanceView(ConsumableLedger.atLocation(txns, item.id, location, users, locations));
+  }
   function fillHeaderCons(item) {
-    var q = __consQty(item.id);
+    var q = consProfileBalance(item);
     var locNm = (window.getLocalizedName ? window.getLocalizedName(item.name) : item.name) || "";
     $("#ipCrumbName").textContent = locNm;
     $("#ipTitle").textContent = locNm;
@@ -788,7 +796,7 @@
     });
   }
   function fillBodyCons(item) {
-    var q = __consQty(item.id);
+    var q = consProfileBalance(item);
     var statCard = function (c) {
       return '<div class="ip-stat ' + c[2] + '"><div class="ip-num">' + fmtN(c[1]) + '</div><div class="ip-lbl">' + c[0] + "</div></div>";
     };
@@ -810,7 +818,7 @@
     bindToolbar();
   }
   function infoRowsCons(item) {
-    var q = __consQty(item.id);
+    var q = consProfileBalance(item);
     var rows = [
       ["Item Name", item.name], ["Item Code", consCode(item)],
       ["Category", window.__consItemCat ? __consItemCat(item.categoryId) : (catName(item.categoryId) || "")],

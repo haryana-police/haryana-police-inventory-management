@@ -80,7 +80,7 @@ function serveStatic(res, rel) {
     res.statusCode = 403; res.end('Forbidden'); return;
   }
   const asset = path.relative(PROJECT_DIR, abs).split(path.sep).join('/');
-  const publicRootFiles = /^(?:index\.html|(?:styles|mobile)\.css|(?:api-client|enter-to-submit|cat-multiselect|app|grievances|ims-agent|item-profile|person-profile|mobile|lang-hindi|manage-nav|ui-fix)\.js|logo\.(?:jpg|png)|USER_GUIDE(?:_APP)?\.(?:html|pdf|md))$/;
+  const publicRootFiles = /^(?:index\.html|(?:styles|mobile)\.css|(?:api-client|enter-to-submit|cat-multiselect|consumable-ledger|distribution-ledger|app|grievances|ims-agent|item-profile|person-profile|mobile|lang-hindi|manage-nav|ui-fix)\.js|logo\.(?:jpg|png)|USER_GUIDE(?:_APP)?\.(?:html|pdf|md))$/;
   if (!publicRootFiles.test(asset) && !/^vendor\/(?:fonts|jspdf|tesseract|tessdata|pdfjs|mammoth|xlsx)\/[\w./-]+$/.test(asset)) {
     res.statusCode = 404;
     res.end('Not found');

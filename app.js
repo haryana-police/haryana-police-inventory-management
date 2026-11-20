@@ -6677,7 +6677,21 @@ function getDistributions() {
 }
 
 function __distributionsInStore(districtId) {
-  return (loadData(`distributions_${districtId}`) || []).map(x => ({ ...x, __storeId: districtId }));
+  const transactions = (loadData("consumable_txns") || {})[districtId] || [];
+  const requests = new Map(transactions.filter(t => t.type === "DISTRIBUTION_REQUEST").map(t => [t.id, t]));
+  const decisions = new Map(transactions.filter(t =>
+    t.type === "DISTRIBUTION_APPROVED" || t.type === "DISTRIBUTION_REJECTED").map(t => [t.requestId, t]));
+  return (loadData(`distributions_${districtId}`) || []).map(record => {
+    const row = { ...record, __storeId: districtId };
+    if (!row.isConsumable || !requests.has(row.id)) return row;
+    const decision = decisions.get(row.id);
+    if (!decision) return { ...row, status: "pending", approvedBy: "", approvedAt: null, approveRemark: "" };
+    if (decision.type === "DISTRIBUTION_APPROVED") {
+      return { ...row, status: "completed", approvedBy: decision.byName, approvedAt: decision.createdAt, approveRemark: decision.remarks || "" };
+    }
+    return { ...row, status: "rejected", approvedBy: "", approvedAt: null, approveRemark: "",
+      rejectedBy: decision.byName, rejectedAt: decision.createdAt, rejectRemark: decision.reason };
+  });
 }
 
 function __allVisibleDistributions() {
@@ -6769,20 +6783,52 @@ function __distStatusMeta(s) {
   return map[s] || { label: (s || "Pending").replace(/^./, c => c.toUpperCase()), cls: "cat-badge" };
 }
 
-function __distActionableBy(d) {
-  if (!d || !currentUser || d.status !== "pending") return false;
-  if (isDevAdmin()) return true;
-  if (d.toDistrictId !== activeDistrictId) return false;
-  if (d.toType === "admin") return currentUser.role === "admin" && currentUser.districtId === d.toDistrictId;
-  if (d.toUserId && currentUser.id === d.toUserId) return true;
-  if (d.toLocationId && currentUser.locationId === d.toLocationId) return true;
-  const loc = getLocationsForDistrict(d.toDistrictId).find(l => l.id === d.toLocationId);
-  if (loc && loc.type === "district" && currentUser.districtId === d.toDistrictId) return true;
-  if (isAdmin() && currentUser.districtId === d.toDistrictId) {
-    const candidates = unitUserCandidates(d.toDistrictId, d.toLocationId);
-    if (!candidates.autoId) return true;
+function __distState() {
+  const state = {};
+  for (const key of ["districts", "users", "locations", "categories", "items", "distSeq", "distribution_receipts"]) {
+    state[STORAGE_PREFIX + key] = loadData(key);
   }
-  return false;
+  for (const district of getDistricts()) state[STORAGE_PREFIX + "distributions_" + district.id] = loadData("distributions_" + district.id) || [];
+  return state;
+}
+
+function __distActionableBy(record) {
+  return DistributionLedger.canReceive(currentUser, record, __distState());
+}
+
+function __distSourceItems() {
+  const items = getItemsForDistrict(activeDistrictId).filter(item => !item.isDeleted);
+  return isAdmin() ? items : items.filter(item => item.locationId === currentUser?.locationId);
+}
+
+async function __distributionCommand(command, requestId = uid()) {
+  if (window.CONFIG?.useRemote) {
+    await window.__apiFlush();
+    let response;
+    try { response = await __api("POST", "distribution", { command, requestId }); }
+    catch (error) {
+      if (error.status) throw error;
+      response = await __api("POST", "distribution", { command, requestId });
+    }
+    await window.__apiLoadAll();
+    return response;
+  }
+  const previous = __distState();
+  const receipts = previous[STORAGE_PREFIX + "distribution_receipts"] || [];
+  const fingerprint = JSON.stringify(command);
+  const receiptId = currentUser.id + ":" + requestId;
+  const receipt = receipts.find(row => row.id === receiptId);
+  if (receipt) {
+    if (receipt.fingerprint !== fingerprint) throw new Error("This submission changed. Open it again.");
+    return receipt.result;
+  }
+  const { state, result } = DistributionLedger.execute(previous, currentUser, command, { now: Date.now(), id: uid });
+  state[STORAGE_PREFIX + "distribution_receipts"] = [...receipts.slice(-499), { id: receiptId, fingerprint, result }];
+  for (const [key, value] of Object.entries(state)) {
+    if (JSON.stringify(value) !== JSON.stringify(previous[key])) saveData(key.slice(STORAGE_PREFIX.length), value);
+  }
+  __audit("Distribution " + command.action, (result.ids || [result.id]).join(", "), { entity: "Distribution" });
+  return result;
 }
 
 function __distItemRowObjects(list) {
@@ -6857,7 +6903,7 @@ function __distPopulateRowItems(row) {
     __distUpdateRowInfo(row);
     return;
   }
-  const items = __byName(getItemsForDistrict(activeDistrictId).filter(i => i.categoryId === cid && !i.isDeleted && i.name), i => i.name);
+  const items = __byName(__distSourceItems().filter(i => i.categoryId === cid && i.name), i => i.name);
   itemSel.disabled = false;
   itemSel.innerHTML = `<option value="">Select item</option>` + items.map(i => {
     const location = getLocations().find(l => l.id === i.locationId);
@@ -6881,9 +6927,8 @@ function __distUpdateRowInfo(row) {
   }
   if (v === "__new__") { info.innerHTML = `<small style="color:var(--muted)">New item — stock will be created at 0 here.</small>`; return; }
   const it = getItemsForDistrict(activeDistrictId).find(i => i.id === v);
-  const cc = it ? (it.conditionCounts || { good: it.quantity || 0, poor: 0, damaged: 0 }) : { good: 0, poor: 0, damaged: 0 };
-  const total = Math.max(0, cc.good || 0) + Math.max(0, cc.poor || 0) + Math.max(0, cc.damaged || 0);
-  info.innerHTML = `<small>Total <b>${total}</b> &middot; Good <b>${cc.good || 0}</b> &middot; Damaged <b>${cc.poor || 0}</b> &middot; Scrap <b>${cc.damaged || 0}</b></small>`;
+  const { available, issued, lost, good, damaged } = stockConditionBreakdown(it, stockIssueConditionCounts().get(it?.id));
+  info.innerHTML = `<small>Available <b>${available}</b> (Good <b>${good}</b> &middot; Damaged <b>${damaged}</b>) &middot; Issued <b>${issued}</b> &middot; Lost <b>${lost}</b></small>`;
 }
 
 function addDistRow() {
@@ -6925,6 +6970,9 @@ function openDistributionModal() {
   if (!currentUser) return toast("Please login first.", "error");
   // devadmin may open to VIEW; saving is blocked inside saveDistribution.
   __distToChecked.clear();
+  __distributionSubmissionId = null;
+  __distributionSubmissionFingerprint = null;
+  __attStore.dist = []; __attRender("dist");
   __distRenderChecks("");
   const ddSearch = $("#distToSearch");
   if (ddSearch) ddSearch.value = "";
@@ -6947,305 +6995,94 @@ function __distFindFromItem(d, it) {
   return matches.length === 1 ? matches[0] : null;
 }
 
-function __distHasStock(item, condition, qty) {
+function __distHasStock(item, condition) {
   if (!item) return 0;
-  const cc = item.conditionCounts || { good: item.quantity || 0, poor: 0, damaged: 0 };
-  if (condition === "good" || condition === "poor" || condition === "damaged") return Math.max(0, cc[condition] || 0);
-  return Math.max(0, (cc.good || 0)) + Math.max(0, (cc.poor || 0)) + Math.max(0, (cc.damaged || 0));
+  const counts = DistributionLedger.counts(item);
+  if (condition === "damaged") return counts.damaged;
+  const available = Math.max(0, DistributionLedger.available(item));
+  if (condition === "good" || condition === "poor") return Math.min(counts[condition], available);
+  return available;
 }
 
-/* Dry-run availability check across every item in a distribution. */
-function __distSimulate(d) {
-  const requested = new Map();
-  for (const it of (d.items || [])) {
-    const q = Number(it.qty) || 0;
-    if (!Number.isSafeInteger(q) || q <= 0 || !["good", "poor", "damaged"].includes(it.condition)) return `Invalid quantity or condition for "${it.itemName}".`;
-    const src = __distFindFromItem(d, it);
-    if (!src) return `Source item "${it.itemName}" could not be found in the sender district.`;
-    const avail = __distHasStock(src, it.condition, q);
-    const key = JSON.stringify([src.id, it.condition]);
-    const total = (requested.get(key) || 0) + q;
-    requested.set(key, total);
-    if (avail < total) return `Only ${avail} ${it.condition} unit(s) of "${it.itemName}" available at the sender; cannot distribute ${total}.`;
-  }
-  return null;
+function __distSimulate(record) {
+  try { DistributionLedger.validateLines(__distState(), record); return null; }
+  catch (error) { return error.message; }
 }
 
 /* Execute the stock transfer: deduct from sender, add (find-or-create) to receiver. */
-function __distApplyTransfer(d) {
-  if (!d || !d.fromDistrictId || !d.toDistrictId || __distSimulate(d)) return false;
-
-  // Resolve target location ID
-  let targetLocId = d.toLocationId || "";
-  // 1. If currently approving user is the recipient or belongs to destination district/unit:
-  if (!targetLocId && currentUser && currentUser.locationId && (!currentUser.districtId || currentUser.districtId === d.toDistrictId)) {
-    targetLocId = currentUser.locationId;
-  }
-  // 2. If d.toUserId is set, check that user's locationId:
-  if (!targetLocId && d.toUserId) {
-    const toUser = (typeof getUsers === "function" ? getUsers() : []).find(u => u.id === d.toUserId);
-    if (toUser && toUser.locationId) targetLocId = toUser.locationId;
-  }
-  // 3. Fall back to destination district's HQ location:
-  if (!targetLocId) {
-    const distLocs = getLocationsForDistrict(d.toDistrictId);
-    const hqLoc = distLocs.find(l => (l.type === "district" || l.type === "otherHq" || /hq|store|line/i.test(l.name)));
-    targetLocId = (hqLoc || distLocs[0] || {}).id || "";
-  }
-  d.toLocationId = targetLocId;
-  if (!d.toLocationName && targetLocId) {
-    const locObj = (getLocationsForDistrict(d.toDistrictId) || []).find(l => l.id === targetLocId);
-    if (locObj) d.toLocationName = locObj.name;
-  }
-
-  const all = structuredClone(getAllItems() || {});
-  const fromDistId = d.fromDistrictId;
-  const toDistId = d.toDistrictId;
-  if (!all[fromDistId]) all[fromDistId] = [];
-  if (!all[toDistId]) all[toDistId] = [];
-
-  const fromList = all[fromDistId];
-  // If same district, toList MUST reference fromList so both source and destination share the same array
-  const toList = (fromDistId === toDistId) ? fromList : all[toDistId];
-
-  for (const it of (d.items || [])) {
-    const q = Number(it.qty) || 0;
-    if (q <= 0) continue;
-
-    // Find source item in fromList
-    const source = __distFindFromItem(d, it);
-    const src = source && fromList.find(i => i.id === source.id);
-    if (!src) return false;
-    it.fromItemId = src.id;
-    it.fromLocationId = src.locationId || it.fromLocationId || "";
-    it.toLocationId = targetLocId;
-
-    // Deduct stock from sender
-    let cc = src.conditionCounts || { good: src.quantity || 0, poor: 0, damaged: 0 };
-    const condKey = it.condition;
-    cc[condKey] -= q;
-    src.conditionCounts = cc;
-    src.quantity = Math.max(0, (cc.good || 0)) + Math.max(0, (cc.poor || 0)) + Math.max(0, (cc.damaged || 0));
-    src.updatedAt = Date.now();
-
-    if (typeof itemHistoryPush === "function") {
-      itemHistoryPush(src, {
-        type: "DISPATCH",
-        qty: -q,
-        person: __distReceiverName(d),
-        ref: d.distNo || "DIST",
-        date: todayStr(),
-        time: nowTimeStr(),
-        remarks: `Distributed ${q} (${condKey}) to ${__distReceiverName(d)}`
-      });
-    }
-
-    // Find or create destination item in toList with targetLocId
-    let dst = toList.find(i => !i.isDeleted && i.locationId === targetLocId && i.categoryId === (it.categoryId || src.categoryId || "") && (i.name || "").trim().toLowerCase() === String(it.itemName).trim().toLowerCase());
-    if (!dst) {
-      dst = {
-        id: uid(),
-        name: it.itemName,
-        categoryId: it.categoryId || src.categoryId || "",
-        unit: it.unit || src.unit || "pcs",
-        quantity: 0,
-        minStock: 0,
-        locationId: targetLocId,
-        conditionCounts: { good: 0, poor: 0, damaged: 0 },
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-      toList.push(dst);
-    }
-    const dcc = dst.conditionCounts || { good: dst.quantity || 0, poor: 0, damaged: 0 };
-    dcc[condKey] = (dcc[condKey] || 0) + q;
-    dst.conditionCounts = dcc;
-    dst.quantity = Math.max(0, (dcc.good || 0)) + Math.max(0, (dcc.poor || 0)) + Math.max(0, (dcc.damaged || 0));
-    dst.updatedAt = Date.now();
-    it.toItemId = dst.id;
-
-    if (typeof itemHistoryPush === "function") {
-      itemHistoryPush(dst, {
-        type: "STOCK_IN",
-        qty: q,
-        person: d.fromUserName || "Sender",
-        ref: d.distNo || "DIST",
-        date: todayStr(),
-        time: nowTimeStr(),
-        remarks: `Received via Distribution ${d.distNo || ""} from ${d.fromUserName || "Sender"}${d.fromLocationName ? " (" + d.fromLocationName + ")" : ""}`
-      });
-    }
-  }
-
-  all[fromDistId] = fromList;
-  all[toDistId] = toList;
-  saveAllItems(all);
-  return true;
+function __distApplyTransfer(record) {
+  try {
+    const previous = __distState();
+    const key = STORAGE_PREFIX + "distributions_" + record.fromDistrictId;
+    previous[key] = (previous[key] || []).map(row => row.id === record.id ? { ...record, status: "pending" } : row);
+    const { state } = DistributionLedger.execute(previous, currentUser, { action: "approve", storeId: record.fromDistrictId, id: record.id }, { now: Date.now(), id: uid });
+    saveAllItems(state[STORAGE_PREFIX + "items"]);
+    saveData("categories", state[STORAGE_PREFIX + "categories"]);
+    Object.assign(record, state[key].find(row => row.id === record.id));
+    return true;
+  } catch { return false; }
 }
 
-async function saveDistribution(e) {
-  e.preventDefault();
+let __distributionBusy = false;
+let __distributionSubmissionId = null;
+let __distributionSubmissionFingerprint = null;
+async function saveDistribution(event) {
+  event.preventDefault();
+  if (__distributionBusy) return;
+  __distributionBusy = true;
+  const button = $("#distSaveBtn");
+  if (button) button.disabled = true;
+  try { await commitDistribution(); }
+  catch (error) { toast(error.body?.error || error.message || "Distribution could not be saved.", "error"); }
+  finally { __distributionBusy = false; if (button) button.disabled = false; }
+}
+
+async function commitDistribution() {
   if (!currentUser) return toast("Please login first.", "error");
   const targets = __distSelectedTargets();
-  if (targets.length !== __distToChecked.size) return toast("Recipient list changed. Reopen the form and select recipients again.", "error");
-  if (!targets.length) return toast("Tick at least one unit / district admin in Distributed To.", "error");
-  const body = $("#distItemsBody");
-  const rows = body ? Array.from(body.querySelectorAll(".fd-item-row")) : [];
-  const cleanRows = rows.filter(r => {
-    const sel = r.querySelector(".fd-row-item");
-    const newName = r.querySelector(".fd-row-newname");
-    const name = (((sel || {}).value || "") === "__new__" ? (newName ? newName.value : "") : ((sel || {}).value || "")).trim();
-    const qg = parseInt((r.querySelector(".fd-row-qty-good") || {}).value, 10) || 0;
-    const qp = parseInt((r.querySelector(".fd-row-qty-poor") || {}).value, 10) || 0;
-    const qd = parseInt((r.querySelector(".fd-row-qty-damaged") || {}).value, 10) || 0;
-    return name || qg || qp || qd;
-  });
-  if (!cleanRows.length) return toast("Add at least one item to distribute.", "error");
-
-  const consMode = (__distType() === "cons");
-  if (consMode) return toast("Use the Consumables section to distribute consumable stock.", "error");
-  const cats = consMode ? getConsCats() : getCategories();
+  if (!targets.length || targets.length !== __distToChecked.size) return toast("Select the current receiving units again.", "error");
+  if (__distType() === "cons") return toast("Use the Consumables section to distribute consumable stock.", "error");
   const planned = [];
-  const warnings = [];
   const need = new Map();
-  cleanRows.forEach(r => {
-    const catId = (r.querySelector(".fd-row-cat") || {}).value || "";
-    const sel = r.querySelector(".fd-row-item");
-    const newName = r.querySelector(".fd-row-newname");
-    const selV = (sel || {}).value || "";
-    const fromItem = consMode || selV === "__new__" ? null : getItemsForDistrict(activeDistrictId).find(i => i.id === selV && i.categoryId === catId && !i.isDeleted);
-    const name = (selV === "__new__" ? (newName ? newName.value : "") : consMode ? selV : (fromItem?.name || "")).trim();
-    const qg = parseInt((r.querySelector(".fd-row-qty-good") || {}).value, 10) || 0;
-    const qp = parseInt((r.querySelector(".fd-row-qty-poor") || {}).value, 10) || 0;
-    const qd = parseInt((r.querySelector(".fd-row-qty-damaged") || {}).value, 10) || 0;
-    const cat = cats.find(c => c.id === catId);
-    if (!name || !catId || Math.min(qg, qp, qd) < 0 || qg + qp + qd <= 0) return;
-    if (!consMode) {
-      const key = fromItem ? fromItem.id : name.toLowerCase();
-      if (!need.has(key)) need.set(key, { name, fromItem, good: 0, poor: 0, damaged: 0 });
-      const totals = need.get(key);
-      totals.good += qg * targets.length;
-      totals.poor += qp * targets.length;
-      totals.damaged += qd * targets.length;
-    }
-    planned.push({ row: r, catId, cat, name, qg, qp, qd, fromItem });
-  });
-  if (planned.length !== cleanRows.length) return toast("Har item ke liye category, item name aur kam se kam ek quantity above 0 chahiye.", "error");
-  for (const totals of need.values()) {
-    for (const condition of ["good", "poor", "damaged"]) {
-      const available = __distHasStock(totals.fromItem, condition);
-      if (available < totals[condition]) warnings.push(`"${totals.name}" (${condition}): available ${available}, total requested ${totals[condition]}.`);
+  for (const row of $("#distItemsBody").querySelectorAll(".fd-item-row")) {
+    const categoryId = row.querySelector(".fd-row-cat").value;
+    const selected = row.querySelector(".fd-row-item").value;
+    const name = row.querySelector(".fd-row-newname").value.trim();
+    const quantities = ["good", "poor", "damaged"].map(condition => Number(row.querySelector(".fd-row-qty-" + condition)?.value || 0));
+    if (!selected && !name && quantities.every(quantity => quantity === 0)) continue;
+    if (!categoryId || !quantities.every(quantity => Number.isSafeInteger(quantity) && quantity >= 0) || !quantities.some(quantity => quantity > 0)) throw new Error("Choose a category, item and positive whole quantities for every row.");
+    const source = __distSourceItems().find(item => item.id === selected && item.categoryId === categoryId);
+    if (!source && (selected !== "__new__" || !name)) throw new Error("Choose stock from an authorised source unit.");
+    const sourceName = source?.name || name;
+    for (const [index, condition] of ["good", "poor", "damaged"].entries()) {
+      const quantity = quantities[index];
+      if (!quantity) continue;
+      planned.push({ fromItemId: source?.id || "", fromLocationId: source?.locationId || "", itemName: sourceName,
+        categoryId, unit: source?.unit || "pcs", condition, qty: quantity });
+      const key = JSON.stringify([source?.id || sourceName, condition]);
+      const total = (need.get(key)?.quantity || 0) + quantity * targets.length;
+      need.set(key, { source, condition, quantity: total, name: sourceName });
     }
   }
-  if (warnings.length && !confirm("Available stock check:\n" + warnings.join("\n") + "\nSubmit anyway?")) return;
-
-  const fromDist = getDistricts().find(dd => dd.id === activeDistrictId);
-  const fromLocId = getVisibleLocationId() || (currentUser ? currentUser.locationId : "");
-  const fromLoc = getLocations().find(l => l.id === fromLocId);
-  const remarks = $("#distRemarks") ? $("#distRemarks").value.trim() : "";
-
-  let __distAtts = [];
-  if ((__attStore.dist || []).length) { try { __distAtts = await __attUploadAll("dist"); } catch (e) { return; } }
-
-  // Newly typed item that has no record yet: create a catalog entry (zero
-  // stock) in the sender district so it shows up in the item list next time.
-  let catalogAdded = 0;
-  planned.forEach(p => {
-    if (p.fromItem) return;
-    const existing = getItemsForDistrict(activeDistrictId).find(i => !i.isDeleted && i.categoryId === p.catId && i.locationId === fromLocId && i.name.toLowerCase() === p.name.toLowerCase());
-    if (existing) { p.fromItem = existing; return; }
-    const created = {
-      id: uid(), name: p.name, categoryId: p.catId, unit: "pcs",
-      quantity: 0, minStock: 0, locationId: fromLocId,
-      conditionCounts: { good: 0, poor: 0, damaged: 0 }, createdAt: Date.now(),
-    };
-    getItemsForDistrict(activeDistrictId).push(created);
-    p.fromItem = created;
-    catalogAdded++;
-  });
-  if (catalogAdded) saveAllItems(getAllItems());
-
-  const list = getDistributions();
-  let created = 0;
-  for (const target of targets) {
-    const items = [];
-    planned.forEach(p => {
-      [["good", p.qg], ["poor", p.qp], ["damaged", p.qd]].forEach(([cond, q]) => {
-        if (q <= 0) return;
-        items.push({
-          key: "i" + items.length,
-          itemName: p.name, qty: q, condition: cond,
-          categoryId: p.catId, categoryName: p.cat ? p.cat.name : "Other",
-          unit: p.fromItem ? p.fromItem.unit : "pcs",
-          fromItemId: p.fromItem ? p.fromItem.id : "",
-          fromLocationId: p.fromItem ? p.fromItem.locationId : "",
-          toItemId: null,
-        });
-      });
-    });
-    const targetDist = getDistricts().find(dd => dd.id === target.districtId);
-    const targetLoc = getLocationsForDistrict(target.districtId).find(l => l.id === target.locationId);
-    let receiver = null;
-    if (target.type === "unit") {
-      const res = resolveUnitAssignee(target.districtId, target.locationId);
-      receiver = getUsers().find(u => u.id === res.autoId) || null;
-    } else {
-      receiver = getUsers().find(u => u.districtId === target.districtId && u.role === "admin") || null;
-    }
-    const d = {
-      id: uid(),
-      distNo: nextDistNo(),
-      remarks,
-      fromDistrictId: activeDistrictId,
-      fromDistrictName: fromDist ? fromDist.name : "",
-      fromLocationId: fromLocId,
-      fromLocationName: fromLoc ? fromLoc.name : "",
-      fromUserId: currentUser ? currentUser.id : null,
-      fromUserName: currentUser ? currentUser.name : "User",
-      toType: target.type,
-      toDistrictId: target.districtId,
-      toDistrictName: targetDist ? targetDist.name : "",
-      toName: target.type === "admin" ? (targetDist ? targetDist.name : "") + " (Admin)" : (targetLoc ? targetLoc.name : ""),
-      toLocationId: target.locationId || (receiver ? receiver.locationId : null),
-      toLocationName: targetLoc ? targetLoc.name : (receiver && receiver.locationId ? (__devLocName ? __devLocName(target.districtId, receiver.locationId) : "") : ""),
-      toUserId: receiver ? receiver.id : null,
-      toUserName: receiver ? receiver.name : "",
-      items,
-      attachments: __distAtts,
-      status: "pending",
-      approveRemark: "", approvedBy: "", approvedAt: null,
-      rejectRemark: "", rejectedBy: "", rejectedAt: null,
-      createdAt: Date.now(),
-      updatedAt: null,
-    };
-    list.push(d);
-    created++;
-    const itemSummary = items.map(x => x.qty + " x " + x.itemName + " (" + x.condition + ")").join(", ");
-    __audit("Distribution Created", `${itemSummary} to ${__distReceiverName(d)}`, { entity: "Distribution" });
-    addNotification(d.toDistrictId, {
-      type: "distribution_received",
-      title: "New Distribution",
-      message: `${d.fromUserName} distributed ${itemSummary} to ${__distReceiverName(d)}.`,
-      fromDistrictId: activeDistrictId,
-      distributionId: d.id,
-      targetUserId: d.toUserId || null,
-      targetLocId: d.toLocationId || null,
-    });
+  if (!planned.length) throw new Error("Add at least one item to distribute.");
+  const warnings = [...need.values()].filter(row => __distHasStock(row.source, row.condition) < row.quantity)
+    .map(row => row.name + " (" + row.condition + "): available " + __distHasStock(row.source, row.condition) + ", requested " + row.quantity);
+  if (warnings.length && !confirm("Available stock check:\n" + warnings.join("\n") + "\nSubmit this pending request anyway? Stock is checked again at approval.")) return;
+  const attachments = (__attStore.dist || []).length ? await __attUploadAll("dist") : [];
+  const fromLocationId = getLocations().some(location => location.id === currentUser.locationId)
+    ? currentUser.locationId : planned.find(line => line.fromLocationId)?.fromLocationId || __distHQLocation(activeDistrictId)?.id;
+  const command = { action: "create", districtId: activeDistrictId, fromLocationId,
+    targets: targets.map(({ type, districtId, locationId }) => ({ type, districtId, locationId })),
+    items: planned, attachments, remarks: $("#distRemarks").value.trim() };
+  const fingerprint = JSON.stringify(command);
+  if (fingerprint !== __distributionSubmissionFingerprint) {
+    __distributionSubmissionId = uid();
+    __distributionSubmissionFingerprint = fingerprint;
   }
-  if ((__attStore.dist || []).length) {
-    planned.forEach(p => {
-      const itId = p.fromItem ? p.fromItem.id : (p.fromItemId || "");
-      if (itId) {
-        __saveItemProfilePhotos(itId, __attStore.dist, { source: "distribution", label: "Distribution Photo" });
-      }
-    });
-  }
-  saveDistributions(list);
+  const result = await __distributionCommand(command, __distributionSubmissionId);
   __attStore.dist = []; __attRender("dist");
-
-  toast(`Distribution submitted for ${created} recipient(s).`, "success");
-  closeModals();
-  render();
+  closeModals(); render();
+  toast("Distribution saved for " + result.ids.length + " recipient(s).", "success");
 }
 
 let __actDistStoreId = null;
@@ -7259,10 +7096,7 @@ function __setActDist(id) {
 
 function __getActDistribution() {
   const storeId = __actDistStoreId || activeDistrictId;
-  const list = (loadData(`distributions_${storeId}`) || []);
-  const d = list.find(x => x.id === __actDistId);
-  if (d) d.__storeId = storeId;
-  return d;
+  return __distributionsInStore(storeId).find(row => row.id === __actDistId);
 }
 
 function __distSummaryHtml(d) {
@@ -7298,48 +7132,26 @@ function openDistApprove(id) {
   openModal("#distApproveModal");
 }
 
-function approveDistribution() {
-  const d = __getActDistribution();
-  if (!d) return toast("Distribution record could not be found.", "error");
-  if (!__distActionableBy(d)) return toast("You are not authorised to approve this distribution.", "error");
-  if (d.status !== "pending") return toast("This distribution is no longer pending.", "error");
-  const stockIssue = __distSimulate(d);
-  if (stockIssue) return toast(stockIssue, "error");
-  const remarkEl = $("#distApproveRemark");
-  const remark = remarkEl ? remarkEl.value.trim() : "";
-  const reviewer = currentUser ? currentUser.name : "Receiver";
+async function approveDistribution() {
+  await __decideDistribution("approve");
+}
 
-  const storeId = d.__storeId || d.fromDistrictId || activeDistrictId;
-  const list = (loadData(`distributions_${storeId}`) || []);
-  const index = list.findIndex(x => x.id === d.id && x.status === "pending");
-  if (index < 0) { __actDistStoreId = null; __actDistId = null; return toast("This distribution is no longer pending.", "error"); }
-  const fresh = structuredClone(list[index]);
-  if (!__distApplyTransfer(fresh)) return toast("Stock transfer could not be completed.", "error");
-  fresh.status = "completed";
-  fresh.transferred = true;
-  fresh.toLocationId = fresh.toLocationId || d.toLocationId;
-  fresh.approveRemark = remark;
-  fresh.approvedBy = reviewer;
-  fresh.approvedAt = Date.now();
-  fresh.updatedAt = Date.now();
-  __saveDistributionsFor(storeId, list.map((entry, i) => i === index ? fresh : entry));
-
-  const itemSummary = (fresh.items || []).map(x => x.qty + " x " + x.itemName).join(", ");
-  __audit("Distribution Approved", `${itemSummary} by ${__distReceiverName(fresh)}`, { entity: "Distribution" });
-  addNotification(fresh.fromDistrictId, {
-    type: "distribution_approved",
-    title: "Distribution Approved",
-    message: `${reviewer} approved ${itemSummary}${remark ? " - " + remark : ""}.`,
-    fromDistrictId: activeDistrictId,
-    distributionId: fresh.id,
-    targetUserId: fresh.fromUserId || null,
-    targetLocId: fresh.fromLocationId || null,
-  });
-  toast("Distribution approved. Stock has been transferred.", "success");
-  closeModals();
-  __actDistStoreId = null;
-  __actDistId = null;
-  render();
+let __distributionDecisionBusy = false;
+async function __decideDistribution(action) {
+  if (__distributionDecisionBusy) return;
+  const record = __getActDistribution();
+  if (!record || !__distActionableBy(record)) return toast("You are not authorised to decide this distribution.", "error");
+  const remark = $(action === "approve" ? "#distApproveRemark" : "#distRejectRemark").value.trim();
+  if (action === "reject" && !remark) return toast("Rejection remark is required.", "error");
+  __distributionDecisionBusy = true;
+  const button = $(action === "approve" ? "#distApproveSubmitBtn" : "#distRejectSubmitBtn");
+  if (button) button.disabled = true;
+  try {
+    await __distributionCommand({ action, storeId: record.__storeId || record.fromDistrictId, id: record.id, remark });
+    closeModals(); __actDistStoreId = null; __actDistId = null; render();
+    toast(action === "approve" ? "Distribution approved. Stock has been transferred." : "Distribution rejected.", "success");
+  } catch (error) { toast(error.body?.error || error.message, "error"); }
+  finally { __distributionDecisionBusy = false; if (button) button.disabled = false; }
 }
 
 function openDistReject(id) {
@@ -7356,51 +7168,17 @@ function openDistReject(id) {
   openModal("#distRejectModal");
 }
 
-function doDistReject(e) {
-  e.preventDefault();
-  const d = __getActDistribution();
-  if (!d) return toast("Distribution record could not be found.", "error");
-  if (!__distActionableBy(d)) return toast("You are not authorised to reject this distribution.", "error");
-  if (d.status !== "pending") return toast("This distribution is no longer pending.", "error");
-  const remarkEl = $("#distRejectRemark");
-  const remark = remarkEl ? remarkEl.value.trim() : "";
-  if (!remark) return toast("Rejection remark is required.", "error");
-  const reviewer = currentUser ? currentUser.name : "Receiver";
-
-  const storeId = d.__storeId || d.fromDistrictId || activeDistrictId;
-  const list = (loadData(`distributions_${storeId}`) || []);
-  const fresh = list.find(x => x.id === d.id);
-  if (!fresh || fresh.status !== "pending") { __actDistStoreId = null; __actDistId = null; return toast("This distribution is no longer pending.", "error"); }
-
-  fresh.status = "rejected";
-  fresh.rejectRemark = remark;
-  fresh.rejectedBy = reviewer;
-  fresh.rejectedAt = Date.now();
-  fresh.updatedAt = Date.now();
-  __saveDistributionsFor(storeId, list);
-
-  const itemSummary = (fresh.items || []).map(x => x.qty + " x " + x.itemName).join(", ");
-  __audit("Distribution Rejected", `${itemSummary} by ${__distReceiverName(fresh)} - ${remark}`, { entity: "Distribution" });
-  addNotification(fresh.fromDistrictId, {
-    type: "distribution_rejected",
-    title: "Distribution Rejected",
-    message: `${reviewer} rejected ${itemSummary}. Reason: ${remark}`,
-    fromDistrictId: activeDistrictId,
-    distributionId: fresh.id,
-    targetUserId: fresh.fromUserId || null,
-    targetLocId: fresh.fromLocationId || null,
-  });
-  toast("Distribution rejected.", "success");
-  closeModals();
-  __actDistStoreId = null;
-  __actDistId = null;
-  render();
+async function doDistReject(event) {
+  event.preventDefault();
+  await __decideDistribution("reject");
 }
 
 function openDistributionDetail(id) {
   let d = __getActDistribution();
   if (!d || d.id !== id) d = __setActDist(id);
   if (!d) return toast("Distribution record could not be found.", "error");
+  const consumableRequest = d.isConsumable && d.fromDistrictId === activeDistrictId
+    ? getConsTxns().find(txn => txn.id === d.id && txn.type === "DISTRIBUTION_REQUEST") : null;
   $("#distDetailTitle").textContent = "Distribution Details - " + (d.distNo || "DIST-");
   $("#distDetailInfo").innerHTML = __distSummaryHtml(d) + attachmentChipsHtml(d);
   $("#distDetailItems").innerHTML = (d.items || []).map(it =>
@@ -7410,6 +7188,10 @@ function openDistributionDetail(id) {
   if (d.approvedAt) dec.push(`<div class="dd-item"><div class="dd-item-head">Approved by ${esc(d.approvedBy || "—")} on ${new Date(d.approvedAt).toLocaleString("en-IN")}</div>${d.approveRemark ? `<div class="dd-item-body">Note: ${esc(d.approveRemark)}</div>` : ""}</div>`);
   if (d.rejectedAt) dec.push(`<div class="dd-item"><div class="dd-item-head">Rejected by ${esc(d.rejectedBy || "—")} on ${new Date(d.rejectedAt).toLocaleString("en-IN")}</div><div class="dd-item-body">Reason: ${esc(d.rejectRemark || "—")}</div></div>`);
   if (!dec.length) dec.push(`<div class="dd-item"><div class="dd-item-body">No decision yet.</div></div>`);
+  if (d.status === "pending" && consumableRequest && __consIsRecipient(consumableRequest)) {
+    dec.push(`<div class="dd-item"><button type="button" class="btn btn-sm btn-green" data-cons-approve="${esc(d.id)}">Approve</button>
+      <button type="button" class="btn btn-sm btn-red" data-cons-reject="${esc(d.id)}">Reject</button></div>`);
+  }
   $("#distDetailDecisions").innerHTML = dec.join("");
   openModal("#distDetailModal");
 }
@@ -7441,7 +7223,7 @@ function __syncCompletedDistributionsStock() {
     const list = loadData(`distributions_${did}`) || [];
     let updated = false;
     list.forEach(d => {
-      if (d.status === "completed" && !d.transferred) {
+      if (!d.isConsumable && d.status === "completed" && !d.transferred) {
         const ok = __distApplyTransfer(d);
         if (ok) {
           d.transferred = true;
@@ -7465,14 +7247,13 @@ function __reverseDistributionStock(record) {
     const source = items[record.fromDistrictId]?.find(item => item.id === line.fromItemId && !item.isDeleted);
     const recipient = items[record.toDistrictId]?.find(item => item.id === line.toItemId && !item.isDeleted);
     if (!source || !recipient || source === recipient) return null;
-    const held = allocTotals(recipient);
     if (__distHasStock(recipient, condition) < quantity ||
-      Number(recipient.quantity) - quantity < held.allotted + held.damaged + held.lost) return null;
+      (condition !== "damaged" && DistributionLedger.available(recipient) < quantity)) return null;
     for (const [item, change] of [[source, quantity], [recipient, -quantity]]) {
-      const counts = item.conditionCounts || { good: item.quantity || 0, poor: 0, damaged: 0 };
+      const counts = DistributionLedger.counts(item);
       counts[condition] = (counts[condition] || 0) + change;
       item.conditionCounts = counts;
-      item.quantity = ["good", "poor", "damaged"].reduce((total, key) => total + (counts[key] || 0), 0);
+      item.quantity += change;
       item.updatedAt = Date.now();
       itemHistoryPush(item, { type: "ADJUST", qty: change, ref: record.distNo || record.id,
         date: todayStr(), time: nowTimeStr(), remarks: "Distribution deleted and stock reversed" });
@@ -7499,8 +7280,16 @@ function manageOperationalRecord(button) {
   const body = deleting
     ? `<p>Delete ${esc(reference)}${distribution ? " and reverse any transferred stock" : ""}?</p>`
     : `<label>${distribution ? "Sender remark" : "Description"}<textarea id="devOperationalValue">${esc(original[field] || "")}</textarea></label>`;
-  __devConfirm((deleting ? "Delete " : "Edit ") + label, body, deleting ? "Delete" : "Save", () => {
+  __devConfirm((deleting ? "Delete " : "Edit ") + label, body, deleting ? "Delete" : "Save", async () => {
     if (!isDevAdmin() || activeDistrictId !== districtId) return;
+    if (distribution && !original.isConsumable) {
+      try {
+        await __distributionCommand({ action: deleting ? "delete" : "edit", storeId: row.__storeId, id: row.id,
+          remark: $("#devOperationalValue")?.value.trim() || "", expectedUpdatedAt: original.updatedAt || original.createdAt });
+        render(); toast("Distribution " + (deleting ? "deleted and stock reversed." : "updated."), "success");
+      } catch (error) { toast(error.body?.error || error.message, "error"); }
+      return;
+    }
     const records = loadData(key) || [];
     const index = records.findIndex(record => record.id === row.id);
     if (index < 0 || JSON.stringify(records[index]) !== version) return toast("This record changed. Open it again.", "error");
@@ -10003,7 +9792,12 @@ function __receiveDemandStock(d, it, incomingQty, remark) {
   if (isCons) {
     const consMap = loadData("consumable_items") || {};
     const consItems = Array.isArray(consMap[targetDistId]) ? consMap[targetDistId] : [];
-    let cItem = consItems.find(x => !x.isDeleted && (x.name || "").trim().toLowerCase() === (it.itemName || "").trim().toLowerCase());
+    const normalize = value => String(value || "").trim().toLowerCase();
+    const itemUnit = it.unit || "pcs";
+    let cItem = consItems.find(x => !x.isDeleted &&
+      normalize(x.name) === normalize(it.itemName) &&
+      String(x.categoryId || "") === String(it.categoryId || "") &&
+      normalize(x.unit || "pcs") === normalize(itemUnit));
     if (!cItem) {
       cItem = {
         id: uid(),
@@ -10030,6 +9824,7 @@ function __receiveDemandStock(d, it, incomingQty, remark) {
       itemName: cItem.name,
       categoryId: cItem.categoryId,
       qty: incomingQty,
+      stockLocation: targetLocId ? "unit:" + targetLocId : "",
       date,
       time,
       byName: currentUser ? (currentUser.name || currentUser.username) : "System",
@@ -10786,6 +10581,52 @@ function availableQty(item) {
   return Math.max(0, (item.quantity || 0) - t.allotted - t.damaged - t.lost - __dmg);
 }
 
+function stockIssueConditionCounts() {
+  const counts = new Map();
+  for (const issue of getAllotments()) {
+    if ((issue.condition !== "poor" && issue.condition !== "good") ||
+      (issue.districtId && issue.districtId !== activeDistrictId)) continue;
+    if (!counts.has(issue.itemId)) counts.set(issue.itemId, { issued: 0, lost: 0, issuedGood: 0, lostGood: 0 });
+    const count = counts.get(issue.itemId);
+    const issued = allocOutstanding(issue);
+    const lost = Math.max(0, allocLost(issue) + legacyReturnedLoss(issue) - allocRecovered(issue));
+    if (issue.condition === "poor") {
+      count.issued += issued;
+      count.lost += lost;
+    } else {
+      count.issuedGood += issued;
+      count.lostGood += lost;
+    }
+  }
+  return counts;
+}
+
+function stockConditionBreakdown(item, recorded = { issued: 0, lost: 0, issuedGood: 0, lostGood: 0 }) {
+  if (!item) return { available: 0, good: 0, damaged: 0, issued: 0, issuedDamaged: 0, lost: 0, lostDamaged: 0 };
+  const { allotted: issued, lost } = allocTotals(item);
+  const available = availableQty(item);
+  const damagedStock = Math.max(0, item.conditionCounts?.poor || 0);
+  let issuedDamaged = Math.min(issued, recorded.issued);
+  let lostDamaged = Math.min(lost, recorded.lost);
+  // Use the recorded Damaged condition first. For unclassified quantities,
+  // exhaust Good stock before attributing the remainder to Damaged.
+  const damagedCapacity = Math.min(available + issued + lost, damagedStock);
+  const goodCapacity = available + issued + lost - damagedCapacity;
+  const issuedGood = Math.min(issued - issuedDamaged, recorded.issuedGood);
+  const lostGood = Math.min(lost - lostDamaged, recorded.lostGood);
+  const unknownIssued = issued - issuedDamaged - issuedGood;
+  const unknownLost = lost - lostDamaged - lostGood;
+  const unclassifiedGood = Math.max(0, goodCapacity - issuedGood - lostGood);
+  issuedDamaged += Math.max(0, unknownIssued - unclassifiedGood);
+  lostDamaged += Math.max(0, unknownLost - Math.max(0, unclassifiedGood - unknownIssued));
+  const damaged = Math.min(available, Math.max(0, damagedCapacity - issuedDamaged - lostDamaged));
+  return { available, good: available - damaged, damaged, issued, issuedDamaged, lost, lostDamaged };
+}
+
+function stockStatusCount(total, damaged) {
+  return total ? `${total}<small class="stock-condition-count"><span style="color:var(--green)">G ${total - damaged}</span> &middot; <span style="color:var(--amber)">D ${damaged}</span></small>` : "0";
+}
+
 function allocStatusOfItem(item) {
   const avail = availableQty(item);
   if (avail <= 0) {
@@ -10988,7 +10829,7 @@ function updateStockSortHeader() {
   });
 }
 
-function __allocStockSorted(rows) {
+function __allocStockSorted(rows, breakdowns) {
   const cats = getCategories();
   const locations = getLocations();
   const { key, dir } = __allocStockSort;
@@ -11003,8 +10844,8 @@ function __allocStockSorted(rows) {
     else if (key === "available") { av = availableQty(a); bv = availableQty(b); }
     else if (key === "allotted") { av = a.allotted || 0; bv = b.allotted || 0; }
     else if (key === "loss") { av = a.lostReturned || 0; bv = b.lostReturned || 0; }
-    else if (key === "good") { av = (a.conditionCounts || {}).good || 0; bv = (b.conditionCounts || {}).good || 0; }
-    else if (key === "damaged") { av = (a.conditionCounts || {}).poor || 0; bv = (b.conditionCounts || {}).poor || 0; }
+    else if (key === "good") { av = breakdowns.get(a).good; bv = breakdowns.get(b).good; }
+    else if (key === "damaged") { av = breakdowns.get(a).damaged; bv = breakdowns.get(b).damaged; }
     else if (key === "scrap") { av = scrapQty(a); bv = scrapQty(b); }
     else if (key === "status") { av = allocStatusOfItem(a).label; bv = allocStatusOfItem(b).label; }
     if (typeof av === "number") return (av - bv) * dir;
@@ -11117,19 +10958,25 @@ function renderAllocStock() {
   const locations = getLocations();
   const head = document.querySelector("#allocStockTable thead");
   if (head) head.innerHTML = allMode ? __STOCK_HEAD_ALL : __STOCK_HEAD_STD;
-  const rows = __allocStockSorted(__allocStockFiltered());
+  const filtered = __allocStockFiltered();
+  const recorded = stockIssueConditionCounts();
+  const breakdowns = new Map(filtered.map(item => [item, stockConditionBreakdown(item, recorded.get(item.id))]));
+  const rows = __allocStockSorted(filtered, breakdowns);
   updateStockSortHeader();
   if (!rows.length) { body.innerHTML = `<tr class="empty-row"><td colspan="${allMode ? 12 : 11}">No items found.</td></tr>`; renderPager("allocStock", 0, renderAllocStock); renderStockColumns(); return; }
-  let ttotal = 0, tavailable = 0, tallot = 0, tloss = 0, tdamaged = 0, tscrap = 0, tgood = 0;
-  rows.forEach(i => {
-    ttotal += i.quantity || 0;
-    tallot += i.allotted || 0;
-    tavailable += availableQty(i);
-    tloss += i.lostReturned || 0;
-    const __cc = i.conditionCounts || {};
-    tgood += __cc.good || 0;
-    tdamaged += __cc.poor || 0;
-    tscrap += scrapQty(i);
+  let ttotal = 0, tavail = 0, tallot = 0, tloss = 0, tdamaged = 0, tscrap = 0, tgood = 0;
+  let tIssuedDamaged = 0, tLostDamaged = 0;
+  rows.forEach(item => {
+    const balance = breakdowns.get(item);
+    ttotal += item.quantity || 0;
+    tavail += balance.available;
+    tallot += balance.issued;
+    tloss += balance.lost;
+    tIssuedDamaged += balance.issuedDamaged;
+    tLostDamaged += balance.lostDamaged;
+    tgood += balance.good;
+    tdamaged += balance.damaged;
+    tscrap += scrapQty(item);
   });
   const baseNo = __pgPage("allocStock", rows.length) * __pgSize("allocStock");
   body.innerHTML = __pgRows("allocStock", rows).map((i, idx) => {
@@ -11137,20 +10984,20 @@ function renderAllocStock() {
     const st = allocStatusOfItem(i);
     const loc = i.locationId ? locations.find(l => l.id === i.locationId) : null;
     const unitCell = allMode ? "<td>" + esc(loc ? loc.name : "") + "</td>" : "";
-    const avail = availableQty(i);
+    const balance = breakdowns.get(i);
     const acts = actDD([
       { label: "View", attrs: `data-alloc-action="view" data-id="${i.id}"` },
       ...(canEditItem(i) ? [
         { label: "Update", attrs: `data-alloc-action="edit" data-id="${i.id}"` }
       ] : []),
-      ...(canEditItem(i) && avail > 0 ? [
+      ...(canEditItem(i) && balance.available > 0 ? [
         { label: "Mark Lost", cls: "act-dd-del", attrs: `data-alloc-action="loss" data-id="${i.id}"` },
         { label: "Mark Scrap", cls: "act-dd-del", attrs: `data-alloc-action="scrap" data-id="${esc(i.id)}"` }
       ] : [])
     ]);
-    return `<tr><td>${baseNo + idx + 1}</td><td class="item-name">${__ipLink(i)}</td>${unitCell}<td class="qty-strong">${i.quantity || 0}</td><td class="qty-strong" style="color:var(--green)">${availableQty(i)}</td><td class="qty-strong" style="color:var(--primary)">${i.allotted || 0}</td><td class="qty-strong" style="color:var(--red)">${i.lostReturned || 0}</td><td class="qty-strong" style="color:var(--green)">${(i.conditionCounts || {}).good || 0}</td><td class="qty-strong" style="color:var(--amber)">${(i.conditionCounts || {}).poor || 0}</td><td class="qty-strong" style="color:var(--red)">${scrapQty(i)}</td><td><span class="status-badge ${st.cls}">${st.label}</span></td><td class="actions-cell">${acts}</td></tr>`;
+    return `<tr><td>${baseNo + idx + 1}</td><td class="item-name">${__ipLink(i)}</td>${unitCell}<td class="qty-strong">${i.quantity || 0}</td><td class="qty-strong" style="color:var(--green)">${balance.available}</td><td class="qty-strong" style="color:var(--primary)">${stockStatusCount(balance.issued, balance.issuedDamaged)}</td><td class="qty-strong" style="color:var(--red)">${stockStatusCount(balance.lost, balance.lostDamaged)}</td><td class="qty-strong" style="color:var(--green)">${balance.good}</td><td class="qty-strong" style="color:var(--amber)">${balance.damaged}</td><td class="qty-strong" style="color:var(--red)">${scrapQty(i)}</td><td><span class="status-badge ${st.cls}">${st.label}</span></td><td class="actions-cell">${acts}</td></tr>`;
   }).join("") +
-    `<tr class="rpt-total-row"><td></td><td class="rpt-total-label">Total</td>${allMode ? "<td></td>" : ""}<td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavailable}</td><td class="qty-strong">${tallot}</td><td class="qty-strong">${tloss}</td><td class="qty-strong">${tgood}</td><td class="qty-strong">${tdamaged}</td><td class="qty-strong">${tscrap}</td><td colspan="2"></td></tr>`;
+    `<tr class="rpt-total-row"><td></td><td class="rpt-total-label">Total</td>${allMode ? "<td></td>" : ""}<td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavail}</td><td class="qty-strong">${stockStatusCount(tallot, tIssuedDamaged)}</td><td class="qty-strong">${stockStatusCount(tloss, tLostDamaged)}</td><td class="qty-strong">${tgood}</td><td class="qty-strong">${tdamaged}</td><td class="qty-strong">${tscrap}</td><td colspan="2"></td></tr>`;
   renderPager("allocStock", rows.length, renderAllocStock);
   renderStockColumns();
 }
@@ -11487,7 +11334,7 @@ function renderRowItemOptions(r) {
   const opts = (isCons ? getConsItems() : getItems()).filter(i => i.categoryId === r.categoryId && !used.has(i.id));
   sel.disabled = false;
   const cur = r.itemId && opts.some(o => o.id === r.itemId) ? r.itemId : "";
-  sel.innerHTML = `<option value="">Select item</option>` + opts.map(o => `<option value="${o.id}" ${o.id === cur ? "selected" : ""}>${esc(o.name)} (Avail: ${isCons ? __consQty(o.id).available : availableQty(o)})</option>`).join("");
+  sel.innerHTML = `<option value="">Select item</option>` + opts.map(o => `<option value="${o.id}" ${o.id === cur ? "selected" : ""}>${esc(o.name)} (Avail: ${isCons ? (__consIsAdminView() ? __consQty(o.id) : __consQtyOwn(o.id)).availForNew : availableQty(o)})</option>`).join("");
   sel.value = cur;
   r.itemId = cur;
   return cur;
@@ -11504,8 +11351,8 @@ function refreshAllotRowBalances() {
     if (__alType() === "cons") {
       const ci = r.itemId ? getConsItems().find(i => i.id === r.itemId) : null;
       if (!ci) { box.innerHTML = ""; return; }
-      const q = __consQty(ci.id);
-      box.innerHTML = `<span class="bal-chip bal-total">Available: <b>${q.available}</b></span><span class="bal-chip bal-pend">Pending: <b>${q.pending}</b></span>`;
+      const q = __consIsAdminView() ? __consQty(ci.id) : __consQtyOwn(ci.id);
+      box.innerHTML = `<span class="bal-chip bal-total">Available: <b>${q.availForNew}</b></span><span class="bal-chip bal-pend">Pending: <b>${q.pending}</b></span>`;
       return;
     }
     const item = r.itemId ? getItems().find(i => i.id === r.itemId) : null;
@@ -11561,7 +11408,7 @@ function bindAllotRowEvents() {
     if (qtyEl) {
       const key = qtyEl.dataset.row;
       const r = __alItemRows.find(x => x.key == key);
-      if (r) r.qty = parseInt(qtyEl.value, 10) || 0;
+      if (r) r.qty = (__alType() === "cons" ? Number(qtyEl.value) : parseInt(qtyEl.value, 10)) || 0;
       refreshAllotSummary();
     }
   });
@@ -11698,12 +11545,15 @@ async function saveAllotment(e) {
   if (__alType() === "cons") {
     const consItems = getConsItems();
     const consRows = [];
+    const requested = new Map();
     for (const r of __alItemRows.filter(x => x.itemId)) {
       const ci = consItems.find(i => i.id === r.itemId);
       if (!ci) return toast("Select a valid consume item in every row.", "error");
-      if (!r.qty || r.qty < 1) return toast("Enter a valid quantity for every row.", "error");
-      const q = __consQty(ci.id);
-      if (r.qty > q.availForNew) return toast("Insufficient available quantity for \"" + ci.name + "\". Available: " + q.availForNew, "error");
+      if (!Number.isSafeInteger(r.qty) || r.qty < 1) return toast("Enter a positive whole quantity for every row.", "error");
+      const q = __consIsAdminView() ? __consQty(ci.id) : __consQtyOwn(ci.id);
+      const totalRequested = (requested.get(ci.id) || 0) + r.qty;
+      if (totalRequested > q.availForNew) return toast("Insufficient available quantity for \"" + ci.name + "\". Available: " + q.availForNew, "error");
+      requested.set(ci.id, totalRequested);
       consRows.push({ ci, qty: r.qty });
     }
     if (!consRows.length) return toast("Add at least one item with a quantity.", "error");
@@ -11728,7 +11578,7 @@ async function saveAllotment(e) {
     const __alRem = __alUser ? remarks : ("Issued to " + name + " (BELT: " + belt + ")" + (remarks ? " | " + remarks : ""));
     const txns = getConsTxns();
     for (const cr of consRows) {
-      const t1 = __consCommit("DISTRIBUTION_REQUEST", cr.ci, cr.qty, __alTo, null, __alRem, __alPhoto ? __alPhoto.dataUrl : "");
+      const t1 = __consCommit("DISTRIBUTION_REQUEST", cr.ci, cr.qty, __alTo, null, __alRem, __alPhoto ? __alPhoto.dataUrl : "", txns);
       t1.date = date; t1.time = time;
       txns.unshift(t1);
     }
@@ -11741,9 +11591,10 @@ async function saveAllotment(e) {
         }
       }
     }
+    __audit("Consumable Items Issued", consRows.length + " consume item(s) to " + __alTo.name + " (BELT: " + belt + ")", { entity: "Consumable" });
+    if (!await __confirmConsumableSave(e.currentTarget)) return;
     __attStore.issue = []; __attRender("issue");
     closeModals(); __alItemRows = []; render();
-    __audit("Consumable Items Issued", consRows.length + " consume item(s) to " + __alTo.name + " (BELT: " + belt + ")", { entity: "Consumable" });
     toast(consRows.length + " consume item(s) issue request sent to " + __alTo.name + ".", "success");
     return;
   }
@@ -15220,18 +15071,7 @@ function __demandTargetAvail(itemName, condition, distId, locId) {
 function __consLedgerForDistrict(distId) {
   if (!distId) return {};
   const txns = (loadData("consumable_txns") || {})[distId] || [];
-  const m = {};
-  for (const t of txns) {
-    if (!t || !t.itemId) continue;
-    const q = Math.max(0, Math.floor(Number(t.qty) || 0));
-    const a = (m[t.itemId] = m[t.itemId] || { total: 0, pending: 0, distributed: 0, lost: 0 });
-    if (t.type === "ADD") a.total += q;
-    else if (t.type === "DISTRIBUTION_REQUEST") a.pending += q;
-    else if (t.type === "DISTRIBUTION_APPROVED") { a.pending -= q; a.distributed += q; }
-    else if (t.type === "DISTRIBUTION_REJECTED") a.pending -= q;
-    else if (t.type === "LOSS") a.lost += q;
-  }
-  return m;
+  return __consLedger(txns);
 }
 
 function __demandTargetConsAvail(itemName, distId, locId) {
@@ -15252,11 +15092,10 @@ function __demandTargetConsAvail(itemName, distId, locId) {
     const a = ledger[ci.id] || { total: 0, pending: 0, distributed: 0, lost: 0 };
     return Math.max(0, a.total - a.distributed - a.lost - a.pending);
   }
-  if (typeof __consQtyAt === "function") {
-    const at = __consQtyAt(ci.id, "unit:" + locId);
-    return Math.max(0, at.available || 0);
-  }
-  return 0;
+  const transactions = (loadData("consumable_txns") || {})[distId] || [];
+  const users = getUsers().filter(user => user.districtId === distId);
+  const balance = ConsumableLedger.atLocation(transactions, ci.id, "unit:" + locId, users, getLocationsForDistrict(distId));
+  return Math.max(0, ConsumableLedger.available(balance));
 }
 
 function __fdAvailable() {
@@ -16660,7 +16499,7 @@ __initLanguage();
 document.addEventListener("DOMContentLoaded", __initLanguage);
 
 /* ==================== CONSUMABLE ITEMS ==================== */
-/* One-way inventory: TOTAL = AVAILABLE + DISTRIBUTED + LOST.
+/* One-way inventory: TOTAL = AVAILABLE + PENDING + DISTRIBUTED + LOST.
    Distributions reserve (pending) until the recipient approves;
    rejection releases the reservation. NO return workflow exists.
    The server (_rbac.js) re-validates every ledger change diff-based. */
@@ -16981,69 +16820,33 @@ function __consOwnLocLabel() {
   if (k.indexOf("unit:") === 0) { const l = getLocations().find(x => x.id === currentUser.locationId); return ((l && l.name) || "My Unit") + " (My Unit)"; }
   return (currentUser.name || "My Staff") + " (My Staff)";
 }
-/* Own stock for the logged-in unit/staff user: what was distributed TO their unit (unit:<locId>) or to them (staff:<userId>), minus their unit's own onward distributions (requests raised by their unit's users to other units/staff), pending onward requests and losses marked by their unit's users. */
+/* Unit users act on shared unit stock. Users without a unit act on personal stock. */
 function __consQtyOwn(itemId) {
-  const myLoc = String(currentUser.locationId || "");
-  const mates = getUsers().filter(u => String(u.locationId) === myLoc).map(u => String(u.id));
-  const isOnward = (t) => {
-    if (!mates.includes(String(t.byId))) return false;
-    if (String(t.toType) === "staff") return true;
-    if (String(t.toType) === "unit" && String(t.toId) !== myLoc) return true;
-    return false;
-  };
-  const onwardReqIds = new Set();
-  for (const t of getConsTxns()) {
-    if (t && t.type === "DISTRIBUTION_REQUEST" && isOnward(t)) onwardReqIds.add(String(t.requestId || t.id));
-  }
-  const addMatch = (t) => {
-    const u = getUsers().find(x => String(x.id) === String(t.byId));
-    return !!u && String(u.locationId) === myLoc;
-  };
-  let received = 0, pendingIn = 0, lost = 0, outPending = 0, outDist = 0;
-  for (const t of getConsTxns()) {
-    if (!t || t.itemId !== itemId) continue;
-    const q = Math.max(0, Math.floor(Number(t.qty) || 0));
-    if (t.type === "ADD" && addMatch(t)) received += q;
-    if ((String(t.toType) === "unit" && String(t.toId) === myLoc) || (String(t.toType) === "staff" && String(t.toId) === String(currentUser.id))) {
-      if (t.type === "DISTRIBUTION_APPROVED") received += q;
-      else if (t.type === "DISTRIBUTION_REQUEST") pendingIn += q;
-    }
-    if (t.type === "LOSS" && mates.includes(String(t.byId))) lost += q;
-    else if (t.type === "DISTRIBUTION_REQUEST" && isOnward(t)) outPending += q;
-    else if (t.type === "DISTRIBUTION_APPROVED" && (onwardReqIds.has(String(t.requestId || "")) )) outDist += q;
-  }
-  const avail = Math.max(0, received - lost - outDist);
-  let status = "Available";
-  if (received === 0) status = "Available";
-  else if (avail > 0) status = (pendingIn > 0 || outPending > 0) ? "Partially Available" : "Available";
-  else if (pendingIn > 0) status = "Pending Approval";
-  else status = "Distributed";
-  return { total: received, available: avail, pending: pendingIn + outPending, distributed: outDist, lost: lost, availForNew: avail, status: status };
+  return __consQtyAt(itemId, __consOwnLocKey());
 }
 function __consLedger(transactions = getConsTxns()) {
-  const m = {};
-  for (const t of transactions) {
-    if (!t || !t.itemId) continue;
-    const q = Math.max(0, Math.floor(Number(t.qty) || 0));
-    const a = (m[t.itemId] = m[t.itemId] || { total: 0, pending: 0, distributed: 0, lost: 0 });
-    if (t.type === "ADD") a.total += q;
-    else if (t.type === "DISTRIBUTION_REQUEST") a.pending += q;
-    else if (t.type === "DISTRIBUTION_APPROVED") { a.pending -= q; a.distributed += q; }
-    else if (t.type === "DISTRIBUTION_REJECTED") a.pending -= q;
-    else if (t.type === "LOSS") a.lost += q;
+  const byItem = new Map();
+  for (const txn of transactions) {
+    if (!txn?.itemId) continue;
+    if (!byItem.has(txn.itemId)) byItem.set(txn.itemId, []);
+    byItem.get(txn.itemId).push(txn);
   }
-  return m;
+  return Object.fromEntries([...byItem].map(([id, rows]) => [id, ConsumableLedger.district(rows, id)]));
+}
+function __consBalanceView(balance, availForNew) {
+  const available = Math.max(0, ConsumableLedger.available(balance));
+  let status = "Out of Stock";
+  if (available > 0) status = balance.pending || balance.distributed || balance.lost ? "Partially Available" : "Available";
+  else if (balance.pending > 0) status = "Pending Approval";
+  else if (balance.distributed > 0) status = "Distributed";
+  else if (balance.lost > 0) status = "Lost";
+  return { ...balance, available, availForNew: Math.max(0, availForNew ?? available), status };
 }
 function __consQty(itemId) {
-  const a = __consLedger()[itemId] || { total: 0, pending: 0, distributed: 0, lost: 0 };
-  const avail = Math.max(0, a.total - a.distributed - a.lost - a.pending);
-  let status = "Available";
-  if (a.total === 0) status = "Available";
-  else if (avail > 0 && (a.pending > 0 || a.distributed > 0 || a.lost > 0)) status = "Partially Available";
-  else if (avail === 0 && a.pending > 0) status = "Pending Approval";
-  else if (avail === 0 && a.distributed > 0) status = "Distributed";
-  else if (avail === 0 && a.lost > 0) status = "Lost";
-  return { total: a.total, available: avail, pending: a.pending, distributed: a.distributed, lost: a.lost, availForNew: avail, status };
+  const transactions = getConsTxns();
+  const balance = ConsumableLedger.district(transactions, itemId);
+  const central = ConsumableLedger.district(transactions, itemId, true);
+  return __consBalanceView(balance, ConsumableLedger.available(central));
 }
 function __consReqStatus(reqId) {
   const txns = getConsTxns();
@@ -17126,54 +16929,10 @@ function __consTotals() {
   return t;
 }
 let __consTab = "stock";
-/* Per-location consumable view (admin selecting a unit/staff): received stock of that unit/staff minus what that unit/staff further distributed onward (Available = after distribution), their losses and pending onward requests. */
+/* Use the same location balance for display and stock validation. */
 function __consQtyAt(itemId, loc, transactions = getConsTxns()) {
-  const c = String(loc).indexOf(":");
-  const tt = String(loc).slice(0, c), tid = String(loc).slice(c + 1);
-  let mates, recvKeys;
-  if (tt === "unit") {
-    mates = getUsers().filter(u => String(u.locationId) === String(tid)).map(u => String(u.id));
-    recvKeys = [["unit", String(tid)]].concat(mates.map(u => ["staff", u]));
-  } else {
-    mates = [String(tid)];
-    recvKeys = [["staff", String(tid)]];
-  }
-  const isOnward = (t) => {
-    if (!mates.includes(String(t.byId))) return false;
-    if (String(t.toType) === "staff") return true;
-    if (String(t.toType) === "unit" && String(t.toId) !== String(tid)) return true;
-    return false;
-  };
-  const onwardReqIds = new Set();
-  for (const t of transactions) {
-    if (t && t.type === "DISTRIBUTION_REQUEST" && isOnward(t)) onwardReqIds.add(String(t.requestId || t.id));
-  }
-  const addMatch = (t) => {
-    const u = getUsers().find(x => String(x.id) === String(t.byId));
-    if (!u) return false;
-    if (tt === "unit") return String(u.locationId) === String(tid);
-    return String(u.id) === String(tid) && !(u.locationId && getLocations().some(l => l.id === u.locationId));
-  };
-  let received = 0, pendingIn = 0, lost = 0, outPending = 0, outDist = 0;
-  for (const t of transactions) {
-    if (!t || t.itemId !== itemId) continue;
-    const q = Math.max(0, Math.floor(Number(t.qty) || 0));
-    if (t.type === "ADD" && addMatch(t)) received += q;
-    if (recvKeys.some(k => String(t.toType) === k[0] && String(t.toId) === k[1])) {
-      if (t.type === "DISTRIBUTION_APPROVED") received += q;
-      else if (t.type === "DISTRIBUTION_REQUEST") pendingIn += q;
-    }
-    if (t.type === "LOSS" && mates.includes(String(t.byId))) lost += q;
-    else if (t.type === "DISTRIBUTION_REQUEST" && isOnward(t)) outPending += q;
-    else if (t.type === "DISTRIBUTION_APPROVED" && onwardReqIds.has(String(t.requestId || ""))) outDist += q;
-  }
-  const avail = Math.max(0, received - lost - outDist);
-  let status = "Available";
-  if (received === 0) status = "Available";
-  else if (avail > 0) status = (pendingIn > 0 || outPending > 0) ? "Partially Available" : "Available";
-  else if (pendingIn > 0) status = "Pending Approval";
-  else status = "Distributed";
-  return { total: received, available: avail, pending: pendingIn + outPending, distributed: outDist, lost: lost, availForNew: 0, status: status };
+  const users = getUsers().filter(user => user.districtId === activeDistrictId);
+  return __consBalanceView(ConsumableLedger.atLocation(transactions, itemId, loc, users, getLocations()));
 }
 let __consStockLoc = "";
 function __repopulateConsMultiCat(sel, ms) {
@@ -17205,7 +16964,7 @@ function __consStockFilteredRows() {
     }
     const cat = cats.find(c => c.id === x.i.categoryId);
     if (q && !((x.i.name || "").toLowerCase().includes(q) || ((cat && cat.name) || "").toLowerCase().includes(q))) return false;
-    if (typeF === "distributed" && x.q.total <= 0) return false;
+    if (typeF === "distributed" && x.q.distributed <= 0) return false;
     if (typeF === "available" && x.q.available <= 0) return false;
     if (!isAdmin && x.q.total <= 0) return false;
     return true;
@@ -17226,11 +16985,11 @@ function renderConsStock() {
   const rows = __consStockFilteredRows();
   const head = $("#consStockHead");
   if (head) { const th = head.querySelectorAll("th")[2]; if (th) th.textContent = locF ? "Total Qty (Received)" : "Total Qty"; }
-  let ttotal = 0, tavail = 0, tdist = 0, tlost = 0;
-  rows.forEach(x => { ttotal += x.q.total; tavail += x.q.available; tdist += x.q.distributed; tlost += x.q.lost; });
+  let ttotal = 0, tavail = 0, tpending = 0, tdist = 0, tlost = 0;
+  rows.forEach(x => { ttotal += x.q.total; tavail += x.q.available; tpending += x.q.pending; tdist += x.q.distributed; tlost += x.q.lost; });
   const baseNo = __pgPage("consStock", rows.length) * __pgSize("consStock");
   const rowsHtml = rows.length === 0
-    ? `<tr class="empty-row"><td colspan="8">No consume items found.</td></tr>`
+    ? `<tr class="empty-row"><td colspan="9">No consumable items found.</td></tr>`
     : __pgRows("consStock", rows).map((x, idx) => {
         const st = x.q.status;
         const acts = __consCanManage() ? actDD([
@@ -17238,10 +16997,10 @@ function renderConsStock() {
           ...((!isAdmin || !locF) && x.q.availForNew > 0 ? [{ label: "Distribute", attrs: `data-cons-dist="${x.i.id}"` }] : []),
           ...((!isAdmin || !locF) && x.q.availForNew > 0 ? [{ label: "Mark Lost", attrs: `data-cons-loss="${x.i.id}"` }] : [])
         ]) : `<button type="button" class="btn btn-sm btn-outline" data-cons-view="${x.i.id}">View</button>`;
-        return `<tr><td>${baseNo + idx + 1}</td><td class="item-name"><button type="button" class="linklike" data-cons-view="${x.i.id}" title="Open item details">${nameCell(x.i.name)}</button></td><td class="qty-strong">${x.q.total}</td><td class="qty-strong">${x.q.available}</td><td>${x.q.distributed}</td><td>${x.q.lost}</td><td><span class="status-badge">${esc(st)}</span></td><td>${acts}${isDevAdmin() ? ` <button type="button" class="btn btn-sm btn-outline" data-cons-history="${esc(x.i.id)}">History</button>` : ""}</td></tr>`;
+        return `<tr><td>${baseNo + idx + 1}</td><td class="item-name"><button type="button" class="linklike" data-cons-view="${x.i.id}" title="Open item details">${nameCell(x.i.name)}</button></td><td class="qty-strong">${x.q.total}</td><td class="qty-strong">${x.q.available}</td><td>${x.q.pending}</td><td>${x.q.distributed}</td><td>${x.q.lost}</td><td><span class="status-badge">${esc(st)}</span></td><td>${acts}${isDevAdmin() ? ` <button type="button" class="btn btn-sm btn-outline" data-cons-history="${esc(x.i.id)}">History</button>` : ""}</td></tr>`;
       }).join("");
   body.innerHTML = rowsHtml +
-    `<tr class="rpt-total-row"><td></td><td class="rpt-total-label">Total</td><td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavail}</td><td>${tdist}</td><td>${tlost}</td><td></td><td></td></tr>`;
+    `<tr class="rpt-total-row"><td></td><td class="rpt-total-label">Total</td><td class="qty-strong">${ttotal}</td><td class="qty-strong">${tavail}</td><td>${tpending}</td><td>${tdist}</td><td>${tlost}</td><td></td><td></td></tr>`;
   const note = $("#consStockNote");
   if (note) {
     let name = "All Locations";
@@ -17252,31 +17011,38 @@ function renderConsStock() {
       else { const u = getUsers().find(x => x.id === tid); name = (u && u.name) || "Staff"; }
     }
     note.classList.remove("hidden");
-    note.innerHTML = "<b>" + esc(name) + "</b> &mdash; Total Quantity: <b>" + ttotal + "</b> &middot; Available (in stock now): <b>" + tavail + "</b> &middot; " + (locF ? "Received: <b>" + ttotal + "</b> &middot; " : "Added: <b>" + ttotal + "</b> &middot; ") + "Distributed: <b>" + tdist + "</b> &middot; Lost: <b>" + tlost + "</b>";
+    const districtStore = !locF ? rows.reduce((sum, row) => sum + row.q.availForNew, 0) : null;
+    note.innerHTML = "<b>" + esc(name) + "</b> &mdash; Total Quantity: <b>" + ttotal + "</b> &middot; Available (in stock now): <b>" + tavail + "</b> &middot; Pending Approval: <b>" + tpending + "</b> &middot; " + (locF ? "Received: <b>" + ttotal + "</b> &middot; " : "Added: <b>" + ttotal + "</b> &middot; ") + "Distributed: <b>" + tdist + "</b> &middot; Lost: <b>" + tlost + "</b>" +
+      (districtStore !== null && districtStore !== tavail ? " &middot; Available at District Store: <b>" + districtStore + "</b>" : "");
   }
   renderPager("consStock", rows.length, renderConsStock);
 }
 function __consExportTableRows() {
   const cats = getConsCats();
-  return __consStockFilteredRows().map(x => { const q = x.q; const i = x.i; const cat = cats.find(c => c.id === i.categoryId); return [i.name, (cat && cat.name) || "", String(q.total), String(q.available), String(q.distributed), String(q.lost), q.status]; });
+  return __consStockFilteredRows().map(x => { const q = x.q; const i = x.i; const cat = cats.find(c => c.id === i.categoryId); return [i.name, (cat && cat.name) || "", q.total, q.available, q.pending, q.distributed, q.lost, q.status]; });
 }
 function __consStockExportData() {
   const locF = __consIsAdminView() ? (($("#consStockLoc") || {}).value || "") : __consOwnLocKey();
-  const first = ["S.No", "Item Name", "Category", locF ? "Total Qty (Received)" : "Total Qty", "Available", "Distributed", "Lost", "Status"];
-  return [first].concat(__consExportTableRows().map((r, i) => [String(i + 1)].concat(r)));
-}
-function exportConsStockCSV() { __consCsv("consumable-item-consume.csv", __consStockExportData()); toast("CSV exported.", "success"); }
-function exportConsStockPDF() {
   const rows = __consExportTableRows();
-  const win = window.open("", "_blank");
-  if (!win) return toast("Popup blocked.", "error");
-  const __consPrintCols = ["Item", "Category", "Total", "Available", "Distributed", "Lost", "Status"];
-  win.document.write("<h2>Consumable Items \u2014 Item Consume</h2><table border=1 cellpadding=4 style=\"border-collapse:collapse\"><tr>" + __consPrintCols.map(h => "<th>" + h + "</th>").join("") + "</tr>" + rows.map(r => "<tr>" + r.map((c, ci) => "<td>" + colCellInline(__consPrintCols[ci], c) + "</td>").join("") + "</tr>").join("") + "</table>");
-  win.document.close(); win.print();
+  return {
+    title: "Consumable Stock",
+    subtitle: "Items: " + rows.length,
+    fileName: "consumable-stock",
+    cols: ["S.No", "Item Name", "Category", locF ? "Total Qty (Received)" : "Total Qty",
+      "Available", "Pending Approval", "Distributed", "Lost", "Status"],
+    rows: rows.map((row, index) => [index + 1, ...row]),
+  };
 }
-function exportConsStockExcel() { exportConsStockCSV(); }
-function exportConsStockWord() { exportConsStockPDF(); }
-function printConsStock() { exportConsStockPDF(); }
+function exportConsStockPDF() { pdfReport(__consStockExportData()); }
+function exportConsStockExcel() {
+  if (!window.XLSX) return toast("Excel export is unavailable. Try again after the page loads.", "error");
+  const report = __consStockExportData();
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([report.cols, ...report.rows]), "Stock");
+  XLSX.writeFile(workbook, report.fileName + ".xlsx");
+}
+function exportConsStockWord() { wordReport(__consStockExportData()); }
+function printConsStock() { printReport(__consStockExportData()); }
 function __consShowTab(name) {
   __consTab = name;
   $$("[data-constab]").forEach(t => t.classList.toggle("active", t.dataset.constab === name));
@@ -17388,10 +17154,9 @@ function consTransactionActions(transaction) {
 }
 
 function consTransactionBalancesValid(itemId, current, next) {
-  const districtBalance = transactions => {
-    const ledger = __consLedger(transactions)[itemId];
-    return ledger ? ledger.total - ledger.distributed - ledger.lost - ledger.pending : 0;
-  };
+  const districtBalance = transactions => ConsumableLedger.available(ConsumableLedger.district(transactions, itemId));
+  const centralBalance = transactions => ConsumableLedger.available(ConsumableLedger.district(transactions, itemId, true));
+  if (centralBalance(next) < Math.min(0, centralBalance(current))) return false;
   if (districtBalance(next) < Math.min(0, districtBalance(current))) return false;
   const locations = [
     ...getLocations().map(location => "unit:" + location.id),
@@ -17399,7 +17164,7 @@ function consTransactionBalancesValid(itemId, current, next) {
   ];
   const balanceAt = (location, transactions) => {
     const stock = __consQtyAt(itemId, location, transactions);
-    return stock.total - stock.lost - stock.distributed;
+    return ConsumableLedger.available(stock);
   };
   return locations.every(location => balanceAt(location, next) >= Math.min(0, balanceAt(location, current)));
 }
@@ -17641,12 +17406,19 @@ function __consPopulateRowItems(row) {
     if (row.__itemCombo) row.__itemCombo.sync();
     return;
   }
-  const consNames = getConsItems().filter(i => i.categoryId === cid && !i.isDeleted).map(i => i.name);
-  const distNames = getAllDistrictItems().filter(i => i.categoryId === cid && !i.isDeleted).map(i => i.name);
-  const combined = [...new Set([...consNames, ...distNames].filter(Boolean))];
-  const names = __byName(combined, x => x);
+  const existing = getConsItems().filter(i => i.categoryId === cid && !i.isDeleted);
+  const existingNames = new Set(existing.map(item => item.name.trim().toLowerCase()));
+  const templates = getAllDistrictItems().filter(i => i.categoryId === cid && !i.isDeleted && i.name);
+  const templateNames = [...new Set(templates.map(item => item.name))]
+    .filter(name => !existingNames.has(name.trim().toLowerCase()));
+  const options = [
+    ...existing.map(item => ({ value: "item:" + item.id, label: item.name + " (" + (item.unit || "pcs") + ")" })),
+    ...templateNames.map(name => ({ value: name, label: name })),
+  ];
   itemSel.disabled = false;
-  itemSel.innerHTML = `<option value="">Select item</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("") + `<option value="__new__">&#10133; New item...</option>`;
+  itemSel.innerHTML = `<option value="">Select item</option>` + __byName(options, option => option.label)
+    .map(option => `<option value="${esc(option.value)}">${esc(option.label)}</option>`).join("") +
+    `<option value="__new__">&#10133; New item...</option>`;
   if (row.__itemCombo) row.__itemCombo.sync();
 }
 function __consRenderThumbs(row) {
@@ -17704,8 +17476,8 @@ function __consRowsChange(e) {
       const val = (e.target.value || "").trim();
       const cid = (row.querySelector(".cons-row-cat") || {}).value || "";
       if (val) {
-        const it = getConsItems().find(i => (i.name || "").toLowerCase() === val.toLowerCase() && (!cid || i.categoryId === cid) && !i.isDeleted)
-          || getAllDistrictItems().find(i => (i.name || "").toLowerCase() === val.toLowerCase() && (!cid || i.categoryId === cid) && !i.isDeleted);
+        const it = val.startsWith("item:") ? __consItem(val.slice(5)) :
+          getAllDistrictItems().find(i => (i.name || "").toLowerCase() === val.toLowerCase() && (!cid || i.categoryId === cid) && !i.isDeleted);
         if (it) {
           if (unitSel && it.unit) {
             const hit = Array.from(unitSel.options).find(o => o.value.toLowerCase() === String(it.unit).toLowerCase());
@@ -17727,7 +17499,7 @@ function __consRowsChange(e) {
   if (e.target.classList.contains("cons-photo-input")) { __consReadPhotos(row, e.target.files); e.target.value = ""; return; }
 }
 function openConsAdd() {
-  if (!__consCanManage() && !isDevAdmin()) return toast("You are not allowed to modify consumables.", "error"); // devadmin: view only, save blocked in saveConsAdd
+  if (!__consCanManage() && !isDevAdmin()) return toast("You are not allowed to modify consumables.", "error");
   __consRowSeq = 0;
   __consRowPhotos = {};
   $("#consRows").innerHTML = "";
@@ -17774,8 +17546,24 @@ function __syncConsTime() {
   }
 }
 
-function saveConsAdd(e) {
+async function __confirmConsumableSave(form) {
+  const submit = form?.querySelector('[type="submit"]');
+  if (submit) submit.disabled = true;
+  try {
+    if (window.__apiFlush) await window.__apiFlush();
+    return true;
+  } catch (error) {
+    render();
+    toast(error.message || "Consumable transaction could not be saved.", "error");
+    return false;
+  } finally {
+    if (submit) submit.disabled = false;
+  }
+}
+let __consAddBusy = false;
+async function saveConsAdd(e) {
   e.preventDefault();
+  if (__consAddBusy) return;
   if (!__consCanManage()) return toast("You are not allowed to modify consumables.", "error");
   const rows = $$("#consRows .cons-item-row");
   const cleanRows = [];
@@ -17784,17 +17572,19 @@ function saveConsAdd(e) {
     const sel = row.querySelector(".cons-row-item");
     const newNameEl = row.querySelector(".as-row-newname");
     const selV = (sel || {}).value || "";
-    const newName = (selV === "__new__" ? (newNameEl ? newNameEl.value : "") : selV).trim();
+    const selectedItem = selV.startsWith("item:") ? __consItem(selV.slice(5)) : null;
+    const newName = (selV === "__new__" ? (newNameEl ? newNameEl.value : "") :
+      selV.startsWith("item:") ? (selectedItem?.name || "") : selV).trim();
     const unit = (row.querySelector(".cons-row-unit") || {}).value || "pcs";
-    const minStockVal = parseInt((row.querySelector(".cons-row-min") || {}).value, 10);
+    const minStockVal = Number((row.querySelector(".cons-row-min") || {}).value);
     if (!Number.isSafeInteger(minStockVal) || minStockVal < 0) return toast("Minimum stock must be a non-negative whole number.", "error");
     const minStock = minStockVal;
-    const qty = Math.floor(Number((row.querySelector(".cons-row-qty") || {}).value));
+    const qty = Number((row.querySelector(".cons-row-qty") || {}).value);
     if (!cid && !newName && (!isFinite(qty) || qty <= 0)) continue;
     if (!cid) return toast("Har row me category select karo.", "error");
     if (!newName) return toast("Har row me item select ya type karo.", "error");
-    if (!isFinite(qty) || qty <= 0) return toast("Quantity must be a positive whole number.", "error");
-    cleanRows.push({ row, cid, newName, unit, minStock, qty });
+    if (!Number.isSafeInteger(qty) || qty <= 0) return toast("Quantity must be a positive whole number.", "error");
+    cleanRows.push({ row, cid, newName, unit, minStock, qty, selectedItem });
   }
   if (!cleanRows.length) return toast("Add at least one item.", "error");
   const remarks = $("#consRemarks").value.trim();
@@ -17808,12 +17598,14 @@ function saveConsAdd(e) {
   const txns = getConsTxns();
   let added = 0;
   for (const p of cleanRows) {
-    let item = items.find(x => x.name.toLowerCase() === p.newName.toLowerCase() && x.categoryId === p.cid && !x.isDeleted);
+    const sameUnit = item => (item.unit || "pcs").trim().toLowerCase() === p.unit.trim().toLowerCase();
+    let item = items.find(x => x.id === p.selectedItem?.id && !x.isDeleted && x.categoryId === p.cid && sameUnit(x)) ||
+      items.find(x => !x.isDeleted && x.name.trim().toLowerCase() === p.newName.toLowerCase() &&
+        x.categoryId === p.cid && sameUnit(x));
     if (!item) {
       item = { id: uid(), categoryId: p.cid, name: p.newName, unit: p.unit || "pcs", minStock: p.minStock, photoUrl: "", condition: "Good", remarks: "", createdAt: Date.now() };
       items.push(item);
     } else {
-      if (p.unit) item.unit = p.unit;
       if (typeof p.minStock === "number") item.minStock = p.minStock;
     }
     const photos = __consRowPhotos[p.row.dataset.key] || [];
@@ -17824,13 +17616,17 @@ function saveConsAdd(e) {
       __saveItemProfilePhotos(item.id, photos, { date, time, source: "cons_add_stock", label: "Consumable Stock Added" });
     }
     saveConsItems(items);
-    const txn = __consCommit("ADD", item, p.qty, null, null, remarks, photo ? photo.dataUrl : "");
+    const txn = __consCommit("ADD", item, p.qty, null, null, remarks, photo ? photo.dataUrl : "", txns);
     if (date) txn.date = date;
     if (time) txn.time = time;
     txns.unshift(txn);
     added++;
   }
   saveConsTxns(txns);
+  __consAddBusy = true;
+  const saved = await __confirmConsumableSave(e.currentTarget);
+  __consAddBusy = false;
+  if (!saved) return;
   __consRowPhotos = {};
   closeModals();
   render();
@@ -17838,30 +17634,27 @@ function saveConsAdd(e) {
 }
 
 
-function __consCommit(type, item, qty, to, reqRef, remarks, photo) {
-  const agg = __consLedger()[item.id] || { total: 0, pending: 0, distributed: 0, lost: 0 };
-  const prev = { total: agg.total, available: Math.max(0, agg.total - agg.distributed - agg.lost - agg.pending), pending: agg.pending, distributed: agg.distributed, lost: agg.lost };
-  const a2 = Object.assign({}, agg);
-  if (type === "ADD") a2.total += qty;
-  else if (type === "DISTRIBUTION_REQUEST") a2.pending += qty;
-  else if (type === "DISTRIBUTION_APPROVED") { a2.pending -= qty; a2.distributed += qty; }
-  else if (type === "DISTRIBUTION_REJECTED") a2.pending -= qty;
-  else if (type === "LOSS") a2.lost += qty;
-  const next = { total: a2.total, available: Math.max(0, a2.total - a2.distributed - a2.lost - a2.pending), pending: a2.pending, distributed: a2.distributed, lost: a2.lost };
+function __consCommit(type, item, qty, to, reqRef, remarks, photo, transactions = getConsTxns()) {
+  const snapshot = balance => ({ ...balance, available: Math.max(0, ConsumableLedger.available(balance)) });
+  const prev = snapshot(ConsumableLedger.district(transactions, item.id));
   const now = __consNow();
   const t = {
     id: uid(), itemId: item.id, categoryId: item.categoryId, itemName: item.name, type, qty,
     toType: to ? to.type : null, toId: to ? to.id : null, toName: to ? to.name : null,
     byId: currentUser.id, byName: currentUser.name,
     requestId: reqRef || null, reason: "", remarks: remarks || "", photo: photo || "",
-    date: now.date, time: now.time, createdAt: now.ts,
-    prev: prev, next: next,
+    date: now.date, time: now.time, createdAt: transactions.reduce((latest, txn) => Math.max(latest, (txn.createdAt || 0) + 1), now.ts),
+    stockLocation: reqRef && type !== "DISTRIBUTION_REQUEST"
+      ? transactions.find(request => request.id === reqRef)?.stockLocation
+      : (__consIsAdminView() ? "" : __consOwnLocKey()),
+    prev,
   };
+  t.next = snapshot(ConsumableLedger.district([...transactions, t], item.id));
   return t;
 }
 /* ---- Distribute ---- */
 function openConsDist(itemId) {
-  if (!__consCanManage() && !isDevAdmin()) return toast("You are not allowed to modify consumables.", "error"); // devadmin: view only, save blocked in saveConsDist
+  if (!__consCanManage() && !isDevAdmin()) return toast("You are not allowed to modify consumables.", "error");
   const item = __consItem(itemId);
   if (!item) return toast("Item not found.", "error");
   const q = __consIsAdminView() ? __consQty(itemId) : __consQtyOwn(itemId);
@@ -17885,14 +17678,14 @@ function openConsDist(itemId) {
   if (__consToCombo) { __consToCombo.hid.value = ""; __consToCombo.inp.value = ""; }
   openModal("#consDistModal");
 }
-function saveConsDist(e) {
+async function saveConsDist(e) {
   e.preventDefault();
   if (!__consCanManage()) return toast("You are not allowed to modify consumables.", "error");
   const item = __consItem(__consDistItemId);
   if (!item) return toast("Item not found.", "error");
   const q = __consIsAdminView() ? __consQty(item.id) : __consQtyOwn(item.id);
-  const qty = Math.floor(Number($("#cdQty").value));
-  if (!isFinite(qty) || qty <= 0) return toast("Distribution quantity must be a positive whole number.", "error");
+  const qty = Number($("#cdQty").value);
+  if (!Number.isSafeInteger(qty) || qty <= 0) return toast("Distribution quantity must be a positive whole number.", "error");
   if (qty > q.availForNew) return toast("Insufficient available quantity. Available quantity: " + q.availForNew + " | Requested quantity: " + qty, "error");
   const tv = __consToCombo ? __consToCombo.hid.value : "";
   if (!tv || tv.indexOf(":") === -1) return toast("Please choose a recipient (unit or staff).", "error");
@@ -17963,10 +17756,10 @@ function saveConsDist(e) {
       fromItemId: item.id
     }],
     attachments: distPhotos.map(p => ({ id: p.id || uid(), name: p.name || "Distribution Photo", dataUrl: p.dataUrl })),
-    status: "completed",
-    approveRemark: remarks || "Consumable distribution",
-    approvedBy: currentUser.name,
-    approvedAt: Date.now(),
+    status: "pending",
+    approveRemark: "",
+    approvedBy: "",
+    approvedAt: null,
     isConsumable: true,
     createdAt: Date.now(),
     updatedAt: Date.now()
@@ -17986,12 +17779,13 @@ function saveConsDist(e) {
     targetUserId: toType === "staff" ? toId : null,
   });
   __audit("Consumable Distribution Requested", `"${item.name}" x${qty} -> ${toName} (${toType})`, { entity: "Consumable" });
+  if (!await __confirmConsumableSave(e.currentTarget)) return;
   closeModals();
   render();
   toast("Consumable distribution request sent for approval.", "success");
 }
 /* ---- Approve / Reject ---- */
-function __consApplyDecision(reqId, approve, reason) {
+async function __consApplyDecision(reqId, approve, reason) {
   const txns = getConsTxns();
   const req = txns.find(x => x.id === reqId);
   if (!req) return toast("Distribution request not found.", "error");
@@ -18014,19 +17808,21 @@ function __consApplyDecision(reqId, approve, reason) {
   if (approve) {
     addNotification(activeDistrictId, { type: "cons_approved", title: "Consumable distribution approved.", message: "Item: " + item.name + " | Quantity: " + req.qty + " | Approved By: " + currentUser.name + " | Status: Complete", consReqId: req.id, targetUserId: req.byId });
     __audit("Consumable Distribution Approved", `"${item.name}" x${req.qty} to ${req.toName} approved by ${currentUser.name}`, { entity: "Consumable" });
-    toast("Distribution approved. Quantity is now recorded as distributed.", "success");
+
   } else {
-    addNotification(activeDistrictId, { type: "cons_rejected", title: "Consumable distribution rejected.", message: "Item: " + item.name + " | Quantity: " + req.qty + " | Rejected By: " + currentUser.name + " | Reason: " + reason + " | Status: Rejected", targetUserId: req.byId });
+    addNotification(activeDistrictId, { type: "cons_rejected", title: "Consumable distribution rejected.", message: "Item: " + item.name + " | Quantity: " + req.qty + " | Rejected By: " + currentUser.name + " | Reason: " + reason + " | Status: Rejected", consReqId: req.id, targetUserId: req.byId });
     __audit("Consumable Distribution Rejected", `"${item.name}" x${req.qty} rejected by ${currentUser.name}: ${reason}`, { entity: "Consumable" });
-    toast("Distribution rejected. Reserved quantity released back to available.", "success");
   }
+  if (!await __confirmConsumableSave()) return;
+  toast(approve ? "Distribution approved. Quantity is now recorded as distributed."
+    : "Distribution rejected. Reserved quantity released back to available.", "success");
   closeModals();
   render();
 }
 /* ---- Loss ---- */
 let __consLossItemId = null;
 function openConsLoss(itemId) {
-  if (!__consCanManage() && !isDevAdmin()) return toast("You are not allowed to modify consumables.", "error"); // devadmin: view only, save blocked in saveConsLoss
+  if (!__consCanManage() && !isDevAdmin()) return toast("You are not allowed to modify consumables.", "error");
   const item = __consItem(itemId);
   if (!item) return toast("Item not found.", "error");
   const q = __consIsAdminView() ? __consQty(itemId) : __consQtyOwn(itemId);
@@ -18038,13 +17834,14 @@ function openConsLoss(itemId) {
   $("#clRemarks").value = "";
   openModal("#consLossModal");
 }
-function saveConsLoss(e) {
+async function saveConsLoss(e) {
   e.preventDefault();
+  if (!__consCanManage()) return toast("You are not allowed to modify consumables.", "error");
   const item = __consItem(__consLossItemId);
   if (!item) return toast("Item not found.", "error");
   const q = __consIsAdminView() ? __consQty(item.id) : __consQtyOwn(item.id);
-  const qty = Math.floor(Number($("#clQty").value));
-  if (!isFinite(qty) || qty <= 0) return toast("Lost quantity must be a positive whole number.", "error");
+  const qty = Number($("#clQty").value);
+  if (!Number.isSafeInteger(qty) || qty <= 0) return toast("Lost quantity must be a positive whole number.", "error");
   if (qty > q.availForNew) return toast("Insufficient available quantity. Available quantity: " + q.availForNew + " | Requested quantity: " + qty, "error");
   const remarks = $("#clRemarks").value.trim();
   const tLoss = __consCommit("LOSS", item, qty, null, null, remarks, "");
@@ -18052,6 +17849,7 @@ function saveConsLoss(e) {
   txnsLoss.unshift(tLoss);
   saveConsTxns(txnsLoss);
   __audit("Consumable Quantity Lost", `"${item.name}" x${qty} marked lost by ${currentUser.name}`, { entity: "Consumable" });
+  if (!await __confirmConsumableSave(e.currentTarget)) return;
   closeModals();
   render();
   toast("Consumable item quantity marked as lost successfully.", "success");
@@ -18062,7 +17860,7 @@ function openConsItem(itemId) {
   const item = __consItem(itemId);
   if (!item) return toast("Item not found.", "error");
   __consViewItemId = itemId;
-  const q = __consQty(itemId);
+  const q = __consIsAdminView() ? __consQty(itemId) : __consQtyOwn(itemId);
   const box = $("#consItemBody");
   const hist = getConsTxns().filter(t => t.itemId === itemId);
   const histRows = hist.map(t => {
@@ -18146,6 +17944,7 @@ function openConsRequest(reqId) {
   __consReviewReqId = reqId;
   const item = __consItem(req.itemId) || {};
   const st = __consReqStatus(reqId);
+  const rejection = getConsTxns().find(t => t.type === "DISTRIBUTION_REJECTED" && t.requestId === reqId);
   const box = $("#consReqBody");
   box.innerHTML =
     `<div class="cons-item-head">
@@ -18163,7 +17962,7 @@ function openConsRequest(reqId) {
       <div><span class="stat-label">Time</span><b>${esc(req.time || "")}</b></div>
       <div><span class="stat-label">Status</span>${__consStatusBadge(st)}</div>
       ${req.remarks ? `<div style="grid-column:1/-1"><span class="stat-label">Remarks</span><div>${esc(req.remarks)}</div></div>` : ""}
-      ${st === "Rejected" && req.reason ? `<div style="grid-column:1/-1"><span class="stat-label">Rejection Reason</span><b>${esc(req.reason)}</b></div>` : ""}
+      ${st === "Rejected" && rejection?.reason ? `<div style="grid-column:1/-1"><span class="stat-label">Rejection Reason</span><b>${esc(rejection.reason)}</b></div>` : ""}
     </div>`;
   const pend = st === "Pending Approval";
   const mine = __consIsRecipient(req);
@@ -18246,9 +18045,6 @@ function openConsRecipient(toType, toId, name) {
   openModal("#consRecipientModal");
 }
 /* ---- Exports ---- */
-function __consCsv(name, rows) {
-  downloadBlob(rows.map(r => r.map(v => `"${String(v == null ? "" : v).replace(/"/g, '\"')}"`).join(",")).join("\r\n"), "text/csv", name);
-}
 function __consLedgerExportData() {
   const rows = __consRowsFilter(__consRows());
   const dist = getDistricts().find(d => d.id === activeDistrictId);

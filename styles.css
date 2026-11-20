@@ -1866,6 +1866,7 @@ th[data-sort-col]:focus-visible { outline: 2px solid var(--primary); outline-off
 /* Distribution: multi-recipient checkboxes + per-condition qty + stock info */
 .dist-check-list { display: flex; flex-wrap: wrap; gap: 6px 14px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; max-height: 130px; overflow: auto; }
 .dist-check-item { display: inline-flex; align-items: center; gap: 5px; font-size: .8rem; cursor: pointer; white-space: nowrap; }
+.stock-condition-count { display: block; color: var(--muted); font-weight: normal; line-height: 1.35; white-space: normal; }
 .dist-stock-info { font-size: .72rem; color: var(--muted); line-height: 1.5; }
 .dist-item-row { grid-template-columns: 1fr 1.3fr 1.6fr auto auto; }
 @media (max-width: 950px) { .dist-item-row { grid-template-columns: 1fr 1fr; } }
