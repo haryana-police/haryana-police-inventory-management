@@ -674,9 +674,6 @@ button, .btn, a.btn, .linklike { touch-action: manipulation; }
 
 /* ---------- GRIEVANCES MOBILE RESPONSIVENESS ---------- */
 @media (max-width: 768px) {
-  #grievanceStats {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
   #view-grievances .table-controls {
     flex-direction: column !important;
     align-items: stretch !important;
