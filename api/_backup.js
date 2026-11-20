@@ -19,6 +19,7 @@ const path = require('path');
 
 const DATA_DIR = path.join(__dirname, '..', 'local-data');
 const DATA_FILE = path.join(DATA_DIR, 'db.json');
+const GRIEVANCES_FILE = path.join(DATA_DIR, 'grievances.json');
 const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 
 const ENABLED = String(process.env.HP_BACKUP === undefined ? '1' : process.env.HP_BACKUP) !== '0';
@@ -71,6 +72,12 @@ function backupNow(reason) {
     if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
     const dest = path.join(BACKUP_DIR, freeName('db-' + stamp(new Date())));
     fs.copyFileSync(DATA_FILE, dest);
+    if (fs.existsSync(GRIEVANCES_FILE)) {
+      try {
+        const gDest = path.join(BACKUP_DIR, freeName('grievances-' + stamp(new Date())));
+        fs.copyFileSync(GRIEVANCES_FILE, gDest);
+      } catch (ge) {}
+    }
     const removed = prune();
     console.log('[backup] ' + path.basename(dest) + (reason ? ' (' + reason + ')' : '') + (removed ? ', pruned ' + removed : ''));
     return dest;

@@ -671,3 +671,29 @@ button, .btn, a.btn, .linklike { touch-action: manipulation; }
   .quick-login-list { max-height: none; }
   .demo-list { max-height: none; }
 }
+
+/* ---------- GRIEVANCES MOBILE RESPONSIVENESS ---------- */
+@media (max-width: 768px) {
+  #grievanceStats {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  #view-grievances .table-controls {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  #view-grievances .table-controls > div {
+    width: 100% !important;
+  }
+  #grievanceTable th:nth-child(2),
+  #grievanceTable td:nth-child(2) {
+    display: none;
+  }
+  #grievanceDetailModal .modal,
+  #grievanceModal .modal {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+  }
+}

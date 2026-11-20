@@ -1212,7 +1212,7 @@ function renderAllNotifs() {
    (demands / inventory / users) and highlights the row. */
 function __notifTarget(n) {
   const t = (n._extType || n.type || "").toString();
-  if (t === "GRIEVANCE_RAISED") return { tab: "grievances", id: null };
+  if (t.indexOf("GRIEVANCE_") === 0) return { tab: "grievances", id: n.grievanceId || null };
   if (n.maintenanceId || t.indexOf("MAINTENANCE_") === 0) return { tab: "maintenance", id: n.maintenanceId };
   if (n.demandId || t.indexOf("DEMAND_") === 0) return { tab: "demands", id: n.demandId };
   if (n.itemId || t.indexOf("LOW_STOCK") === 0 || t.indexOf("ITEM_") === 0) return { tab: "inventory", id: n.itemId || null };
@@ -1227,7 +1227,7 @@ function __notifFromItem(item) {
     const ev = __rt.events.find(e => e.id === idNum);
     if (ev) {
       const p = ev.payload || {};
-      n._extType = ev.type; n.demandId = p.demandId; n.requestId = p.requestId; n.txnId = p.txnId; n.itemId = p.itemId; n.maintenanceId = p.maintenanceId;
+      n._extType = ev.type; n.demandId = p.demandId; n.requestId = p.requestId; n.txnId = p.txnId; n.itemId = p.itemId; n.maintenanceId = p.maintenanceId; n.grievanceId = p.grievanceId;
       return n;
     }
   }
@@ -1258,6 +1258,10 @@ function __goToNotif(item) {
   ["maintSearch","maintStatusFilter","maintTypeFilter","maintDateFrom","maintDateTo"].forEach(id => { const e = $("#" + id); if (e) e.value = ""; });
   switchTab(target.tab);
   if (!target.id) return;
+  if (target.tab === "grievances") {
+    if (window.openGrievanceById) window.openGrievanceById(target.id);
+    return;
+  }
   const sel = target.tab === "demands" ? 'tr[data-demand-id="' + target.id + '"]'
     : target.tab === "maintenance" ? 'tr[data-maint-id="' + target.id + '"]'
     : 'tr[data-item-id="' + target.id + '"]';
@@ -7717,9 +7721,8 @@ function __allVisibleMaintenance() {
     return __maintenanceInStore(currentUser.districtId || activeDistrictId).filter(x => x.requestToUserId === currentUser.id || x.requestingUserId === currentUser.id);
   }
   const list = __maintenanceInStore(activeDistrictId);
-  if (currentUser && currentUser.role === "admin") {
-    // District Admin must not see specialist requests (computer_it / vehicle) unless raised by themselves
-    return list.filter(x => (x.requestingUserId === currentUser.id || (x.maintenanceType !== "computer_it" && x.maintenanceType !== "vehicle")));
+  if (currentUser && (currentUser.role === "admin" || currentUser.role === "devadmin" || currentUser.role === "ig")) {
+    return list;
   }
   const locId = getVisibleLocationId();
   if (!locId) return list;
@@ -7890,12 +7893,17 @@ function __maintRenderPhotoPreviews() {
 function __maintReadPhotoFiles(files) {
   if (!files || !files.length) return;
   for (const f of Array.from(files)) {
+    if (__maintPhotos.length >= MAINT_PHOTO_MAX) {
+      toast("Maximum " + MAINT_PHOTO_MAX + " photos allowed.", "error");
+      break;
+    }
     const type = (f.type || "").toLowerCase();
     if (!type.startsWith("image/")) { toast(`"${f.name}" is not an image file. Only photos can be attached.`, "error"); continue; }
     if (f.size > MAINT_PHOTO_LIMIT) { toast(`"${f.name}" is too large (max 4MB).`, "error"); continue; }
     if (__maintPhotos.some(p => p.name === f.name && p.size === f.size)) { toast(`"${f.name}" is already attached.`, "error"); continue; }
     const reader = new FileReader();
     reader.onload = () => {
+      if (__maintPhotos.length >= MAINT_PHOTO_MAX) return;
       __maintPhotos.push({ id: uid(), name: f.name, mime: f.type, size: f.size, dataUrl: String(reader.result) });
       __maintRenderPhotoPreviews();
     };
@@ -7980,7 +7988,12 @@ async function __openDataUrl(u, name) {
 }
 let __camStream = null, __camCtx = "", __camFacing = "environment";
 function __attTargetPush(ctx, photo) {
-  if (ctx === "maint") { __maintPhotos.push(photo); __maintRenderPhotoPreviews(); return; }
+  if (ctx === "maint") {
+    if (__maintPhotos.length >= MAINT_PHOTO_MAX) { toast("Maximum " + MAINT_PHOTO_MAX + " photos allowed.", "error"); return; }
+    __maintPhotos.push(photo);
+    __maintRenderPhotoPreviews();
+    return;
+  }
   if (ctx === "shramdaan") { __shramAddPhoto(photo); return; }
   if (ctx === "as" || ctx.indexOf("as:") === 0) {
     const key = ctx.slice(3);
@@ -8041,7 +8054,14 @@ function snapCam() {
 }
 document.addEventListener("click", (e) => {
   const camBtn = e.target.closest("[data-att-cam]");
-  if (camBtn) { openCam(camBtn.dataset.attCam); return; }
+  if (camBtn) {
+    if (camBtn.dataset.attCam === "maint" && __maintPhotos.length >= MAINT_PHOTO_MAX) {
+      toast("Maximum " + MAINT_PHOTO_MAX + " photos allowed.", "error");
+      return;
+    }
+    openCam(camBtn.dataset.attCam);
+    return;
+  }
   if (e.target.closest("#camCaptureBtn")) { snapCam(); return; }
   if (e.target.closest("#camDoneBtn") || e.target.closest("#camCloseBtn")) { closeCamOnly(); $("#camModal").classList.add("hidden"); return; }
   if (e.target.closest("#camSwitchBtn")) { __camFacing = __camFacing === "environment" ? "user" : "environment"; closeCamOnly(); openCam(__camCtx); return; }
@@ -8132,6 +8152,7 @@ async function saveMaintenanceRequest(e) {
   if (btn) { btn.disabled = true; btn.textContent = "Submitting..."; }
   try {
     const storedPhotos = [];
+    const localScanArr = (!window.CONFIG || !window.CONFIG.useRemote) ? __scanStoreLoad() : null;
     for (const p of __maintPhotos) {
       if (!p.dataUrl) continue;
       if (window.CONFIG && window.CONFIG.useRemote) {
@@ -8141,9 +8162,14 @@ async function saveMaintenanceRequest(e) {
           toast(`Photo "${p.name}" could not be uploaded. Please try again.`, "error");
           throw new Error("photo-upload-failed");
         }
+      } else if (localScanArr) {
+        if (!localScanArr.some(x => x.id === p.id)) {
+          localScanArr.push({ id: p.id, name: p.name, mime: p.mime, size: p.size, dataUrl: p.dataUrl, at: Date.now() });
+        }
       }
-      storedPhotos.push({ id: p.id, fileName: p.name, mimeType: p.mime, fileSize: p.size });
+      storedPhotos.push({ id: p.id, fileName: p.name, mimeType: p.mime, fileSize: p.size, dataUrl: p.dataUrl });
     }
+    if (localScanArr) __scanStoreSave(localScanArr);
 
     const now = Date.now();
     const r = {
@@ -8248,11 +8274,18 @@ const __MAINT_PLACEHOLDER = "data:image/svg+xml;charset=utf-8," + encodeURICompo
 function __maintThumbsHtml(r, clickable) {
   const photos = Array.isArray(r.photos) ? r.photos : [];
   if (!photos.length) return `<span class="maint-photo-empty">No photos attached.</span>`;
-  return photos.map((p, i) =>
-    `<div class="maint-photo-thumb" data-maint-photo-view="${p.id}" ${clickable ? 'style="cursor:zoom-in"' : ""}>
-      <img src="${__MAINT_PLACEHOLDER}" alt="${esc(p.fileName || "Photo")}" data-photo-id="${p.id}">
+  return photos.map((p, i) => {
+    let src = p.dataUrl || "";
+    if (!src) {
+      const local = __scanStoreLoad().find(x => x.id === p.id);
+      if (local && local.dataUrl) src = local.dataUrl;
+    }
+    src = src || __MAINT_PLACEHOLDER;
+    return `<div class="maint-photo-thumb" data-maint-photo-view="${p.id}" ${clickable ? 'style="cursor:zoom-in"' : ""}>
+      <img src="${src}" alt="${esc(p.fileName || "Photo")}" data-photo-id="${p.id}">
       <span class="maint-photo-name">${esc(p.fileName || ("Photo " + (i + 1)))}</span>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 }
 
 function __maintBindPhotoLoads(scope) {
@@ -8261,33 +8294,45 @@ function __maintBindPhotoLoads(scope) {
   root.querySelectorAll("img[data-photo-id]").forEach(img => {
     const pid = img.dataset.photoId;
     if (!pid || img.dataset.loaded) return;
+    if (img.src && !img.src.startsWith("data:image/svg+xml")) {
+      img.dataset.loaded = "1";
+      return;
+    }
     img.dataset.loaded = "1";
-    let done = false;
+    const local = __scanStoreLoad().find(x => x.id === pid);
+    if (local && local.dataUrl) { img.src = local.dataUrl; return; }
+    const ph = __maintPhotos.find(p => p.id === pid);
+    if (ph && ph.dataUrl) { img.src = ph.dataUrl; return; }
     if (window.CONFIG && window.CONFIG.useRemote) {
       __api("GET", "scanfile/" + pid).then(rr => {
-        if (rr && rr.dataUrl) { img.src = rr.dataUrl; done = true; }
+        if (rr && rr.dataUrl) img.src = rr.dataUrl;
       }).catch(() => {});
     }
-    setTimeout(() => {
-      if (!done) {
-        const ph = __maintPhotos.find(p => p.id === pid);
-        if (ph && ph.dataUrl) img.src = ph.dataUrl;
-      }
-    }, 400);
   });
 }
 
 async function openMaintPhotoView(photoId) {
   if (!photoId) return;
   let dataUrl = null;
-  if (window.CONFIG && window.CONFIG.useRemote) {
+  const local = __scanStoreLoad().find(x => x.id === photoId);
+  if (local && local.dataUrl) dataUrl = local.dataUrl;
+  if (!dataUrl && window.__maintSnapshot) {
+    for (const k of Object.keys(window.__maintSnapshot)) {
+      const rec = window.__maintSnapshot[k];
+      const found = (rec.photos || []).find(p => p.id === photoId);
+      if (found && found.dataUrl) { dataUrl = found.dataUrl; break; }
+    }
+  }
+  if (!dataUrl && window.CONFIG && window.CONFIG.useRemote) {
     try {
       const rr = await __api("GET", "scanfile/" + photoId);
       if (rr && rr.dataUrl) dataUrl = rr.dataUrl;
     } catch (e) { /* fall through */ }
   }
-  const ph = __maintPhotos.find(p => p.id === photoId);
-  if (!dataUrl && ph) dataUrl = ph.dataUrl;
+  if (!dataUrl) {
+    const ph = __maintPhotos.find(p => p.id === photoId);
+    if (ph && ph.dataUrl) dataUrl = ph.dataUrl;
+  }
   if (!dataUrl) return toast("Photo could not be loaded.", "error");
   return __openDataUrl(dataUrl, "photo");
 }
@@ -8431,11 +8476,18 @@ function openMaintenanceDetail(id) {
   $("#maintDetailTitle").textContent = "Maintenance Request Details - " + (r.mntNo || "MR-");
   $("#maintDetailInfo").innerHTML = __maintSummaryHtml(r);
   $("#maintDetailPhotos").innerHTML = (Array.isArray(r.photos) && r.photos.length)
-    ? r.photos.map((p, i) =>
-        `<div class="maint-detail-photo" data-maint-photo-view="${p.id}" title="View photo">
-          <img src="${__MAINT_PLACEHOLDER}" alt="${esc(p.fileName || "Photo")}" data-photo-id="${p.id}">
+    ? r.photos.map((p, i) => {
+        let src = p.dataUrl || "";
+        if (!src) {
+          const local = __scanStoreLoad().find(x => x.id === p.id);
+          if (local && local.dataUrl) src = local.dataUrl;
+        }
+        src = src || __MAINT_PLACEHOLDER;
+        return `<div class="maint-detail-photo" data-maint-photo-view="${p.id}" title="View photo">
+          <img src="${src}" alt="${esc(p.fileName || "Photo")}" data-photo-id="${p.id}">
           <span class="maint-detail-photo-name">${esc(p.fileName || ("Photo " + (i + 1)))}</span>
-        </div>`).join("")
+        </div>`;
+      }).join("")
     : `<div class="maint-photo-empty">No photos attached.</div>`;
   $("#maintDetailTimeline").innerHTML = __maintTimelineHtml(r);
   openModal("#maintDetailModal");
@@ -13971,7 +14023,10 @@ if (e.target.classList.contains("dist-check-all")) {
 
   // ---- Maintenance bindings ----
   $("#addMaintenanceBtn")?.addEventListener("click", openMaintenanceModal);
-  $("#maintPhotoAdd")?.addEventListener("click", () => { const i = $("#maintPhotoInput"); if (i) i.click(); });
+  $("#maintPhotoAdd")?.addEventListener("click", () => {
+    if (__maintPhotos.length >= MAINT_PHOTO_MAX) return toast("Maximum " + MAINT_PHOTO_MAX + " photos allowed.", "error");
+    const i = $("#maintPhotoInput"); if (i) i.click();
+  });
   $("#maintPhotoInput")?.addEventListener("change", e => { __maintReadPhotoFiles(e.target.files); e.target.value = ""; });
   $("#maintType")?.addEventListener("change", e => {
     const isOther = e.target.value === "other";

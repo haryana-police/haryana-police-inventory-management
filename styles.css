@@ -5115,20 +5115,26 @@ body.modal-open #appRoot {
   text-overflow: ellipsis;
 }
 
-#grievanceForm textarea {
-  box-sizing: border-box;
-  overflow-y: hidden;
-  resize: none;
+/* ==================== GRIEVANCES STYLES ==================== */
+.status-grievance-pending { background: #fef3c7; color: #b45309; }
+.status-grievance-progress { background: #e0f2fe; color: #0369a1; }
+.status-grievance-clarify { background: #f3e8ff; color: #7e22ce; }
+.status-grievance-resolved { background: #dcfce7; color: #15803d; }
+.status-grievance-rejected { background: #fee2e2; color: #b91c1c; }
+.status-grievance-reopened { background: #ffedd5; color: #c2410c; }
+.status-grievance-withdrawn { background: #f1f5f9; color: #64748b; }
+
+.attachment-chip:hover {
+  background: var(--bg-hover, #e2e8f0) !important;
+  border-color: var(--primary, #2563eb) !important;
 }
 
-#grievanceRows [data-grievance-status="Pending"] { color: var(--red); }
-#grievanceRows [data-grievance-status="Complete"] { color: var(--green); }
+.grievance-brief-link:hover {
+  text-decoration: underline;
+}
 
-#grievanceForm input[type="file"] {
-  box-sizing: border-box;
-  height: auto;
-  min-height: 46px;
-  padding: 8px 12px;
+#grievanceTable th, #grievanceTable td {
+  vertical-align: middle;
 }
 
 

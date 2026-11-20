@@ -24,7 +24,8 @@ function __api(method, path, body) {
   const opts = { method, headers };
   if (body !== undefined) opts.body = JSON.stringify(body);
   const __ctrl = new AbortController();
-  const __timer = setTimeout(() => __ctrl.abort(), 15000);
+  const __timeoutMs = (path && String(path).startsWith("grievances")) ? 120000 : 15000;
+  const __timer = setTimeout(() => __ctrl.abort(), __timeoutMs);
   opts.signal = __ctrl.signal;
   return fetch(url, opts).finally(() => clearTimeout(__timer)).then(r => {
     if (!r.ok) {

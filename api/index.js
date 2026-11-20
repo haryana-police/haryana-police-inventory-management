@@ -666,7 +666,8 @@ async function route(req, res) {
     if (!user) return res.status(401).json({ error: 'Sign in to access grievances.' });
     const grievances = require('./_grievances');
     const state = await getState();
-    const developer = (state['hp_inventory.users'] || []).find(u => grievances.reviewer(u) && u.active !== false);
+    let developer = (state['hp_inventory.users'] || []).find(u => grievances.reviewer(u) && u.active !== false);
+    if (!developer) developer = (state['hp_inventory.users'] || []).find(u => u.role === 'devadmin' && u.active !== false);
     return grievances.handle(req, res, seg, user, developer, rtPublish);
   }
 

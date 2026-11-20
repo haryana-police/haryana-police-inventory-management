@@ -853,10 +853,7 @@ function projectStateFor(user, state) {
     // taken off the end of the key instead.
     if (key.indexOf(MAINT_KEY_PREFIX) === 0) {
       if (inScope(key.slice(MAINT_KEY_PREFIX.length))) {
-        if (user && user.role === 'admin') {
-          // District Admin must not see computer_it or vehicle requests (unless raised by themselves)
-          out[key] = dArr(value).filter(r => (r && r.requestingUserId === user.id) || (r && r.maintenanceType !== 'computer_it' && r.maintenanceType !== 'vehicle'));
-        } else if (user && (user.role === 'itstaff' || user.role === 'mtostaff')) {
+        if (user && (user.role === 'itstaff' || user.role === 'mtostaff')) {
           out[key] = dArr(value).filter(r => r && (r.requestToUserId === user.id || r.requestingUserId === user.id));
         } else {
           out[key] = value;
