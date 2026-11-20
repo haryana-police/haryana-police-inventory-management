@@ -16,6 +16,8 @@
   const grievanceBriefInput = el('grievanceBriefInput');
   const grievanceDescInput = el('grievanceDescInput');
   const grievanceFileInput = el('grievanceFileInput');
+  const grievanceFileName = el('grievanceFileName');
+  const grievanceFileClearBtn = el('grievanceFileClearBtn');
   const grievanceModalStatus = el('grievanceModalStatus');
   const grievanceModalSubmitBtn = el('grievanceModalSubmitBtn');
 
@@ -37,6 +39,8 @@
   const actionRemarkLabel = el('grievanceActionRemarkLabel');
   const actionRemark = el('grievanceActionRemark');
   const actionFile = el('grievanceActionFile');
+  const grievanceActionFileName = el('grievanceActionFileName');
+  const grievanceActionFileClearBtn = el('grievanceActionFileClearBtn');
   const actionCancelBtn = el('grievanceActionCancelBtn');
   const actionSubmitBtn = el('grievanceActionSubmitBtn');
 
@@ -304,10 +308,20 @@
     });
   }
 
+  function formatFileSize(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
   // Open Raise / Edit Modal
   function openRaiseModal(recordToEdit = null) {
     editingRecordId = recordToEdit?.id || null;
     grievanceModalForm.reset();
+    if (grievanceFileName) grievanceFileName.textContent = 'No file selected';
+    grievanceFileClearBtn?.classList.add('hidden');
     if (grievanceModalStatus) grievanceModalStatus.textContent = '';
     if (grievanceModalSubmitBtn) {
       grievanceModalSubmitBtn.disabled = false;
@@ -567,10 +581,47 @@
     actionRemarkLabel.textContent = labelText;
     actionRemark.value = '';
     actionFile.value = '';
+    if (grievanceActionFileName) grievanceActionFileName.textContent = 'No file selected';
+    grievanceActionFileClearBtn?.classList.add('hidden');
     actionSubmitBtn.textContent = title;
     actionForm.classList.remove('hidden');
     actionRemark.focus();
   }
+
+  // Hook up File Picker Change & Clear Handlers
+  grievanceFileInput?.addEventListener('change', () => {
+    const file = grievanceFileInput.files[0];
+    if (file) {
+      if (grievanceFileName) grievanceFileName.textContent = `${file.name} (${formatFileSize(file.size)})`;
+      grievanceFileClearBtn?.classList.remove('hidden');
+    } else {
+      if (grievanceFileName) grievanceFileName.textContent = 'No file selected';
+      grievanceFileClearBtn?.classList.add('hidden');
+    }
+  });
+
+  grievanceFileClearBtn?.addEventListener('click', () => {
+    if (grievanceFileInput) grievanceFileInput.value = '';
+    if (grievanceFileName) grievanceFileName.textContent = 'No file selected';
+    grievanceFileClearBtn?.classList.add('hidden');
+  });
+
+  actionFile?.addEventListener('change', () => {
+    const file = actionFile.files[0];
+    if (file) {
+      if (grievanceActionFileName) grievanceActionFileName.textContent = `${file.name} (${formatFileSize(file.size)})`;
+      grievanceActionFileClearBtn?.classList.remove('hidden');
+    } else {
+      if (grievanceActionFileName) grievanceActionFileName.textContent = 'No file selected';
+      grievanceActionFileClearBtn?.classList.add('hidden');
+    }
+  });
+
+  grievanceActionFileClearBtn?.addEventListener('click', () => {
+    if (actionFile) actionFile.value = '';
+    if (grievanceActionFileName) grievanceActionFileName.textContent = 'No file selected';
+    grievanceActionFileClearBtn?.classList.add('hidden');
+  });
 
   // Handle Action Form Submission
   actionCancelBtn?.addEventListener('click', () => {

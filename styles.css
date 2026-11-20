@@ -5137,6 +5137,16 @@ body.modal-open #appRoot {
   vertical-align: middle;
 }
 
+.file-picker-box {
+  transition: border-color .15s ease, background-color .15s ease;
+}
+
+.file-picker-box:hover,
+.file-picker-box:focus-within {
+  border-color: var(--primary, #2563eb) !important;
+  background-color: #f8fafc !important;
+}
+
 
 .stock-columns-menu { min-width: 190px; max-height: 360px; overflow-y: auto; background: #fff; color: #000; border-color: #dbe2ea; color-scheme: light; }
 .stock-column-option { display: flex; align-items: center; gap: 10px; padding: 9px 14px; cursor: pointer; white-space: nowrap; color: #000; border-radius: 6px; }
