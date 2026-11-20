@@ -694,3 +694,22 @@ button, .btn, a.btn, .linklike { touch-action: manipulation; }
     border-radius: 0 !important;
   }
 }
+
+/* ---------- REPORTS MOBILE RESPONSIVENESS ---------- */
+@media (max-width: 768px) {
+  #view-reports .toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  #view-reports .toolbar > div {
+    width: 100% !important;
+    min-width: 100% !important;
+  }
+  #reportContent .table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .rpt-summary {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important;
+  }
+}

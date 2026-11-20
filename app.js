@@ -3382,9 +3382,16 @@ function __invExportData() {
 function printReport(d) {
   if (!d.title) return;
   const rowsHtml = d.rows.length
-    ? d.rows.map(r => `<tr>${r.map((c, ci) => `<td>${colCellInline((d.cols || [])[ci], c)}</td>`).join("")}</tr>`).join("")
+    ? d.rows.map((r, ri) => {
+        const isTotal = (ri === d.rows.length - 1 && String(r[0]).includes("Total"));
+        return `<tr class="${isTotal ? "rpt-total-row" : ""}">${r.map((c, ci) => `<td>${colCellInline((d.cols || [])[ci], c)}</td>`).join("")}</tr>`;
+      }).join("")
     : `<tr><td colspan="${d.cols.length}" style="text-align:center;color:#888">No data</td></tr>`;
   const w = window.open("", "_blank");
+  if (!w) {
+    toast("Print window was blocked by browser. Please allow popups or download PDF.", "error");
+    return;
+  }
   w.document.write(`<!DOCTYPE html><html><head><title>${esc(d.title)}</title>
     <style>
       body{font-family:Arial,sans-serif;margin:24px;color:#111}
@@ -3394,6 +3401,7 @@ function printReport(d) {
       th{background:#1e3a5f;color:#fff;text-align:left;padding:6px 8px}
       td{padding:6px 8px;border-bottom:1px solid #ccc}
       tr:nth-child(even){background:#f5f7fa}
+      .rpt-total-row td, tr.rpt-total-row td { font-weight: bold; background: #e2e8f0; border-top: 2px solid #1e3a5f; }
     </style></head><body>
     <h2>${esc(d.title)}</h2>
     <div class="meta">${esc(d.subtitle)}</div>
@@ -3406,7 +3414,35 @@ function printReport(d) {
 
 function excelReport(d) {
   if (!d.title) return;
-  let x = '<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Sheet1"><Table>\n';
+  if (typeof XLSX !== "undefined" && XLSX.utils && XLSX.writeFile) {
+    try {
+      const wb = XLSX.utils.book_new();
+      const wsData = [
+        [d.title],
+        [d.subtitle || ""],
+        [],
+        d.cols,
+        ...d.rows
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      const colWidths = (d.cols || []).map((col, ci) => {
+        let maxLen = String(col).length;
+        (d.rows || []).forEach(r => {
+          const val = r[ci] != null ? String(r[ci]) : "";
+          if (val.length > maxLen) maxLen = val.length;
+        });
+        return { wch: Math.min(45, Math.max(12, maxLen + 2)) };
+      });
+      ws["!cols"] = colWidths;
+      XLSX.utils.book_append_sheet(wb, ws, "Report");
+      const safeName = (d.fileName || "report").replace(/[^\w-]/g, "_") + ".xlsx";
+      XLSX.writeFile(wb, safeName);
+      return;
+    } catch (e) {
+      console.warn("XLSX export fallback:", e);
+    }
+  }
+  let x = '<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Excel.Sheet"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Sheet1"><Table>\n';
   x += `<Row><Cell ss:MergeAcross="${d.cols.length - 1}"><Data ss:Type="String">${xmlEsc(d.title)}</Data></Cell></Row>\n`;
   x += `<Row><Cell ss:MergeAcross="${d.cols.length - 1}"><Data ss:Type="String">${xmlEsc(d.subtitle)}</Data></Cell></Row>\n`;
   x += "<Row>";
@@ -3425,12 +3461,12 @@ function excelReport(d) {
     });
   }
   x += "</Table></Worksheet></Workbook>";
-  downloadBlob(x, "application/vnd.ms-excel", d.fileName + ".xls");
+  downloadBlob(x, "application/vnd.ms-excel", (d.fileName || "report") + ".xls");
 }
 
 function wordReport(d) {
   if (!d.title) return;
-  let x = '<?xml version="1.0"?>\n<?mso-application progid="Word.Document"?>\n<w:wordDocument xmlns:w="urn:schemas-microsoft-com:office:word"><w:body>\n';
+  let x = '<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Word.Document"?>\n<w:wordDocument xmlns:w="urn:schemas-microsoft-com:office:word"><w:body>\n';
   x += `<w:p><w:r><w:rPr><w:b/><w:sz w:val="34"/></w:rPr><w:t>${xmlEsc(d.title)}</w:t></w:r></w:p>\n`;
   x += `<w:p><w:r><w:t xml:space="preserve">${xmlEsc(d.subtitle)}</w:t></w:r></w:p>\n`;
   x += `<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="6"/><w:left w:val="single" w:sz="6"/><w:bottom w:val="single" w:sz="6"/><w:right w:val="single" w:sz="6"/><w:insideH w:val="single" w:sz="6"/><w:insideV w:val="single" w:sz="6"/></w:tblBorders></w:tblPr>\n`;
@@ -10418,35 +10454,95 @@ function deleteLocation(id) {
 }
 
 /* ==================== REPORTS ==================== */
-function renderReports() {
-  renderMergedReport();
-  __rptRenderColsMenu();
-  __rptBindCols();
-  __rptBindDrag();
-}
-
-// ---- report search + sort state ----
+let __rptActiveType = "mergedReport";
 let __rptSearch = "";
 let __rptSortKey = "";
 let __rptSortDir = 1;
+let __rptJustDragged = false;
 
-function __rptReportId() {
-  return "mergedReport";
+const RPT_STORAGE_KEY_ORDER = "hp_rpt_order_pref";
+const RPT_STORAGE_KEY_HIDDEN = "hp_rpt_hidden_pref";
+let __rptOrder = {};
+let __rptHidden = { mergedReport: { "Item Code": true, "Recovered": true } };
+
+function __rptInitPrefs() {
+  try {
+    const o = JSON.parse(localStorage.getItem(RPT_STORAGE_KEY_ORDER) || "null");
+    const h = JSON.parse(localStorage.getItem(RPT_STORAGE_KEY_HIDDEN) || "null");
+    if (o && typeof o === "object") __rptOrder = o;
+    if (h && typeof h === "object") {
+      __rptHidden = Object.assign({ mergedReport: { "Item Code": true, "Recovered": true } }, h);
+    }
+  } catch (e) {}
+}
+__rptInitPrefs();
+
+function __rptSavePrefs() {
+  try {
+    localStorage.setItem(RPT_STORAGE_KEY_ORDER, JSON.stringify(__rptOrder));
+    localStorage.setItem(RPT_STORAGE_KEY_HIDDEN, JSON.stringify(__rptHidden));
+  } catch (e) {}
 }
 
-function __rptFilterSort(rows) {
+function __rptReportId() {
+  return __rptActiveType || "mergedReport";
+}
+
+function __rptAllCols(tab) {
+  if (tab === "allotmentsReport") {
+    return ["Officer / Person", "Belt No", "Rank", "Posting / Thana", "Item", "Category", "Issued Qty", "Outstanding", "Lost", "Recovered", "Condition", "Date", "Status"];
+  }
+  if (tab === "distributionsReport") {
+    return ["Dist No", "Item", "Category", "Qty", "Condition", "From (Sender)", "To (Receiver)", "Date", "Status"];
+  }
+  if (tab === "demandsReport") {
+    return ["Demand No", "Item", "Category", "Requested Qty", "Approved Qty", "From District/Unit", "To District/Unit", "Date", "Status"];
+  }
+  if (tab === "inspectionsReport") {
+    return ["Inspection Date", "Due Date", "Item / Asset", "Inspected By", "Type", "Location", "Findings", "Recommendations", "Status"];
+  }
+  if (tab === "maintenanceReport") {
+    return ["Request No", "Item / Asset", "Category / Type", "Requested By", "Unit / Location", "Assigned To", "Date", "Status"];
+  }
+  return ["Item", "Item Code", "Category", "Location", "Unit", "Total Qty", "Available", "Issued", "Good", "Damaged", "Scrap", "Lost", "Recovered", "Min Stock", "Status"];
+}
+
+function __rptVisCols(tab) {
+  const order = __rptOrder[tab] = __rptOrder[tab] || __rptAllCols(tab);
+  const hidden = __rptHidden[tab] || {};
+  return order.filter(c => !hidden[c]);
+}
+
+function __rptFilterSort(rows, tab) {
   const q = __rptSearch.trim().toLowerCase();
-  const out = q ? rows.filter(r => Object.keys(r).some(k => {
-    if (k.charAt(0) === "_") return false;
-    return String(r[k]).toLowerCase().includes(q);
-  })) : rows.slice();
+  const catFilter = $("#reportCategoryFilter")?.value || "all";
+  const locFilter = $("#reportLocationFilter")?.value || "all";
+  const statusFilter = $("#reportStatusFilter")?.value || "all";
+
+  let out = rows.filter(r => {
+    if (catFilter !== "all" && r._catId && r._catId !== catFilter) return false;
+    if (locFilter !== "all" && r._locId && r._locId !== locFilter) return false;
+    if (statusFilter !== "all" && r.Status !== statusFilter && r._rawStatus !== statusFilter) return false;
+    if (q) {
+      const match = Object.keys(r).some(k => {
+        if (k.charAt(0) === "_") return false;
+        return String(r[k] == null ? "" : r[k]).toLowerCase().includes(q);
+      });
+      if (!match) return false;
+    }
+    return true;
+  });
+
   if (__rptSortKey) {
     const key = __rptSortKey;
     const dir = __rptSortDir;
     out.sort((a, b) => {
       const av = a[key], bv = b[key];
-      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
-      return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" }) * dir;
+      const an = Number(av), bn = Number(bv);
+      if (!isNaN(an) && !isNaN(bn) && typeof av !== "boolean" && typeof bv !== "boolean") {
+        return (an - bn) * dir;
+      }
+      return String(av || "").localeCompare(String(bv || ""), undefined, { numeric: true, sensitivity: "base" }) * dir;
     });
   }
   return out;
@@ -10460,6 +10556,10 @@ function __rptSortHeader(key, label) {
 function __rptBindSort() {
   $$("#reportContent th.sortable").forEach(th =>
     th.addEventListener("click", () => {
+      if (__rptJustDragged) {
+        __rptJustDragged = false;
+        return;
+      }
       const key = th.dataset.sortKey;
       if (__rptSortKey === key) __rptSortDir = -__rptSortDir;
       else { __rptSortKey = key; __rptSortDir = 1; }
@@ -10500,17 +10600,28 @@ const __RPT_BUILDERS = {
     const rows = items.map(i => {
       const cat = cats.find(c => c.id === i.categoryId);
       const loc = locs.find(l => l.id === i.locationId);
-      const status = availableQty(i) === 0 ? "Out" : availableQty(i) <= i.minStock ? "Low" : "OK";
+      const avail = availableQty(i);
+      const status = avail === 0 ? "Out" : avail <= (i.minStock || 0) ? "Low" : "OK";
       return [i.name, cat ? cat.name : "", loc ? loc.name : "", i.quantity, i.unit, i.minStock, status];
     });
     return { title: "Total Items", cols: ["Item", "Category", "Location", "Qty", "Unit", "Min", "Status"], rows };
   },
-  instock: () => __rptStockRows(i => availableQty(i) > i.minStock, "In Stock Items"),
-  lowstock: () => __rptStockRows(i => availableQty(i) > 0 && availableQty(i) <= i.minStock, "Low Stock Items"),
+  instock: () => __rptStockRows(i => availableQty(i) > (i.minStock || 0), "In Stock Items"),
+  lowstock: () => __rptStockRows(i => availableQty(i) > 0 && availableQty(i) <= (i.minStock || 0), "Low Stock Items"),
   outofstock: () => __rptStockRows(i => availableQty(i) === 0, "Out of Stock Items"),
-good: () => __rptCondRows("good", "Good Units"),
+  good: () => __rptCondRows("good", "Good Units"),
   poor: () => __rptCondRows("poor", "Damaged Units"),
-  damaged: () => __rptCondRows("damaged", "Scrap Units")
+  damaged: () => {
+    const items = getItems().filter(i => scrapQty(i) > 0);
+    const cats = getCategories();
+    const locs = getLocations();
+    const rows = items.map(i => {
+      const cat = cats.find(c => c.id === i.categoryId);
+      const loc = locs.find(l => l.id === i.locationId);
+      return [i.name, cat ? cat.name : "", loc ? loc.name : "", scrapQty(i), i.quantity, i.unit];
+    });
+    return { title: "Scrap Units", cols: ["Item", "Category", "Location", "Scrap Qty", "Total Qty", "Unit"], rows };
+  }
 };
 
 function __rptStockRows(pred, label) {
@@ -10520,7 +10631,8 @@ function __rptStockRows(pred, label) {
   const rows = items.map(i => {
     const cat = cats.find(c => c.id === i.categoryId);
     const loc = locs.find(l => l.id === i.locationId);
-    const status = availableQty(i) === 0 ? "Out" : availableQty(i) <= i.minStock ? "Low" : "OK";
+    const avail = availableQty(i);
+    const status = avail === 0 ? "Out" : avail <= (i.minStock || 0) ? "Low" : "OK";
     return [i.name, cat ? cat.name : "", loc ? loc.name : "", i.quantity, i.unit, i.minStock, status];
   });
   return { title: label, cols: ["Item", "Category", "Location", "Qty", "Unit", "Min", "Status"], rows };
@@ -10547,10 +10659,6 @@ function openRptStatDetail(key) {
   openModal("#statDetailModal");
 }
 
-const __rptHidden = { mergedReport: { "Item Code": true, "Recovered": true } };
-function __rptAllCols(tab) {
-  return ["Item", "Item Code", "Category", "Location", "Unit", "Total Qty", "Available", "Issued", "Good", "Damaged", "Scrap", "Lost", "Recovered", "Min Stock", "Status"];
-}
 function __rptRenderColsMenu() {
   const tab = __rptReportId();
   const order = __rptOrder[tab] = __rptOrder[tab] || __rptAllCols(tab);
@@ -10561,9 +10669,10 @@ function __rptRenderColsMenu() {
     `<label class="rpt-col-item"><input type="checkbox" class="rpt-col-check" data-col="${esc(c)}"${hidden[c] ? "" : " checked"}> ${esc(c)}</label>`
   ).join("");
 }
+
 function __rptBindCols() {
   const btn = $("#rptColsBtn");
-  if (btn) btn.onclick = () => $("#rptColsMenu")?.classList.toggle("hidden");
+  if (btn) btn.onclick = (e) => { e.stopPropagation(); $("#rptColsMenu")?.classList.toggle("hidden"); };
   $$("#rptColsMenu .rpt-col-check").forEach(cb => cb.addEventListener("change", () => {
     const tab = __rptReportId();
     const col = cb.dataset.col;
@@ -10574,25 +10683,25 @@ function __rptBindCols() {
       if (visCount <= 1) { cb.checked = true; toast("At least one column must stay visible.", "error"); return; }
       h[col] = true;
     } else delete h[col];
+    __rptSavePrefs();
     __rptRenderColsMenu();
     renderReports();
   }));
 }
-const __rptOrder = {};
-function __rptVisCols(tab) {
-  const order = __rptOrder[tab] = __rptOrder[tab] || __rptAllCols(tab);
-  const hidden = __rptHidden[tab] || {};
-  return order.filter(c => !hidden[c]);
-}
+
 function __rptBindDrag() {
   $$("#reportContent thead th").forEach(th => {
     th.setAttribute("draggable", "true");
     th.addEventListener("dragstart", e => {
+      __rptJustDragged = true;
       e.dataTransfer.setData("text/plain", th.dataset.rptCol || "");
       e.dataTransfer.effectAllowed = "move";
       th.classList.add("rpt-dragging");
     });
-    th.addEventListener("dragend", () => th.classList.remove("rpt-dragging"));
+    th.addEventListener("dragend", () => {
+      th.classList.remove("rpt-dragging");
+      setTimeout(() => { __rptJustDragged = false; }, 150);
+    });
     th.addEventListener("dragover", e => { if (th.dataset.rptCol) { e.preventDefault(); th.classList.add("rpt-drag-over"); } });
     th.addEventListener("dragleave", () => th.classList.remove("rpt-drag-over"));
     th.addEventListener("drop", e => {
@@ -10607,36 +10716,12 @@ function __rptBindDrag() {
       order.splice(si, 1);
       const di2 = order.indexOf(dst);
       order.splice(si < di ? di2 + 1 : di2, 0, src);
+      __rptSavePrefs();
       renderReports();
     });
   });
 }
-const __RPT_STOCK_HEAD = {
-  "Item": () => __rptSortHeader("Item", "Item"),
-  "Category": () => __rptSortHeader("Category", "Category"),
-  "Qty": () => __rptSortHeader("Qty", "Qty"),
-  "Min": () => __rptSortHeader("Min", "Min"),
-  "Condition Breakdown": () => `<th draggable="true" data-rpt-col="Condition Breakdown">Condition Breakdown</th>`,
-  "Status": () => __rptSortHeader("Status", "Status"),
-  "Health": () => `<th draggable="true" data-rpt-col="Health">Health</th>`
-};
-const __RPT_MERGED_HEAD = {
-  "Item": () => __rptSortHeader("Item", "Item"),
-  "Item Code": () => __rptSortHeader("Item Code", "Item Code"),
-  "Category": () => __rptSortHeader("Category", "Category"),
-  "Location": () => __rptSortHeader("Location", "Location"),
-  "Unit": () => __rptSortHeader("Unit", "Unit"),
-  "Total Qty": () => __rptSortHeader("Total Qty", "Total Qty"),
-  "Available": () => __rptSortHeader("Available", "Available"),
-  "Issued": () => __rptSortHeader("Issued", "Issued"),
-  "Good": () => __rptSortHeader("Good", "Good"),
-  "Damaged": () => __rptSortHeader("Damaged", "Damaged"),
-  "Scrap": () => __rptSortHeader("Scrap", "Scrap"),
-  "Lost": () => __rptSortHeader("Lost", "Lost"),
-  "Recovered": () => __rptSortHeader("Recovered", "Recovered"),
-  "Min Stock": () => __rptSortHeader("Min Stock", "Min Stock"),
-  "Status": () => __rptSortHeader("Status", "Status")
-};
+
 function __rptMergedRows() {
   const cats = getCategories();
   const locs = getLocations();
@@ -10645,7 +10730,8 @@ function __rptMergedRows() {
     const loc = locs.find(l => l.id === i.locationId);
     const cc = i.conditionCounts || { good: i.quantity, poor: 0, damaged: 0 };
     const recovered = (i.history || []).filter(h => h.type === "RECOVERED").reduce((a, h) => a + (h.qty || 0), 0);
-    const status = (i.quantity || 0) === 0 ? "Out" : (i.quantity || 0) <= (i.minStock || 0) ? "Low" : "OK";
+    const avail = availableQty(i);
+    const status = avail === 0 ? "Out" : avail <= (i.minStock || 0) ? "Low" : "OK";
     return {
       "Item": i.name,
       "Item Code": i.code || i.sku || ("ITM-" + String(i.id || "").slice(-6).toUpperCase()),
@@ -10653,7 +10739,7 @@ function __rptMergedRows() {
       "Location": loc ? loc.name : "",
       "Unit": i.unit || "pcs",
       "Total Qty": i.quantity || 0,
-      "Available": availableQty(i),
+      "Available": avail,
       "Issued": i.allotted || 0,
       "Good": cc.good || 0,
       "Damaged": cc.poor || 0,
@@ -10662,83 +10748,402 @@ function __rptMergedRows() {
       "Recovered": recovered,
       "Min Stock": i.minStock || 0,
       "Status": status,
+      _catId: i.categoryId,
+      _locId: i.locationId,
+      _rawStatus: status,
       _item: i
     };
   });
 }
-function renderMergedReport() {
+
+function __rptAllotmentRows() {
+  const cats = getCategories();
+  const all = typeof getVisibleAllotments === "function" ? getVisibleAllotments() : getAllotments();
+  return all.map(a => {
+    const cat = a.categoryName || (cats.find(c => c.id === a.categoryId)?.name) || "";
+    const outstanding = typeof allocOutstanding === "function" ? allocOutstanding(a) : (a.allotted || a.quantity || 0);
+    const lost = typeof allocRecoverable === "function" ? allocRecoverable(a) : (a.lost || 0);
+    const recovered = typeof allocRecovered === "function" ? allocRecovered(a) : 0;
+    const st = typeof allocStatusOf === "function" ? allocStatusOf(a) : (a.status || "active");
+    const statusLabel = st === "returned" ? "Returned" : st === "active" ? "Active / Issued" : st === "lost" ? "Lost" : st;
+    return {
+      "Officer / Person": a.name || "",
+      "Belt No": a.beltNo || "",
+      "Rank": a.rank || "",
+      "Posting / Thana": a.posting || "",
+      "Item": a.itemName || "",
+      "Category": cat,
+      "Issued Qty": a.quantity || a.allotted || 0,
+      "Outstanding": outstanding,
+      "Lost": lost,
+      "Recovered": recovered,
+      "Condition": ({ good: "Good", poor: "Damaged", damaged: "Scrap" })[a.condition] || a.condition || "Good",
+      "Date": a.createdAt ? fmtDate(a.createdAt) : "",
+      "Status": statusLabel,
+      _catId: a.categoryId,
+      _locId: a.locationId,
+      _rawStatus: st,
+      _item: { id: a.itemId, name: a.itemName }
+    };
+  });
+}
+
+function __rptDistributionRows() {
+  const dists = typeof __allVisibleDistributions === "function" ? __allVisibleDistributions() : (typeof getDistributions === "function" ? getDistributions() : []);
+  const rows = [];
+  dists.forEach(d => {
+    const items = Array.isArray(d.items) && d.items.length ? d.items : [{ itemName: d.itemName, qty: d.quantity, categoryName: d.categoryName, condition: d.condition, categoryId: d.categoryId }];
+    items.forEach(it => {
+      const sender = (d.fromUserName || "") + (d.fromLocationName ? " (" + d.fromLocationName + ")" : "");
+      const receiver = typeof __distReceiverName === "function" ? __distReceiverName(d) : (d.toLocationName || d.toDistrictName || "—");
+      const meta = typeof __distStatusMeta === "function" ? __distStatusMeta(d.status, d) : { label: d.status };
+      rows.push({
+        "Dist No": d.distNo || "DIST-",
+        "Item": it.itemName || d.itemName || "Item",
+        "Category": it.categoryName || d.categoryName || "—",
+        "Qty": it.qty || d.quantity || 0,
+        "Condition": ({ good: "Good", poor: "Damaged", damaged: "Scrap" })[it.condition || d.condition] || it.condition || d.condition || "—",
+        "From (Sender)": sender || "—",
+        "To (Receiver)": receiver || "—",
+        "Date": d.createdAt ? new Date(d.createdAt).toLocaleDateString("en-IN") : "—",
+        "Status": meta.label || d.status || "—",
+        _catId: it.categoryId || d.categoryId,
+        _locId: d.fromLocationId || d.toLocationId,
+        _rawStatus: d.status
+      });
+    });
+  });
+  return rows;
+}
+
+function __rptDemandRows() {
+  const demands = typeof __allVisibleDemands === "function" ? __allVisibleDemands() : (typeof getDemands === "function" ? getDemands() : []);
+  const rows = [];
+  demands.forEach(d => {
+    const items = typeof __demandItems === "function" ? __demandItems(d) : [{ itemName: d.itemName, quantity: d.quantity, categoryName: d.categoryName, approvedQuantity: d.approvedQuantity, status: d.status, categoryId: d.categoryId }];
+    items.forEach(it => {
+      const from = (d.requestedBy || "") + (d.requestedFromLocation ? " (" + d.requestedFromLocation + ")" : "");
+      const to = d.demandToDistrictName || d.demandToLocationName || "—";
+      rows.push({
+        "Demand No": d.demandNo || ("DEM-" + String(d.id || "").slice(-6).toUpperCase()),
+        "Item": it.itemName || d.itemName || "Item",
+        "Category": it.categoryName || d.categoryName || "—",
+        "Requested Qty": it.quantity || d.quantity || 0,
+        "Approved Qty": it.approvedQuantity || 0,
+        "From District/Unit": from || "—",
+        "To District/Unit": to,
+        "Date": d.createdAt ? fmtDate(d.createdAt) : "—",
+        "Status": (it.status || d.status || "pending").toUpperCase(),
+        _catId: it.categoryId || d.categoryId,
+        _rawStatus: it.status || d.status
+      });
+    });
+  });
+  return rows;
+}
+
+function __rptInspectionRows() {
+  const list = typeof __visibleInspections === "function" ? __visibleInspections() : (typeof getInspections === "function" ? getInspections() : []);
+  return list.map(ins => {
+    const locName = typeof __inspLocationName === "function" ? __inspLocationName(ins) : (ins.locationName || "—");
+    const st = typeof __inspectionStatus === "function" ? __inspectionStatus(ins) : ins.status;
+    return {
+      "Inspection Date": ins.date ? fmtDate(ins.date) : "—",
+      "Due Date": ins.dueDate ? fmtDate(ins.dueDate) : "—",
+      "Item / Asset": ins.itemName || "—",
+      "Inspected By": ins.inspectedBy || "—",
+      "Type": ins.type || "—",
+      "Location": locName,
+      "Findings": ins.findings || "—",
+      "Recommendations": ins.recommendations || "—",
+      "Status": (st || "pending").toUpperCase(),
+      _locId: ins.locationId,
+      _rawStatus: st
+    };
+  });
+}
+
+function __rptMaintenanceRows() {
+  const list = typeof __allVisibleMaintenance === "function" ? __allVisibleMaintenance() : (typeof getMaintenance === "function" ? getMaintenance() : []);
+  return list.map(r => {
+    const meta = typeof __maintStatusMeta === "function" ? __maintStatusMeta(r.status) : { label: r.status };
+    const typeLabel = typeof __maintTypeLabel === "function" ? __maintTypeLabel(r) : (r.maintenanceType || "—");
+    return {
+      "Request No": r.mntNo || "MR-",
+      "Item / Asset": r.itemName || r.description || "—",
+      "Category / Type": typeLabel,
+      "Requested By": r.requestingUserName || "—",
+      "Unit / Location": r.requestingUnitName || "—",
+      "Assigned To": r.requestToUserName || r.requestToDistrictAdminName || "—",
+      "Date": r.createdAt ? fmtDate(r.createdAt) : "—",
+      "Status": meta.label || r.status || "—",
+      _rawStatus: r.status
+    };
+  });
+}
+
+function __rptGetRows(tab) {
+  if (tab === "allotmentsReport") return __rptAllotmentRows();
+  if (tab === "distributionsReport") return __rptDistributionRows();
+  if (tab === "demandsReport") return __rptDemandRows();
+  if (tab === "inspectionsReport") return __rptInspectionRows();
+  if (tab === "maintenanceReport") return __rptMaintenanceRows();
+  return __rptMergedRows();
+}
+
+function __rptBuildSummary(tab, rows) {
+  if (tab === "allotmentsReport") {
+    const total = rows.length;
+    const outstanding = rows.filter(r => (Number(r["Outstanding"]) || 0) > 0).length;
+    const returned = rows.filter(r => r._rawStatus === "returned" || (Number(r["Outstanding"]) || 0) === 0).length;
+    const lost = rows.filter(r => (Number(r["Lost"]) || 0) > 0).length;
+    const totalIssuedQty = rows.reduce((s, r) => s + (Number(r["Issued Qty"]) || 0), 0);
+    return `<div class="rpt-summary">
+      <div class="rpt-summary-card"><div class="rpt-s-label">Total Allotments</div><div class="rpt-s-value">${total}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Active / Outstanding</div><div class="rpt-s-value" style="color:var(--primary)">${outstanding}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Returned</div><div class="rpt-s-value" style="color:var(--green)">${returned}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Lost Items</div><div class="rpt-s-value" style="color:var(--red)">${lost}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Total Units Issued</div><div class="rpt-s-value" style="color:var(--green)">${totalIssuedQty}</div></div>
+    </div>`;
+  }
+  if (tab === "distributionsReport") {
+    const total = rows.length;
+    const pending = rows.filter(r => r._rawStatus === "pending").length;
+    const completed = rows.filter(r => r._rawStatus === "completed").length;
+    const rejected = rows.filter(r => r._rawStatus === "rejected").length;
+    const totalQty = rows.reduce((s, r) => s + (Number(r["Qty"]) || 0), 0);
+    return `<div class="rpt-summary">
+      <div class="rpt-summary-card"><div class="rpt-s-label">Total Distributions</div><div class="rpt-s-value">${total}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Pending</div><div class="rpt-s-value" style="color:var(--amber)">${pending}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Completed</div><div class="rpt-s-value" style="color:var(--green)">${completed}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Rejected</div><div class="rpt-s-value" style="color:var(--red)">${rejected}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Total Units</div><div class="rpt-s-value" style="color:var(--primary)">${totalQty}</div></div>
+    </div>`;
+  }
+  if (tab === "demandsReport") {
+    const total = rows.length;
+    const pending = rows.filter(r => String(r._rawStatus).includes("pending")).length;
+    const completed = rows.filter(r => r._rawStatus === "completed" || r._rawStatus === "approved").length;
+    const rejected = rows.filter(r => r._rawStatus === "rejected").length;
+    const reqQty = rows.reduce((s, r) => s + (Number(r["Requested Qty"]) || 0), 0);
+    const appQty = rows.reduce((s, r) => s + (Number(r["Approved Qty"]) || 0), 0);
+    return `<div class="rpt-summary">
+      <div class="rpt-summary-card"><div class="rpt-s-label">Total Demands</div><div class="rpt-s-value">${total}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Pending</div><div class="rpt-s-value" style="color:var(--amber)">${pending}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Approved</div><div class="rpt-s-value" style="color:var(--green)">${completed}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Rejected</div><div class="rpt-s-value" style="color:var(--red)">${rejected}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Req / Appr Units</div><div class="rpt-s-value" style="color:var(--primary)">${reqQty} / ${appQty}</div></div>
+    </div>`;
+  }
+  if (tab === "inspectionsReport") {
+    const total = rows.length;
+    const pending = rows.filter(r => r._rawStatus === "pending").length;
+    const completed = rows.filter(r => r._rawStatus === "completed").length;
+    const overdue = rows.filter(r => r._rawStatus === "overdue").length;
+    return `<div class="rpt-summary">
+      <div class="rpt-summary-card"><div class="rpt-s-label">Total Inspections</div><div class="rpt-s-value">${total}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Pending</div><div class="rpt-s-value" style="color:var(--amber)">${pending}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Completed</div><div class="rpt-s-value" style="color:var(--green)">${completed}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Overdue</div><div class="rpt-s-value" style="color:var(--red)">${overdue}</div></div>
+    </div>`;
+  }
+  if (tab === "maintenanceReport") {
+    const total = rows.length;
+    const pending = rows.filter(r => r._rawStatus === "pending").length;
+    const inProg = rows.filter(r => r._rawStatus === "under_process").length;
+    const completed = rows.filter(r => r._rawStatus === "completed").length;
+    return `<div class="rpt-summary">
+      <div class="rpt-summary-card"><div class="rpt-s-label">Total Requests</div><div class="rpt-s-value">${total}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Pending</div><div class="rpt-s-value" style="color:var(--amber)">${pending}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">In Progress</div><div class="rpt-s-value" style="color:var(--primary)">${inProg}</div></div>
+      <div class="rpt-summary-card"><div class="rpt-s-label">Completed</div><div class="rpt-s-value" style="color:var(--green)">${completed}</div></div>
+    </div>`;
+  }
+
+  // Default: mergedReport (Stock)
   const items = getItems();
   const total = items.length;
-  const inStock = items.filter(i => availableQty(i) > i.minStock).length;
-  const lowStock = items.filter(i => availableQty(i) > 0 && availableQty(i) <= i.minStock).length;
+  const inStock = items.filter(i => availableQty(i) > (i.minStock || 0)).length;
+  const lowStock = items.filter(i => availableQty(i) > 0 && availableQty(i) <= (i.minStock || 0)).length;
   const outOfStock = items.filter(i => availableQty(i) === 0).length;
   const goodUnits = items.reduce((sum, i) => sum + ((i.conditionCounts || {}).good || 0), 0);
   const poorUnits = items.reduce((sum, i) => sum + ((i.conditionCounts || {}).poor || 0), 0);
-  const damagedUnits = items.reduce((sum, i) => sum + ((i.conditionCounts || {}).damaged || 0), 0);
-  const vis = __rptVisCols("mergedReport");
+  const scrapUnits = items.reduce((sum, i) => sum + scrapQty(i), 0);
+  return `<div class="rpt-summary">
+    <div class="rpt-summary-card" data-rpt-stat="total" title="Click for details & export"><div class="rpt-s-label">Total Items</div><div class="rpt-s-value">${total}</div></div>
+    <div class="rpt-summary-card" data-rpt-stat="instock" title="Click for details & export"><div class="rpt-s-label">In Stock</div><div class="rpt-s-value" style="color:var(--green)">${inStock}</div></div>
+    <div class="rpt-summary-card" data-rpt-stat="lowstock" title="Click for details & export"><div class="rpt-s-label">Low Stock</div><div class="rpt-s-value" style="color:var(--amber)">${lowStock}</div></div>
+    <div class="rpt-summary-card" data-rpt-stat="outofstock" title="Click for details & export"><div class="rpt-s-label">Out of Stock</div><div class="rpt-s-value" style="color:var(--red)">${outOfStock}</div></div>
+    <div class="rpt-summary-card" data-rpt-stat="good" title="Click for details & export"><div class="rpt-s-label">Good Units</div><div class="rpt-s-value" style="color:var(--green)">${goodUnits}</div></div>
+    <div class="rpt-summary-card" data-rpt-stat="poor" title="Click for details & export"><div class="rpt-s-label">Damaged Units</div><div class="rpt-s-value" style="color:var(--amber)">${poorUnits}</div></div>
+    <div class="rpt-summary-card" data-rpt-stat="damaged" title="Click for details & export"><div class="rpt-s-label">Scrap Units</div><div class="rpt-s-value" style="color:var(--red)">${scrapUnits}</div></div>
+  </div>`;
+}
+
+function __rptUpdateToolbarFilters(tab) {
+  const catSel = $("#reportCategoryFilter");
+  if (catSel && !catSel.dataset.initialized) {
+    const cur = catSel.value;
+    catSel.innerHTML = `<option value="all">All Categories</option>` + getCategories().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+    catSel.value = cur || "all";
+  }
+  const locSel = $("#reportLocationFilter");
+  if (locSel && !locSel.dataset.initialized) {
+    const cur = locSel.value;
+    locSel.innerHTML = `<option value="all">All Locations / Thanas</option>` + getLocations().map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
+    locSel.value = cur || "all";
+  }
+  const statusSel = $("#reportStatusFilter");
+  if (statusSel && statusSel.dataset.curTab !== tab) {
+    let opts = `<option value="all">All Statuses</option>`;
+    if (tab === "mergedReport") {
+      opts += `<option value="OK">In Stock / OK</option><option value="Low">Low Stock</option><option value="Out">Out of Stock</option>`;
+    } else if (tab === "allotmentsReport") {
+      opts += `<option value="active">Active / Issued</option><option value="returned">Returned</option><option value="lost">Lost</option>`;
+    } else if (tab === "distributionsReport") {
+      opts += `<option value="pending">Pending</option><option value="completed">Completed</option><option value="rejected">Rejected</option><option value="cancelled">Cancelled</option>`;
+    } else if (tab === "demandsReport") {
+      opts += `<option value="pending">Pending</option><option value="completed">Approved / Completed</option><option value="rejected">Rejected</option>`;
+    } else if (tab === "inspectionsReport") {
+      opts += `<option value="pending">Pending</option><option value="completed">Completed</option><option value="overdue">Overdue</option>`;
+    } else if (tab === "maintenanceReport") {
+      opts += `<option value="pending">Pending</option><option value="under_process">In Progress</option><option value="completed">Completed</option>`;
+    }
+    statusSel.innerHTML = opts;
+    statusSel.dataset.curTab = tab;
+    statusSel.value = "all";
+  }
+
+  const catWrap = $("#reportCategoryWrap");
+  if (catWrap) catWrap.style.display = (tab === "inspectionsReport" || tab === "maintenanceReport") ? "none" : "";
+  const locWrap = $("#reportLocationWrap");
+  if (locWrap) locWrap.style.display = (tab === "demandsReport" || tab === "maintenanceReport") ? "none" : "";
+}
+
+function renderMergedReport() {
+  const tab = __rptReportId();
+  __rptUpdateToolbarFilters(tab);
+
+  const allRows = __rptGetRows(tab);
+  const rows = __rptFilterSort(allRows, tab);
+  const vis = __rptVisCols(tab);
   const nCols = vis.length || 1;
-  let html = `<div class="rpt-summary"><div class="rpt-summary-card" data-rpt-stat="total" title="Click for details & export"><div class="rpt-s-label">Total Items</div><div class="rpt-s-value">${total}</div></div><div class="rpt-summary-card" data-rpt-stat="instock" title="Click for details & export"><div class="rpt-s-label">In Stock</div><div class="rpt-s-value" style="color:var(--green)">${inStock}</div></div><div class="rpt-summary-card" data-rpt-stat="lowstock" title="Click for details & export"><div class="rpt-s-label">Low Stock</div><div class="rpt-s-value" style="color:var(--amber)">${lowStock}</div></div><div class="rpt-summary-card" data-rpt-stat="outofstock" title="Click for details & export"><div class="rpt-s-label">Out of Stock</div><div class="rpt-s-value" style="color:var(--red)">${outOfStock}</div></div><div class="rpt-summary-card" data-rpt-stat="good" title="Click for details & export"><div class="rpt-s-label">Good Units</div><div class="rpt-s-value" style="color:var(--green)">${goodUnits}</div></div><div class="rpt-summary-card" data-rpt-stat="poor" title="Click for details & export"><div class="rpt-s-label">Damaged Units</div><div class="rpt-s-value" style="color:var(--amber)">${poorUnits}</div></div><div class="rpt-summary-card" data-rpt-stat="damaged" title="Click for details & export"><div class="rpt-s-label">Scrap Units</div><div class="rpt-s-value" style="color:var(--red)">${damagedUnits}</div></div></div>`;
-  html += `<div class="table-wrap"><table data-sortable="false"><thead><tr>${vis.map(c => (__RPT_MERGED_HEAD[c] || (() => "<th></th>"))()).join("")}</tr></thead><tbody>`;
-  const rows = __rptFilterSort(__rptMergedRows());
+
+  let html = __rptBuildSummary(tab, allRows);
+  html += `<div class="table-wrap"><table data-sortable="false"><thead><tr>${vis.map(c => __rptSortHeader(c, c)).join("")}</tr></thead><tbody>`;
+
   if (!rows.length) {
-    html += `<tr><td colspan="${nCols}" style="text-align:center;color:var(--muted)">No matching items.</td></tr></tbody></table></div>`;
-    html += `<div class="pager" id="pager_rptStock"></div>`;
+    html += `<tr><td colspan="${nCols}" style="text-align:center;color:var(--muted);padding:30px">No matching records found.</td></tr></tbody></table></div>`;
+    html += `<div class="pager" id="pager_rpt"></div>`;
     $("#reportContent").innerHTML = html;
     __rptBindSort();
-    __rptBindSummary();
-    renderPager("rptStock", 0, renderMergedReport);
+    if (tab === "mergedReport") __rptBindSummary();
+    renderPager("rpt", 0, renderMergedReport);
     return;
   }
-  const pageRows = __pgRows("rptStock", rows);
+
+  const pageRows = __pgRows("rpt", rows);
+  const numericCols = new Set(["Total Qty", "Available", "Issued", "Good", "Damaged", "Scrap", "Lost", "Recovered", "Min Stock", "Issued Qty", "Outstanding", "Qty", "Requested Qty", "Approved Qty"]);
+
   pageRows.forEach(r => {
-    const cls = r.Status === "Out" ? "status-out" : r.Status === "Low" ? "status-low" : "status-ok";
-    const cells = {
-      "Item": `<td class="item-name rpt-cell-item">${__ipLink ? __ipLink(r._item) : esc(r.Item)}</td>`,
-      "Item Code": `<td>${esc(r["Item Code"])}</td>`,
-      "Category": `<td class="rpt-cell-cat"><span class="cat-badge">${esc(r.Category)}</span></td>`,
-      "Location": `<td>${esc(r.Location)}</td>`,
-      "Unit": `<td>${esc(r.Unit)}</td>`,
-      "Total Qty": `<td class="qty-strong">${r["Total Qty"]}</td>`,
-      "Available": `<td class="qty-strong" style="color:var(--green)">${r["Available"]}</td>`,
-      "Issued": `<td>${r["Issued"]}</td>`,
-      "Good": `<td style="color:var(--green)">${r["Good"]}</td>`,
-      "Damaged": `<td style="color:var(--amber)">${r["Damaged"]}</td>`,
-      "Scrap": `<td style="color:var(--red)">${r["Scrap"]}</td>`,
-      "Lost": `<td style="color:var(--red)">${r["Lost"]}</td>`,
-      "Recovered": `<td style="color:var(--green)">${r["Recovered"]}</td>`,
-      "Min Stock": `<td>${r["Min Stock"]}</td>`,
-      "Status": `<td><span class="status-badge ${cls}">${r["Status"]}</span></td>`
-    };
-    html += `<tr>${vis.map(c => cells[c] || "<td></td>").join("")}</tr>`;
+    const isOut = r.Status === "Out" || r.Status === "OUT OF STOCK";
+    const isLow = r.Status === "Low" || r.Status === "LOW STOCK";
+    const cls = isOut ? "status-out" : isLow ? "status-low" : "status-ok";
+
+    html += `<tr>${vis.map(c => {
+      const val = r[c] != null ? r[c] : "";
+      if (c === "Item" && r._item && typeof __ipLink === "function") {
+        return `<td class="item-name rpt-cell-item">${__ipLink(r._item)}</td>`;
+      }
+      if (c === "Category" && val) {
+        return `<td class="rpt-cell-cat"><span class="cat-badge">${esc(val)}</span></td>`;
+      }
+      if (c === "Status") {
+        return `<td><span class="status-badge ${cls}">${esc(val)}</span></td>`;
+      }
+      if (numericCols.has(c)) {
+        let colorStyle = "";
+        if (c === "Available" || c === "Good" || c === "Recovered") colorStyle = ' style="color:var(--green)"';
+        else if (c === "Damaged") colorStyle = ' style="color:var(--amber)"';
+        else if (c === "Scrap" || c === "Lost") colorStyle = ' style="color:var(--red)"';
+        return `<td class="qty-strong"${colorStyle}>${esc(val)}</td>`;
+      }
+      return `<td>${esc(val)}</td>`;
+    }).join("")}</tr>`;
   });
-  const numCols = ["Total Qty", "Available", "Issued", "Good", "Damaged", "Scrap", "Lost", "Recovered", "Min Stock"];
-  const tcells = {};
-  vis.forEach(c => {
-    if (c === "Item") tcells[c] = `<td>Total</td>`;
-    else if (numCols.includes(c)) tcells[c] = `<td class="qty-strong">${rows.reduce((a, r) => a + (r[c] || 0), 0)}</td>`;
-    else tcells[c] = `<td></td>`;
-  });
-  html += `<tr class="rpt-total-row">${vis.map(c => tcells[c] || "<td></td>").join("")}</tr>`;
+
+  const hasNumeric = vis.some(c => numericCols.has(c));
+  if (hasNumeric) {
+    const tcells = {};
+    vis.forEach((c, idx) => {
+      if (idx === 0) tcells[c] = `<td><strong>Grand Total</strong></td>`;
+      else if (numericCols.has(c)) {
+        const sum = rows.reduce((a, r) => a + (Number(r[c]) || 0), 0);
+        tcells[c] = `<td class="qty-strong">${sum}</td>`;
+      } else tcells[c] = `<td></td>`;
+    });
+    html += `<tr class="rpt-total-row">${vis.map(c => tcells[c] || "<td></td>").join("")}</tr>`;
+  }
+
   html += `</tbody></table></div>`;
-  html += `<div class="pager" id="pager_rptStock"></div>`;
+  html += `<div class="pager" id="pager_rpt"></div>`;
   $("#reportContent").innerHTML = html;
+
   __rptBindSort();
-  __rptBindSummary();
-  renderPager("rptStock", rows.length, renderMergedReport);
+  if (tab === "mergedReport") __rptBindSummary();
+  renderPager("rpt", rows.length, renderMergedReport);
+}
+
+function renderReports() {
+  const sel = $("#reportTypeSelect");
+  if (sel && sel.value !== __rptActiveType) {
+    sel.value = __rptActiveType;
+  }
+  renderMergedReport();
+  __rptRenderColsMenu();
+  __rptBindCols();
+  __rptBindDrag();
 }
 
 function __rptExportData() {
+  const tab = __rptReportId();
   const dist = getDistricts().find(d => d.id === activeDistrictId);
-  const vis = __rptVisCols("mergedReport");
-  const rows = __rptFilterSort(__rptMergedRows()).map(r => vis.map(c => r[c]));
+  const vis = __rptVisCols(tab);
+  const rows = __rptFilterSort(__rptGetRows(tab), tab);
+  const dataRows = rows.map(r => vis.map(c => r[c] != null ? r[c] : ""));
+
+  const numericCols = new Set(["Total Qty", "Available", "Issued", "Good", "Damaged", "Scrap", "Lost", "Recovered", "Min Stock", "Issued Qty", "Outstanding", "Qty", "Requested Qty", "Approved Qty"]);
+  const hasNumeric = vis.some(c => numericCols.has(c));
+  if (hasNumeric && rows.length > 0) {
+    const totalRow = vis.map((c, idx) => {
+      if (idx === 0) return "Grand Total";
+      if (numericCols.has(c)) {
+        return rows.reduce((a, r) => a + (Number(r[c]) || 0), 0);
+      }
+      return "";
+    });
+    dataRows.push(totalRow);
+  }
+
+  const titleMap = {
+    mergedReport: "Inventory Stock Report",
+    allotmentsReport: "Issued Items / Allotments Report",
+    distributionsReport: "Stock Distributions Report",
+    demandsReport: "Demands & Indents Report",
+    inspectionsReport: "Inspections & Audits Report",
+    maintenanceReport: "Maintenance & Repair Report"
+  };
+  const title = titleMap[tab] || "Report";
+
   return {
-    title: "Inventory Report",
+    title: title,
     subtitle: (dist ? dist.name + " \u00b7 " : "") + "Generated " + new Date().toLocaleString() + " (" + rows.length + " row" + (rows.length === 1 ? "" : "s") + ")",
     cols: vis,
-    rows,
-    fileName: "inventory-report"
+    rows: dataRows,
+    fileName: tab.replace(/[A-Z]/g, m => "-" + m.toLowerCase())
   };
 }
+
 function printRptReport() { printReport(__rptExportData()); }
 function exportRptPDF() { pdfReport(__rptExportData()); }
 function exportRptExcel() { excelReport(__rptExportData()); toast("Excel exported.", "success"); }
@@ -14261,17 +14666,42 @@ if (e.target.closest("[data-ccat-edit]")) startEditConsCat(parseInt(e.target.clo
     if (e.target.closest("[data-loc-del]")) deleteLocation(e.target.closest("[data-loc-del]").dataset.locDel);
   });
 
-  $$(".report-tab").forEach(t => t.addEventListener("click", () => { $$(".report-tab").forEach(rt => rt.classList.remove("active")); t.classList.add("active"); renderReports(); }));
-  $("#reportExportBtn").addEventListener("click", e => { e.stopPropagation(); $("#reportExportMenu").classList.toggle("hidden"); });
+  /* ----- Reports toolbar events ----- */
+  $("#reportTypeSelect")?.addEventListener("change", e => {
+    __rptActiveType = e.target.value;
+    __rptSearch = "";
+    const s = $("#reportSearch");
+    if (s) s.value = "";
+    __pgReset("rpt");
+    renderReports();
+  });
+  let __rptSearchTimer = null;
+  $("#reportSearch")?.addEventListener("input", e => {
+    clearTimeout(__rptSearchTimer);
+    __rptSearchTimer = setTimeout(() => {
+      __rptSearch = e.target.value;
+      __pgReset("rpt");
+      renderReports();
+    }, 150);
+  });
+  $("#reportCategoryFilter")?.addEventListener("change", () => { __pgReset("rpt"); renderReports(); });
+  $("#reportLocationFilter")?.addEventListener("change", () => { __pgReset("rpt"); renderReports(); });
+  $("#reportStatusFilter")?.addEventListener("change", () => { __pgReset("rpt"); renderReports(); });
+  $("#reportExportBtn")?.addEventListener("click", e => { e.stopPropagation(); $("#reportExportMenu")?.classList.toggle("hidden"); });
   $$("#reportExportMenu [data-export]").forEach(b => b.addEventListener("click", () => {
-    $("#reportExportMenu").classList.add("hidden");
+    $("#reportExportMenu")?.classList.add("hidden");
     const t = b.dataset.export;
     if (t === "print") printRptReport();
     else if (t === "pdf") exportRptPDF();
     else if (t === "excel") exportRptExcel();
     else if (t === "word") exportRptWord();
   }));
-  $("#reportSearch")?.addEventListener("input", e => { __rptSearch = e.target.value; renderReports(); });
+  document.addEventListener("click", e => {
+    if (!e.target.closest(".stat-export-dd")) {
+      $("#reportExportMenu")?.classList.add("hidden");
+      $("#rptColsMenu")?.classList.add("hidden");
+    }
+  });
 
   /* ----- Allotments ----- */
   const __allocShowTab = (name) => {

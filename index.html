@@ -1473,24 +1473,54 @@
       </div>
 
 
-<div class="toolbar">
-        <input type="text" id="reportSearch" placeholder="Search reports...">
-        <div class="rpt-tools" id="rptTools">
-          <button class="btn btn-sm btn-outline" id="auditLogBtn" style="display:none">&#128221; Audit Log</button>
-          <button class="btn btn-sm btn-outline" id="backupDBBtn" style="display:none">&#8681; Backup (JSON)</button>
-          <button class="btn btn-sm btn-outline" id="backupExcelBtn" style="display:none">&#8681; Backup (Excel)</button>
-          <button class="btn btn-sm btn-outline" id="restoreDBBtn" style="display:none">&#8635; Restore Data</button>
+      <div class="toolbar" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
+        <div style="min-width:240px;">
+          <select id="reportTypeSelect" class="form-control" style="font-weight:600;height:38px;">
+            <option value="mergedReport">📦 Inventory Stock Report</option>
+            <option value="allotmentsReport">👤 Issued Items / Allotments Report</option>
+            <option value="distributionsReport">🚚 Stock Distributions Report</option>
+            <option value="demandsReport">📋 Demands & Indents Report</option>
+            <option value="inspectionsReport">🔍 Inspections & Audits Report</option>
+            <option value="maintenanceReport">🛠 Maintenance & Repair Report</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:180px;">
+          <input type="text" id="reportSearch" class="form-control" placeholder="Search reports..." style="height:38px;width:100%;">
+        </div>
+        <div id="reportCategoryWrap" style="min-width:160px;">
+          <select id="reportCategoryFilter" class="form-control" style="height:38px;width:100%;">
+            <option value="all">All Categories</option>
+          </select>
+        </div>
+        <div id="reportLocationWrap" style="min-width:160px;">
+          <select id="reportLocationFilter" class="form-control" style="height:38px;width:100%;">
+            <option value="all">All Locations / Thanas</option>
+          </select>
+        </div>
+        <div id="reportStatusWrap" style="min-width:140px;">
+          <select id="reportStatusFilter" class="form-control" style="height:38px;width:100%;">
+            <option value="all">All Statuses</option>
+            <option value="OK">In Stock / OK</option>
+            <option value="Low">Low Stock</option>
+            <option value="Out">Out of Stock</option>
+          </select>
+        </div>
+        <div class="rpt-tools" id="rptTools" style="display:none">
+          <button class="btn btn-sm btn-outline" id="auditLogBtn">&#128221; Audit Log</button>
+          <button class="btn btn-sm btn-outline" id="backupDBBtn">&#8681; Backup (JSON)</button>
+          <button class="btn btn-sm btn-outline" id="backupExcelBtn">&#8681; Backup (Excel)</button>
+          <button class="btn btn-sm btn-outline" id="restoreDBBtn">&#8635; Restore Data</button>
         </div>
         <div class="stat-export-dd">
-          <button class="btn btn-sm btn-outline" id="rptColsBtn">&#9636; Columns <span class="ee-caret">&#9662;</span></button>
+          <button class="btn btn-sm btn-outline" id="rptColsBtn" style="height:38px;">&#9636; Columns <span class="ee-caret">&#9662;</span></button>
           <div class="stat-export-menu hidden" id="rptColsMenu"></div>
         </div>
         <div class="stat-export-dd">
-          <button class="btn btn-sm btn-outline" id="reportExportBtn">Download / Print <span class="ee-caret">&#9662;</span></button>
+          <button class="btn btn-sm btn-primary" id="reportExportBtn" style="height:38px;">Download / Print <span class="ee-caret">&#9662;</span></button>
           <div class="stat-export-menu hidden" id="reportExportMenu">
+            <button data-export="excel"><span class="ee-ic">&#128229;</span> Download Excel (.xlsx)</button>
             <button data-export="pdf"><span class="ee-ic">&#128196;</span> Download PDF</button>
-            <button data-export="excel"><span class="ee-ic">&#128229;</span> Download Excel</button>
-            <button data-export="word"><span class="ee-ic">&#128220;</span> Download Word</button>
+            <button data-export="word"><span class="ee-ic">&#128220;</span> Download Word (.doc)</button>
             <button data-export="print"><span class="ee-ic">&#128424;</span> Print</button>
           </div>
         </div>
