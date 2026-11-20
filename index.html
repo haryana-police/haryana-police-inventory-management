@@ -4006,11 +4006,11 @@
         <div class="form-group">
           <label style="display:block;margin-bottom:6px;font-weight:500;">Attachment <span style="font-size:12px;color:var(--text-muted);font-weight:normal;">(Optional &mdash; Photo, Video, PDF, or Text/Log up to 12 MB)</span></label>
           <div class="file-picker-box" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px dashed var(--border-color,#cbd5e1);border-radius:6px;background:var(--bg-subtle,#f8fafc);">
-            <label class="btn btn-sm btn-outline file-btn" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-weight:500;">
+            <label for="grievanceFileInput" class="btn btn-sm btn-outline file-btn" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-weight:500;">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
               <span>Choose File</span>
-              <input type="file" id="grievanceFileInput" class="hidden-file-input" accept="image/*,video/*,application/pdf,text/plain">
             </label>
+            <input type="file" id="grievanceFileInput" class="hidden-file-input" accept="image/*,video/*,application/pdf,text/plain" style="display:none !important;" hidden>
             <span id="grievanceFileName" style="font-size:13px;color:var(--text-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">No file selected</span>
             <button type="button" id="grievanceFileClearBtn" class="btn btn-sm btn-outline hidden" style="padding:2px 8px;font-size:13px;line-height:1;" title="Remove chosen file">&times;</button>
           </div>
@@ -4078,11 +4078,11 @@
           <div class="form-group" style="margin-bottom:12px;">
             <label style="display:block;margin-bottom:6px;font-size:13px;font-weight:500;">Attach Document or Photo <span style="font-size:12px;color:var(--text-muted);font-weight:normal;">(Optional)</span></label>
             <div class="file-picker-box" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px dashed var(--border-color,#cbd5e1);border-radius:6px;background:var(--bg-subtle,#f8fafc);">
-              <label class="btn btn-sm btn-outline file-btn" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-weight:500;">
+              <label for="grievanceActionFile" class="btn btn-sm btn-outline file-btn" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-weight:500;">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                 <span>Choose File</span>
-                <input type="file" id="grievanceActionFile" class="hidden-file-input" accept="image/*,video/*,application/pdf,text/plain">
               </label>
+              <input type="file" id="grievanceActionFile" class="hidden-file-input" accept="image/*,video/*,application/pdf,text/plain" style="display:none !important;" hidden>
               <span id="grievanceActionFileName" style="font-size:13px;color:var(--text-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">No file selected</span>
               <button type="button" id="grievanceActionFileClearBtn" class="btn btn-sm btn-outline hidden" style="padding:2px 8px;font-size:13px;line-height:1;" title="Remove chosen file">&times;</button>
             </div>

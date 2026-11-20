@@ -1522,7 +1522,17 @@ tr.row-flash { animation: rowFlash 2.4s ease-out; }
 .rpt-tools { display: inline-flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
 
 /* ==================== BULK ITEM IMPORT ==================== */
-.hidden-file-input { display: none; }
+.hidden-file-input,
+input[type="file"].hidden-file-input,
+.modal input[type="file"].hidden-file-input {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  pointer-events: none !important;
+}
 .file-btn { cursor: pointer; }
 .import-help { font-size: .83rem; color: var(--muted); line-height: 1.5; margin-bottom: 14px; }
 .import-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
