@@ -52,6 +52,13 @@ test("request creation is pending and identities come from the authenticated act
   assert.equal(original[key("distributions_a")].length, 0);
 });
 
+test("developer account access keeps the selected sender while ordinary users cannot impersonate", () => {
+  const selected = Ledger.execute(fixture(), developer, createCommand({ actingUserId: sender.id }), options()).state;
+  assert.equal(record(selected).fromUserId, sender.id);
+  const ordinary = Ledger.execute(fixture(), sender, createCommand({ actingUserId: developer.id }), options()).state;
+  assert.equal(record(ordinary).fromUserId, sender.id);
+});
+
 test("unrelated users cannot create, approve, reject, edit or delete another unit's stock request", () => {
   assert.throws(() => Ledger.execute(fixture(), outsider, createCommand(), options()), /authorised source/);
   const { state, id } = pending();
@@ -261,6 +268,49 @@ test("stale partial decisions and fractional receipt quantities are rejected", (
   assert.throws(() => Ledger.execute(partial, receiver, decision(id, "approve", {
     expectedRevision: 0, approvals: [{ key: lineKey, qty: 1 }]
   }), options()), /changed/);
+});
+
+test("multiple recipients reserve the combined quantity atomically", () => {
+  const original = fixture();
+  const command = createCommand({ targets: [{ type: "unit", districtId: "a", locationId: "recipient" },
+    { type: "unit", districtId: "a", locationId: "other" }],
+    items: [{ fromItemId: "radio", categoryId: "cat-a", condition: "good", qty: 4 }] });
+  assert.throws(() => Ledger.execute(original, sender, command, options()), /reserve|unreserved/);
+  assert.equal(original[key("distributions_a")].length, 0);
+  command.items[0].qty = 2;
+  const next = Ledger.execute(original, sender, command, options()).state;
+  assert.equal(next[key("distributions_a")].length, 2);
+  assert.equal(Ledger.reserved(next, "a", source(next)), 4);
+});
+
+test("consumable mirrors remain tied to their authorised ledger", () => {
+  const previous = fixture(), next = structuredClone(previous);
+  const request = { id: "cons-request", type: "DISTRIBUTION_REQUEST", itemId: "paper", qty: 2,
+    byId: sender.id, toType: "unit", toId: "recipient" };
+  next[key("consumable_txns")] = { a: [request] };
+  next[key("distributions_a")].push({ id: request.id, isConsumable: true, fromDistrictId: "a", toDistrictId: "a",
+    fromUserId: sender.id, toType: "unit", toLocationId: "recipient", status: "pending",
+    items: [{ fromItemId: "paper", qty: 2 }] });
+  assert.equal(Distribution.guardStateWrites(sender, previous, next), null);
+  const forged = structuredClone(next); record(forged).status = "completed";
+  assert.equal(Distribution.guardStateWrites(outsider, next, forged).status, 403);
+  const deleted = structuredClone(next); deleted[key("distributions_a")] = [];
+  assert.equal(Distribution.guardStateWrites(developer, next, deleted).status, 403);
+  deleted[key("consumable_txns")].a = [];
+  assert.equal(Distribution.guardStateWrites(developer, next, deleted), null);
+});
+
+test("API reservation validation also blocks inventory writes consuming pending stock", async () => {
+  const api = apiHarness();
+  await api.post("distribution", { command: createCommand(), requestId: "reserve" });
+  const previous = api.state(), visible = structuredClone(RBAC.projectStateFor(sender, previous));
+  visible[key("users")] = visible[key("users")].map(user => { delete user.password; return user; });
+  const next = structuredClone(visible); source(next).allotted = 8;
+  const response = await api.post("state", { state: next, changedKeys: [key("items")],
+    baseState: { [key("items")]: visible[key("items")] }, requestId: "consume-reserved" });
+  assert.equal(response.status, 400);
+  assert.match(response.result.error, /unreserved/);
+  assert.equal(source(api.state()).allotted, undefined);
 });
 
 function apiHarness(initial = fixture()) {

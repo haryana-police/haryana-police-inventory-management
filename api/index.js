@@ -490,20 +490,22 @@ function rtDiffState(prev, next) {
           payload: { distributionId: d.id, fromDistrictId: fromDist, toDistrictId: d.toDistrictId },
           dedupe: 'distribution:' + d.id,
         });
-      } else if (o.status !== d.status) {
-        const evType = d.status === 'completed' ? 'DISTRIBUTION_APPROVED' : d.status === 'rejected' ? 'DISTRIBUTION_REJECTED' : null;
-        if (evType) {
-          events.push({
-            type: evType,
-            title: evType === 'DISTRIBUTION_APPROVED' ? 'Distribution Approved' : 'Distribution Rejected',
-            message: evType === 'DISTRIBUTION_APPROVED'
-              ? `Distribution of ${itemsTxt} to ${toTxt} was approved by ${d.approvedBy || d.approvedByName || 'the receiving unit'}.`
-              : `Distribution of ${itemsTxt} to ${toTxt} was rejected. Reason: ${d.rejectRemark || d.actionRemarks || 'Not accepted'}`,
-            scope: d.fromUserId ? { users: [d.fromUserId] } : { districts: [fromDist], locations: [d.fromLocationId].filter(Boolean) },
-            payload: { distributionId: d.id, fromDistrictId: fromDist, toDistrictId: d.toDistrictId },
-            dedupe: 'distribution:' + d.id + ':' + d.status,
-          });
-        }
+      } else if (o.revision !== d.revision || o.status !== d.status) {
+        const received = record => (record.items || []).reduce((sum, line) => sum + (line.approvedQty || 0), 0);
+        const approved = received(d) > received(o) || (d.status === 'completed' && o.status !== 'completed');
+        const rejected = d.rejectedAt && d.rejectedAt !== o.rejectedAt;
+        const cancelled = d.status === 'cancelled' && o.status !== 'cancelled';
+        const type = cancelled ? 'DISTRIBUTION_CANCELLED' : rejected ? 'DISTRIBUTION_REJECTED' : approved
+          ? (d.status === 'completed' ? 'DISTRIBUTION_APPROVED' : 'DISTRIBUTION_PARTIALLY_APPROVED') : 'DISTRIBUTION_UPDATED';
+        const notifySender = approved || rejected;
+        events.push({
+          type, title: 'Distribution ' + (cancelled ? 'Cancelled' : rejected ? 'Rejected' : approved ? 'Received' : 'Updated'),
+          message: (d.distNo || 'Distribution') + ' — ' + (cancelled ? 'Pending quantities cancelled.' : rejected ? d.rejectRemark : approved ? 'Received ' + received(d) + ' item(s).' : 'Pending quantities updated.'),
+          scope: notifySender && d.fromUserId ? { users: [d.fromUserId] } :
+            { districts: [d.toDistrictId], ...(d.toType === 'admin' ? { roles: ['admin'] } : { locations: [d.toLocationId].filter(Boolean) }) },
+          payload: { distributionId: d.id, fromDistrictId: fromDist, toDistrictId: d.toDistrictId },
+          dedupe: 'distribution:' + d.id + ':' + type + ':' + (d.revision || d.updatedAt || d.status),
+        });
       }
     }
   }
@@ -639,15 +641,16 @@ async function route(req, res) {
       const changed = (state['hp_inventory.distributions_' + districtId] || []).filter(record =>
         (result.ids || [result.id]).includes(record.id));
       for (const record of changed) {
-        if (!['create', 'approve', 'reject'].includes(body.command.action)) continue;
-        const destination = body.command.action === 'create' ? record.toDistrictId : record.fromDistrictId;
+        if (!['create', 'approve', 'reject', 'amend', 'cancel'].includes(body.command.action)) continue;
+        const notifyRecipient = ['create', 'amend', 'cancel'].includes(body.command.action);
+        const destination = notifyRecipient ? record.toDistrictId : record.fromDistrictId;
         const notifications = state['hp_inventory.notifications_' + destination] ||= [];
-        const notificationType = { create: 'distribution_received', approve: 'distribution_approved', reject: 'distribution_rejected' }[body.command.action];
+        const notificationType = { create: 'distribution_received', approve: 'distribution_approved', reject: 'distribution_rejected', amend: 'distribution_received', cancel: 'distribution_rejected' }[body.command.action];
         notifications.unshift({ id: crypto.randomUUID(), type: notificationType,
-          title: 'Distribution ' + (body.command.action === 'create' ? 'Received' : record.status),
+          title: 'Distribution ' + ({ create: 'Received', approve: record.status === 'completed' ? 'Approved' : 'Partially Approved', reject: 'Rejected', amend: 'Updated', cancel: 'Cancelled' })[body.command.action],
           message: record.distNo + ' — ' + (user.name || user.username), distributionId: record.id,
-          targetUserId: body.command.action === 'create' ? record.toUserId : record.fromUserId,
-          targetLocId: body.command.action === 'create' ? record.toLocationId : record.fromLocationId,
+          targetUserId: notifyRecipient ? record.toUserId : record.fromUserId,
+          targetLocId: notifyRecipient ? record.toLocationId : record.fromLocationId,
           createdAt: now, read: false });
       }
       await setState(state);

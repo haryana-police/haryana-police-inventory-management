@@ -6735,13 +6735,14 @@ async function __distributionCommand(command, requestId = uid()) {
   const previous = __distState();
   const receipts = previous[STORAGE_PREFIX + "distribution_receipts"] || [];
   const fingerprint = JSON.stringify(command);
-  const receiptId = currentUser.id + ":" + requestId;
+  const actor = signedInUser();
+  const receiptId = actor.id + ":" + requestId;
   const receipt = receipts.find(row => row.id === receiptId);
   if (receipt) {
     if (receipt.fingerprint !== fingerprint) throw new Error("This submission changed. Open it again.");
     return receipt.result;
   }
-  const { state, result } = DistributionLedger.execute(previous, currentUser, command, { now: Date.now(), id: uid });
+  const { state, result } = DistributionLedger.execute(previous, actor, command, { now: Date.now(), id: uid });
   state[STORAGE_PREFIX + "distribution_receipts"] = [...receipts.slice(-499), { id: receiptId, fingerprint, result }];
   for (const [key, value] of Object.entries(state)) {
     if (JSON.stringify(value) !== JSON.stringify(previous[key])) saveData(key.slice(STORAGE_PREFIX.length), value);
@@ -7117,6 +7118,7 @@ async function commitDistribution() {
   const fromLocationId = getLocations().some(location => location.id === currentUser.locationId)
     ? currentUser.locationId : planned.find(line => line.fromLocationId)?.fromLocationId || __distHQLocation(activeDistrictId)?.id;
   const command = { action: __distEditing ? "amend" : "create", districtId: activeDistrictId, fromLocationId,
+    ...(developerAccount ? { actingUserId: currentUser.id } : {}),
     ...(__distEditing ? { storeId: __distEditing.__storeId || __distEditing.fromDistrictId, id: __distEditing.id, expectedRevision: __distEditing.revision || 0, expectedUpdatedAt: __distEditing.updatedAt || __distEditing.createdAt } : {}),
     targets: targets.map(({ type, districtId, locationId }) => ({ type, districtId, locationId })),
     items: planned, attachments, remarks: $("#distRemarks").value.trim() };

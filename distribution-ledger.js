@@ -88,7 +88,9 @@
     if (user.role === "devadmin") return true;
     if (!scope(user, record.toDistrictId)) return false;
     if (record.toType === "admin") return user.role === "admin" && user.districtId === record.toDistrictId;
-    if (record.toUserId) return user.id === record.toUserId;
+    const namedRecipient = list(state, "users").find(account => account.id === record.toUserId && account.active !== false &&
+      account.districtId === record.toDistrictId && account.locationId === record.toLocationId);
+    if (namedRecipient) return user.id === namedRecipient.id;
     if (user.locationId === record.toLocationId && user.districtId === record.toDistrictId) return true;
     const assigned = list(state, "users").some(account => account.active !== false &&
       account.districtId === record.toDistrictId && account.locationId === record.toLocationId);
@@ -219,6 +221,9 @@
   }
   function create(state, user, command, now, id) {
     const districtId = command.districtId;
+    const sender = user.role === "devadmin" && command.actingUserId
+      ? list(state, "users").find(account => account.id === command.actingUserId && account.active !== false && account.districtId === districtId) : user;
+    if (!sender) fail("The selected account no longer belongs to this district.");
     if (!scope(user, districtId)) fail("You cannot distribute stock from this district.", 403);
     const locationId = command.fromLocationId || user.locationId;
     const locations = districtList(state, "locations", districtId);
@@ -237,6 +242,11 @@
       if (target.type === "unit" && target.districtId !== districtId) fail("Cross-district stock must be sent to the receiving District Admin.");
       if (target.type === "admin" && target.districtId !== districtId && !["devadmin", "ig", "admin"].includes(user.role)) fail("Only administrators may distribute to other districts.", 403);
       if (target.type === "unit" && location.type === "district") fail("Select District Admin for the district headquarters.");
+      if (target.type === "admin") {
+        const adminLocation = list(state, "users").some(account => account.active !== false && account.role === "admin" &&
+          account.districtId === target.districtId && account.locationId === location.id);
+        if (!adminLocation && !["district", "otherHq"].includes(location.type)) fail("Select the configured District Admin headquarters.");
+      }
       if (lines.some(line => target.districtId === districtId && line.fromLocationId === location.id)) fail("Source and receiving locations must be different.");
       const key = JSON.stringify([target.type, target.districtId, location.id]);
       if (targetKeys.has(key)) fail("A recipient was selected more than once.");
@@ -248,7 +258,7 @@
       state[prefix + "distSeq"] = seq;
       const record = { id: id(), distNo: "DIST-" + String(seq).padStart(6, "0"), remarks: String(command.remarks || ""),
         fromDistrictId: districtId, fromDistrictName: district.name, fromLocationId: locationId,
-        fromLocationName: locations.find(row => row.id === locationId).name, fromUserId: user.id, fromUserName: user.name || user.username,
+        fromLocationName: locations.find(row => row.id === locationId).name, fromUserId: sender.id, fromUserName: sender.name || sender.username,
         toType: target.type, toDistrictId: target.districtId, toDistrictName: targetDistrict.name,
         toLocationId: location.id, toLocationName: location.name, toName: target.type === "admin" ? targetDistrict.name + " (Admin)" : location.name,
         toUserId: receiver?.id || null, toUserName: receiver?.name || "", items: structuredClone(lines),

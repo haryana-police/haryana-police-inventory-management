@@ -8,9 +8,12 @@ function guardStateWrites(user, previous, next) {
   for (const key of new Set([...Object.keys(previous), ...Object.keys(next)])) {
     if (!key.startsWith(prefix) || stableStringify(previous[key]) === stableStringify(next[key])) continue;
     if (!user) return { status: 401, error: "Sign in to manage distributions." };
-    const oldRows = previous[key] || [];
+    const oldRows = Array.isArray(previous[key]) ? previous[key] : [];
     const newRows = next[key] || [];
     if (!Array.isArray(newRows)) return { status: 400, error: "Invalid distribution records." };
+    if (newRows.some(row => !row || typeof row.id !== "string") || new Set(newRows.map(row => row.id)).size !== newRows.length) {
+      return { status: 400, error: "Distribution records require unique IDs." };
+    }
     const district = key.slice(prefix.length);
     const transactions = next["hp_inventory.consumable_txns"]?.[district] || [];
     for (const id of new Set([...oldRows.map(row => row.id), ...newRows.map(row => row.id)])) {
@@ -28,7 +31,7 @@ function guardStateWrites(user, previous, next) {
       }
       if (!row && !request) continue;
       const line = row?.items?.[0];
-      if (!request || row.items?.length !== 1 || line.fromItemId !== request.itemId ||
+      if (!row || !request || row.items?.length !== 1 || !line || line.fromItemId !== request.itemId ||
         Number(line.qty) !== Number(request.qty) || row.fromDistrictId !== district || row.toDistrictId !== district ||
         row.fromUserId !== request.byId || row.toType !== request.toType ||
         (request.toType === "unit" ? row.toLocationId !== request.toId : row.toUserId !== request.toId)) {
