@@ -1,3 +1,26 @@
+.police-lands-header p { margin: 4px 0 0; color: var(--muted); }
+.police-lands-layout { display: grid; grid-template-columns: minmax(235px, 1fr) minmax(0, 2fr); gap: 16px; align-items: start; }
+.police-lands-panel { min-width: 0; padding: 16px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+.police-lands-panel h3 { margin: 0 0 12px; }
+#policeLandsList { display: grid; gap: 8px; max-height: 340px; overflow: auto; }
+.police-lands-record { display: grid; gap: 4px; width: 100%; padding: 10px; text-align: left; overflow-wrap: anywhere; cursor: pointer; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.police-lands-record:hover { border-color: var(--primary-light); }
+.police-lands-record span, #policeLandsDetails dt { color: var(--muted); font-size: 0.88rem; }
+#policeLandsDetails dl { margin: 16px 0 0; border-top: 1px solid var(--border); padding-top: 12px; }
+#policeLandsDetails dd { margin: 2px 0 8px; overflow-wrap: anywhere; }
+#policeLandsMap { height: clamp(340px, 56vh, 620px); border-radius: var(--radius-sm); isolation: isolate; }
+#policeLandsForm { margin-bottom: 16px; }
+.police-lands-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 165px), 1fr)); gap: 12px; }
+.police-lands-fields label { display: grid; gap: 4px; font-size: 0.88rem; font-weight: 600; }
+.police-lands-fields input, .police-lands-fields select { min-width: 0; width: 100%; padding: 8px; color: var(--text); background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; }
+.police-lands-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+#policeLandsStatus:empty, #policeLandsFormStatus:empty { display: none; }
+#policeLandsRetry { margin-bottom: 12px; }
+@media (max-width: 760px) {
+  .police-lands-layout { grid-template-columns: minmax(0, 1fr); }
+  #policeLandsList { max-height: 230px; }
+}
+
 :root {
   --bg: #f3f5f9;
   --card: #ffffff;

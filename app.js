@@ -2086,6 +2086,7 @@ function switchTab(name) {
   __resetPageScrollToTop();
   if (name === "dashboard") __rtRenderFeed();
   if (name === "grievances") window.loadGrievances?.(true);
+  if (name === "police-lands") window.renderPoliceLands?.(true);
   try { render(); } catch (e) { console.error("render failed:", e); }
   setTimeout(__resetPageScrollToTop, 10);
   setTimeout(__resetPageScrollToTop, 50);
@@ -2105,6 +2106,7 @@ function render() {
   renderDistribution();
   renderMaintenance();
   renderShramDaan();
+  window.renderPoliceLands?.();
   const allocView = $("#view-allotments");
   if (allocView && !allocView.classList.contains("hidden")) renderAllotments();
   const invView = $("#view-inventory");

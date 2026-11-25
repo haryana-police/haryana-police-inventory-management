@@ -22,6 +22,8 @@ const crypto = require('crypto');
 const { guardInspectionWrites, canAccessInspectionUnit, inspectionAttachmentScopes, guardShramDaanWrites, projectStateFor, restoreScopeFor, ITEM_STORE_KEY, diffItemWrites, authorizeItemWrites, authorizeUserCollectionWrite, diffConsumableWrites, authorizeConsumableWrites, diffStructureWrites, authorizeStructureWrites, diffMaintenanceWrites, authorizeMaintenanceWrites, finalizeMaintenanceState, MAINT_KEY_PREFIX } = require('./_rbac');
 const pool = new Pool();
 const Distribution = require('./_distribution');
+const { inDistrictScope } = require('./_rbac');
+const POLICE_LANDS_KEY = 'hp_inventory.police_lands';
 
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 const BCRYPT_ROUNDS = 12;
@@ -606,6 +608,47 @@ async function route(req, res) {
   }
   const body = req.body || {};
   const p0 = seg[0];
+  if (p0 === 'police-lands' && seg.length === 2 && ['GET', 'POST'].includes(req.method)) {
+    const { user } = await authFromRequest(req);
+    if (!user) return res.status(401).json({ error: 'Sign in to access Police Lands.' });
+    const districtId = seg[1];
+    const state = await getState();
+    if (!inDistrictScope(user, districtId) || !(state['hp_inventory.districts'] || []).some(district => district.id === districtId)) {
+      return res.status(403).json({ error: 'This district is outside your Police Lands access.' });
+    }
+    const districtWide = ['devadmin', 'admin', 'ig'].includes(user.role);
+    const canAdd = districtWide || Boolean(user.locationId);
+    const allRecords = state[POLICE_LANDS_KEY] || [];
+    const records = allRecords.filter(record => record.districtId === districtId &&
+      (districtWide || (user.locationId && record.locationId === user.locationId)));
+    if (req.method === 'GET') return res.json({ records, canAdd });
+    if (!canAdd) return res.status(403).json({ error: 'Assign a unit before adding a land record.' });
+    const { id, latitude, longitude, area, areaUnit, type } = body;
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    const owner = typeof body.owner === 'string' ? body.owner.trim() : '';
+    if (typeof id !== 'string' || !/^[a-z0-9-]{12,80}$/i.test(id) ||
+        !name || name.length > 160 || !owner || owner.length > 160 ||
+        !['Police Station', 'Chowki', 'Police Lines', 'Other'].includes(type) ||
+        !['sq m', 'sq ft', 'acre', 'hectare', 'kanal', 'marla'].includes(areaUnit) ||
+        !Number.isFinite(area) || area <= 0 ||
+        !Number.isFinite(latitude) || Math.abs(latitude) > 90 ||
+        !Number.isFinite(longitude) || Math.abs(longitude) > 180) {
+      return res.status(400).json({ error: 'Enter a land name, property type, owner, valid coordinates and a positive area.' });
+    }
+    const existing = allRecords.find(record => record.id === id);
+    if (existing) {
+      if (existing.createdBy === user.id && records.includes(existing) &&
+          [name, owner, type, area, areaUnit, latitude, longitude].every((value, index) =>
+            value === [existing.name, existing.owner, existing.type, existing.area, existing.areaUnit, existing.latitude, existing.longitude][index])) {
+        return res.json({ record: existing });
+      }
+      return res.status(409).json({ error: 'This entry was already submitted. Reload the register before retrying.' });
+    }
+    const record = { id, name, owner, type, area, areaUnit, latitude, longitude, districtId,
+      locationId: user.districtId === districtId ? user.locationId || null : null, createdBy: user.id };
+    await setState({ ...state, [POLICE_LANDS_KEY]: [record, ...allRecords] });
+    return res.status(201).json({ record });
+  }
   if (p0 === 'distribution' && req.method === 'POST') {
     const { user } = await authFromRequest(req);
     if (!user) return res.status(401).json({ error: 'Sign in to manage distributions.' });
@@ -933,7 +976,7 @@ function validateAllocState(state, previousState = {}) {
     const scoped = projectStateFor(stateUser, state);
     const publicState = {};
     for (const [k, v] of Object.entries(scoped)) {
-      if (k === TOKEN_KEY) continue;
+      if (k === TOKEN_KEY || k === POLICE_LANDS_KEY) continue;
       if (k.indexOf(SCAN_FILES_PREFIX) === 0) continue; // scan files stay out of full state
       if (k === 'hp_inventory.users' && Array.isArray(v)) {
         publicState[k] = v.map(publicUser).filter(Boolean);
@@ -971,7 +1014,7 @@ function validateAllocState(state, previousState = {}) {
     if (Array.isArray(body.changedKeys) && body.baseState) {
       const merged = { ...visible };
       for (const key of body.changedKeys) {
-        if (key === receiptsKey || key === TOKEN_KEY) continue;
+        if (key === receiptsKey || key === TOKEN_KEY || key === POLICE_LANDS_KEY) continue;
         if (!Object.prototype.hasOwnProperty.call(body.state, key)) return res.status(400).json({ error: 'Missing changed state value.' });
         if (stableStringify(visible[key] ?? null) !== stableStringify(body.baseState[key] ?? null)) {
           return res.status(409).json({ error: 'Another user changed this data. Latest records have been loaded. Review them before saving again.', key });
@@ -983,6 +1026,8 @@ function validateAllocState(state, previousState = {}) {
       return res.status(409).json({ error: 'Refresh this page to use the current stock save workflow.' });
     }
     let incoming = restoreScopeFor(writeUser, current, body.state);
+    if (current[POLICE_LANDS_KEY]) incoming[POLICE_LANDS_KEY] = current[POLICE_LANDS_KEY];
+    else delete incoming[POLICE_LANDS_KEY];
     const inspectionVerdict = guardInspectionWrites(writeUser, current, incoming);
     if (inspectionVerdict) return res.status(inspectionVerdict.status).json({ error: inspectionVerdict.error });
     const shramVerdict = guardShramDaanWrites(writeUser, current, incoming);
@@ -1165,6 +1210,7 @@ function validateAllocState(state, previousState = {}) {
   // ---------- SAVE A SINGLE KEY (incremental) ----------
   if (p0 === 'key' && req.method === 'POST') {
     if (typeof body.key !== "string" || !body.key || !body.value) return res.status(400).json({ error: 'key and value required' });
+    if (body.key === POLICE_LANDS_KEY) return res.status(403).json({ error: 'Use the Police Lands register.' });
     if (body.key.startsWith('hp_inventory.inspections_') || body.key.startsWith(SCAN_FILES_PREFIX)) {
       const { user } = await authFromRequest(req);
       return res.status(user ? 403 : 401).json({ error: 'Use the authorised inspection or attachment workflow.' });
@@ -1375,6 +1421,7 @@ function validateAllocState(state, previousState = {}) {
       seedState['hp_inventory.users'] = await hashAllPasswords(seedState['hp_inventory.users']);
     }
     delete seedState[TOKEN_KEY];
+    delete seedState[POLICE_LANDS_KEY];
     await setState(seedState);
     return res.json({ ok: true, existed: false });
   }
