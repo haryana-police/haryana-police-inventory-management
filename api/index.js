@@ -608,7 +608,10 @@ async function route(req, res) {
   }
   const body = req.body || {};
   const p0 = seg[0];
-  if (p0 === 'police-lands' && seg.length === 2 && ['GET', 'POST'].includes(req.method)) {
+  if (p0 === 'police-lands' && (
+    (seg.length === 2 && ['GET', 'POST'].includes(req.method)) ||
+    (seg.length === 3 && ['PUT', 'DELETE'].includes(req.method))
+  )) {
     const { user } = await authFromRequest(req);
     if (!user) return res.status(401).json({ error: 'Sign in to access Police Lands.' });
     const districtId = seg[1];
@@ -622,18 +625,34 @@ async function route(req, res) {
     const records = allRecords.filter(record => record.districtId === districtId &&
       (districtWide || (user.locationId && record.locationId === user.locationId)));
     if (req.method === 'GET') return res.json({ records, canAdd });
-    if (!canAdd) return res.status(403).json({ error: 'Assign a unit before adding a land record.' });
-    const { id, latitude, longitude, area, areaUnit, type } = body;
+    if (!canAdd) return res.status(403).json({ error: 'Assign a unit before changing land records.' });
+    const target = seg.length === 3 ? records.find(record => record.id === seg[2]) : null;
+    if (seg.length === 3 && !target) return res.status(404).json({ error: 'Land record not found in your register.' });
+    if (target && body.revision !== (target.revision ?? 0)) {
+      return res.status(409).json({ error: 'This land record changed. Reopen Police Lands to load the latest record.' });
+    }
+    if (req.method === 'DELETE') {
+      await setState({ ...state, [POLICE_LANDS_KEY]: allRecords.filter(record => record !== target) });
+      return res.json({ ok: true });
+    }
+    const { latitude, longitude, area, areaUnit, type } = body;
+    const id = target ? target.id : body.id;
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     const owner = typeof body.owner === 'string' ? body.owner.trim() : '';
     if (typeof id !== 'string' || !/^[a-z0-9-]{12,80}$/i.test(id) ||
         !name || name.length > 160 || !owner || owner.length > 160 ||
-        !['Police Station', 'Chowki', 'Police Lines', 'Other'].includes(type) ||
+        !['Police Station', 'Chowki', 'Police Lines', 'Offices', 'Other'].includes(type) ||
         !['sq m', 'sq ft', 'acre', 'hectare', 'kanal', 'marla'].includes(areaUnit) ||
         !Number.isFinite(area) || area <= 0 ||
         !Number.isFinite(latitude) || Math.abs(latitude) > 90 ||
         !Number.isFinite(longitude) || Math.abs(longitude) > 180) {
       return res.status(400).json({ error: 'Enter a land name, property type, owner, valid coordinates and a positive area.' });
+    }
+    const fields = { name, owner, type, area, areaUnit, latitude, longitude };
+    if (target) {
+      const record = { ...target, ...fields, revision: (target.revision ?? 0) + 1 };
+      await setState({ ...state, [POLICE_LANDS_KEY]: allRecords.map(entry => entry === target ? record : entry) });
+      return res.json({ record });
     }
     const existing = allRecords.find(record => record.id === id);
     if (existing) {
@@ -644,7 +663,7 @@ async function route(req, res) {
       }
       return res.status(409).json({ error: 'This entry was already submitted. Reload the register before retrying.' });
     }
-    const record = { id, name, owner, type, area, areaUnit, latitude, longitude, districtId,
+    const record = { id, ...fields, districtId,
       locationId: user.districtId === districtId ? user.locationId || null : null, createdBy: user.id };
     await setState({ ...state, [POLICE_LANDS_KEY]: [record, ...allRecords] });
     return res.status(201).json({ record });
